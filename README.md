@@ -18,7 +18,7 @@ production skin თეთრ ფონზე, საფრონისფერ�
 ## ინსტალაცია (Windows)
 
 ```bash
-cd D:\_MAX\_USA\ronnys-next
+cd C:\Users\levan\projects\webertela-restaurant
 pnpm install      # ან npm install
 pnpm dev          # http://localhost:3000
 ```

@@ -1,8 +1,8 @@
 {
-  "name": "ronnys-next",
+  "name": "webertela-restaurant",
   "version": "1.0.0",
   "private": true,
-  "description": "Ronny's Pizza — Next.js (App Router) ordering app",
+  "description": "Ronny's Pizza \u2014 Next.js (App Router) ordering app",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

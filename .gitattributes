@@ -1,0 +1,27 @@
+# This repository is developed on Windows and runs on Linux. Without this file
+# Git checks every source file out with CRLF, then reports all 232 of them as
+# modified — and if that is ever committed, the shell scripts break on the
+# server with the famously unhelpful:
+#     scripts/telegram-low-stock.mjs: line 2: $'\r': command not found
+#
+# Everything is stored and checked out as LF. Windows batch files are the one
+# exception, because cmd.exe wants CRLF.
+
+* text=auto eol=lf
+
+*.sh        text eol=lf
+*.mjs       text eol=lf
+*.service   text eol=lf
+*.conf      text eol=lf
+Caddyfile*  text eol=lf
+
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.webp binary
+*.ico  binary
+*.woff2 binary
+*.pdf  binary
