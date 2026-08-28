@@ -2,7 +2,7 @@
   "name": "webertela-restaurant",
   "version": "1.0.0",
   "private": true,
-  "description": "Ronny's Pizza \u2014 Next.js (App Router) ordering app",
+  "description": "Ronny's Pizza — Next.js (App Router) ordering app",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -14,7 +14,7 @@
     "bcryptjs": "^3.0.3",
     "firebase": "^12.16.0",
     "jose": "^6.2.8",
-    "next": "15.5.4",
+    "next": "^15.5.7",
     "prisma": "^6.19.3",
     "react": "19.1.0",
     "react-dom": "19.1.0"
