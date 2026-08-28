@@ -256,6 +256,19 @@ model Product {
   subcategoryId String?
   type          ProductType @default(item)
 
+  // ── capabilities ──
+  // What a product *is* used to be a category; what it *supports* is a set of
+  // flags. A pizza is hasSizes + hasModifiers + splittable. A burger is
+  // hasModifiers. A latte is hasSizes + hasModifiers. Nothing in the type
+  // system has to change when a bakery or a sushi place arrives — which is the
+  // entire reason for the change. `type` stays until every read has moved off it.
+  hasSizes     Boolean @default(false)
+  hasModifiers Boolean @default(false)
+  splittable   Boolean @default(false) // half-and-half — pizza only
+  hasVariants  Boolean @default(false)
+  sizeMeta     Json? // { cm: 32 } · { oz: 16 }
+  taxable      Boolean @default(true)
+
   photo   String?
   gallery String[] @default([])
 
@@ -309,6 +322,7 @@ model ProductSize {
   productId String
   key       String // "S" | "M" | "XL"
   cm        Int?
+  meta      Json? // { cm: 32 } · { oz: 16 } · { serves: 4 } — replaces cm
   price     Decimal @db.Decimal(10, 2)
   sortOrder Int     @default(0)
 
@@ -337,6 +351,7 @@ model Topping {
   category   String? // "meat" | "veg" | "cheese" | "sauce"
   emoji      String?
   dots       String[] @default([]) // UI-ს ფერადი ნიშნულები
+  ui         Json? // { dots: [...] } — constructor UI state, no longer a named field
   popular    Boolean  @default(false) // კონსტრუქტორში ზემოთ ჩნდება
   photo      String?
   recipeOnly Boolean @default(false) // მხოლოდ რეცეპტში, დამატებით არ იყიდება
@@ -446,6 +461,8 @@ model Discount {
   id                  String       @id @default(cuid())
   name                Json
   type                DiscountType
+  kindId              String? // replaces `type` once the reads have moved
+  kind                DiscountKind? @relation(fields: [kindId], references: [id])
   active              Boolean      @default(false)
   validFrom           DateTime?
   validTo             DateTime?
@@ -469,6 +486,23 @@ model Discount {
   @@index([deletedAt])
 
   @@index([type, active])
+  @@index([kindId])
+}
+
+/// A discount kind the owner can add without a deployment.
+/// `diplomatic` is a Georgian retail concept; a Monroe pizzeria wants
+/// `first_responder` and `senior`. Adding one should be a row, not a release.
+model DiscountKind {
+  id        String   @id @default(cuid())
+  code      String   @unique // "student" | "first_responder"
+  label     Json // { en: "First responder" }
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  discounts Discount[]
+
+  @@index([active, sortOrder])
 }
 
 // პრიორიტეტი item-ზე: productId > subcategoryId > categoryId > default
@@ -674,6 +708,7 @@ model Order {
   discountTotal     Decimal @default(0) @db.Decimal(10, 2)
   deliveryFee       Decimal @default(0) @db.Decimal(10, 2)
   tax               Decimal @default(0) @db.Decimal(10, 2)
+  tip               Decimal @default(0) @db.Decimal(10, 2)
   pointsRedeemed    Int     @default(0)
   pointsValue       Decimal @default(0) @db.Decimal(10, 2)
   total             Decimal @default(0) @db.Decimal(10, 2)
@@ -820,6 +855,14 @@ enum StockUnit {
   ml
   l
   pcs
+
+  // imperial — US kitchens buy in these. Purely additive: nothing metric changes
+  // meaning, and `Setting: units.system` decides which set the UI offers first.
+  oz
+  lb
+  floz
+  gal
+  each
 }
 
 enum StockMoveType {
