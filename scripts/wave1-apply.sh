@@ -160,8 +160,12 @@ ACTIVE=$(systemctl is-active "$SERVICE" || true)
 echo "   service:   $ACTIVE"
 [ "$ACTIVE" = "active" ] || fail "$SERVICE did not come back up"
 
-CODE=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT" || echo 000)
-echo "   http:      $CODE"
+# Follow the redirect. `/` answers 307 and sends the browser on to /ka or /en —
+# that is the locale middleware doing its job, not a failure. Checking for a
+# bare 200 on `/` once reported a perfectly good migration as a broken one and
+# printed the restore command under it, which is the worst possible false alarm.
+CODE=$(curl -sL -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT" || echo 000)
+echo "   http:      $CODE (after redirects)"
 
 # A 200 is the weakest evidence there is — friendlymandriving served 200 all
 # through a broken database password. Read the log too.
