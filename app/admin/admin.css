@@ -63,7 +63,10 @@
 .admin-side-foot button:hover { border-color: var(--a-saffron); color: var(--a-saffron); }
 
 /* ── Main ── */
-.admin-main { flex: 1; padding: 26px 30px 60px; min-width: 0; }
+/* Content stops stretching on wide screens. A table 1800px wide loses the eye
+   between the label on the left and the number on the right — the owner reads
+   the wrong row. Every desk monitor is wider than any page should be. */
+.admin-main { flex: 1; padding: 26px 30px 60px; min-width: 0; max-width: 1280px; margin-inline: auto; width: 100%; }
 .admin-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 .admin-head h1 {
   font-family: "Noto Serif", "Noto Serif Georgian", Georgia, serif;
@@ -319,3 +322,55 @@
   margin: 10px 0 16px;
 }
 .setup-progress > div { height: 100%; background: var(--a-ok); }
+
+
+/* ── Dashboard: the morning screen ──────────────────────────────────────
+   One number is the headline and the rest support it. Before this the
+   dashboard opened with a nine-item setup checklist above the revenue —
+   an owner who has been trading for months does not want a to-do list
+   first thing. Numbers first, chores after. */
+
+.dash-hero {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 24px; flex-wrap: wrap;
+  background: var(--a-panel); border: 1px solid var(--a-line);
+  border-radius: var(--a-radius); padding: 22px 24px; margin-bottom: 12px;
+}
+.dash-hero .eyebrow { font-size: 12px; color: var(--a-muted); letter-spacing: .02em; }
+.dash-hero .h-val {
+  font-family: "Noto Serif", "Noto Serif Georgian", Georgia, serif;
+  font-size: 42px; line-height: 1.05; margin-top: 6px; font-weight: 600;
+}
+.dash-hero .h-delta { font-size: 13px; margin-top: 6px; color: var(--a-muted); }
+.dash-hero .h-side {
+  text-align: right; border-left: 1px solid var(--a-line); padding-left: 22px; min-width: 190px;
+}
+.dash-hero .h-side .s-val {
+  font-family: "Noto Serif", Georgia, serif; font-size: 26px; font-weight: 600; margin-top: 4px;
+}
+
+/* Four across, not eleven. auto-fill on a wide screen produced a row of
+   postage stamps. */
+.admin-stats.cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* Prime cost — food and labour as one bar against the line where a
+   restaurant stops making money. */
+.prime-bar {
+  position: relative; display: flex; height: 30px; margin-top: 12px;
+  border-radius: 6px; overflow: hidden; background: #f0efed;
+}
+.prime-bar i { display: block; height: 100%; }
+.prime-bar .food { background: #3d6ea8; }
+.prime-bar .lab  { background: #8fa9c7; }
+.prime-bar .mark { position: absolute; top: 0; bottom: 0; width: 2px; background: #2b2b2b; opacity: .55; }
+.prime-bar .mark span {
+  position: absolute; top: 100%; left: -12px; margin-top: 3px;
+  font-size: 10px; color: var(--a-muted); white-space: nowrap;
+}
+.prime-legend { display: flex; gap: 16px; margin-top: 22px; font-size: 12px; color: var(--a-muted); }
+.prime-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+
+@media (max-width: 900px) {
+  .admin-stats.cols-4 { grid-template-columns: repeat(2, 1fr); }
+  .dash-hero .h-side { border-left: 0; padding-left: 0; text-align: left; }
+}

@@ -151,10 +151,6 @@ export default async function Dashboard({
         </div>
       )}
 
-      {setup.done < setup.total && (
-        <SetupChecklist steps={setup.steps} done={setup.done} total={setup.total} />
-      )}
-
       {noData ? (
         <div className="admin-panel">
           <h2>No orders in this period</h2>
@@ -166,7 +162,7 @@ export default async function Dashboard({
       ) : (
         <>
           {/* ── ბრუნვა ── */}
-          <div className="admin-stats">
+          <div className="admin-stats cols-4">
             <Stat value={`${f.money(core.revenue)}`} label="Revenue" sub={`${f.money(core.perDay)} / day`} />
             <Stat value={String(core.count)} label="Orders" sub={`previous: ${core.prevCount}`} />
             <Stat value={`${f.money(core.avgCheck)}`} label="Average check" />
@@ -453,6 +449,10 @@ export default async function Dashboard({
             </div>
           )}
         </>
+      )}
+
+      {setup.done < setup.total && (
+        <SetupChecklist steps={setup.steps} done={setup.done} total={setup.total} />
       )}
 
       {/* ── მარაგი ── */}
