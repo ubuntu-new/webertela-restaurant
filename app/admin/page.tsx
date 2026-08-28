@@ -99,15 +99,31 @@ export default async function Dashboard({
     ]);
 
   // ── ეკონომიკა ──
-  const grossProfit = Math.round((core.revenue - costs.cogs) * 100) / 100;
-  const foodCostPct = core.revenue > 0 ? Math.round((costs.cogs / core.revenue) * 1000) / 10 : null;
-  const labourPct = core.revenue > 0 ? Math.round((labour.cost / core.revenue) * 1000) / 10 : null;
-  const primeCost = Math.round((costs.cogs + labour.cost) * 100) / 100;
-  const primePct = core.revenue > 0 ? Math.round((primeCost / core.revenue) * 1000) / 10 : null;
+  //
+  // A figure that was never calculated must not be displayed as if it had been.
+  // With no consumption rules COGS comes back 0 — and then gross profit equals
+  // revenue exactly, prime cost is 0%, and the badge paints that green and
+  // calls it healthy. An owner reading that screen is being reassured by an
+  // empty database, which is worse than showing him nothing.
+  //
+  // So each figure states whether its inputs exist. Missing shows as "—" with
+  // the reason; only real inputs earn a verdict.
+  const hasFoodCost = costs.cogs > 0;
+  const hasLabour = labour.cost > 0;
+  const hasPrime = hasFoodCost && hasLabour;
+
+  const grossProfit = hasFoodCost ? Math.round((core.revenue - costs.cogs) * 100) / 100 : null;
+  const foodCostPct = hasFoodCost && core.revenue > 0 ? Math.round((costs.cogs / core.revenue) * 1000) / 10 : null;
+  const labourPct = hasLabour && core.revenue > 0 ? Math.round((labour.cost / core.revenue) * 1000) / 10 : null;
+  const primeCost = hasPrime ? Math.round((costs.cogs + labour.cost) * 100) / 100 : null;
+  const primePct = hasPrime && core.revenue > 0 ? Math.round((primeCost! / core.revenue) * 1000) / 10 : null;
 
   // ფიქსირებული ხარჯი პერიოდზე გადაანგარიშებული
   const fixedForPeriod = fixed ? Math.round((fixed.monthly / 30) * days * 100) / 100 : null;
-  const netProfit = fixedForPeriod !== null ? Math.round((grossProfit - labour.cost - fixedForPeriod) * 100) / 100 : null;
+  const netProfit =
+    fixedForPeriod !== null && grossProfit !== null && hasLabour
+      ? Math.round((grossProfit - labour.cost - fixedForPeriod) * 100) / 100
+      : null;
 
   const maxHour = Math.max(...load.hours.map((h) => h.count), 1);
   const maxBranch = Math.max(...branches.map((b) => b.revenue), 1);
@@ -167,10 +183,10 @@ export default async function Dashboard({
             <Stat value={String(core.count)} label="Orders" sub={`previous: ${core.prevCount}`} />
             <Stat value={`${f.money(core.avgCheck)}`} label="Average check" />
             <Stat
-              value={grossProfit >= 0 ? `${f.money(grossProfit)}` : `−${f.money(-grossProfit)}`}
+              value={grossProfit === null ? "—" : grossProfit >= 0 ? `${f.money(grossProfit)}` : `−${f.money(-grossProfit)}`}
               label="Gross profit"
-              sub="after ingredients"
-              tone={grossProfit >= 0 ? "ok" : "bad"}
+              sub={grossProfit === null ? "no ingredient cost yet" : "after ingredients"}
+              tone={grossProfit === null ? undefined : grossProfit >= 0 ? "ok" : "bad"}
             />
             {core.deliveryShare !== null && (
               <Stat value={`${core.deliveryShare}%`} label="Delivery" sub="rest is pickup" />
@@ -201,7 +217,7 @@ export default async function Dashboard({
                 </tr>
                 <tr>
                   <td>Ingredients (COGS)</td>
-                  <td>−{f.money(costs.cogs)}</td>
+                  <td>{hasFoodCost ? `−${f.money(costs.cogs)}` : "—"}</td>
                   <td>
                     {foodCostPct !== null && (
                       <span
@@ -215,12 +231,14 @@ export default async function Dashboard({
                         {foodCostPct}%
                       </span>
                     )}
-                    <span className="hint"> · target 28–33%</span>
+                    <span className="hint">
+                      {hasFoodCost ? " · target 28–33%" : " · needs consumption rules and purchase prices"}
+                    </span>
                   </td>
                 </tr>
                 <tr>
                   <td>Labour</td>
-                  <td>−{f.money(labour.cost)}</td>
+                  <td>{hasLabour ? `−${f.money(labour.cost)}` : "—"}</td>
                   <td>
                     {labourPct !== null && (
                       <span
@@ -246,7 +264,7 @@ export default async function Dashboard({
                     <b>Prime cost</b>
                   </td>
                   <td>
-                    <b>{f.money(primeCost)}</b>
+                    <b>{primeCost === null ? "—" : f.money(primeCost)}</b>
                   </td>
                   <td>
                     {primePct !== null && (
@@ -261,7 +279,13 @@ export default async function Dashboard({
                         {primePct}%
                       </span>
                     )}
-                    <span className="hint"> · healthy ≤ 65%</span>
+                    <span className="hint">
+                      {hasPrime
+                        ? " · healthy ≤ 65%"
+                        : hasFoodCost
+                          ? " · needs shifts with an hourly rate"
+                          : " · needs ingredient cost and labour"}
+                    </span>
                   </td>
                 </tr>
                 {costs.waste > 0 && (
