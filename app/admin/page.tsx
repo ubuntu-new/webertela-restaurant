@@ -4,6 +4,7 @@ import { getSession } from "@/lib/admin-auth";
 import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
 import { setupChecklist } from "@/lib/setup-checklist";
+import { fmt } from "@/lib/format";
 import SetupChecklist from "./_components/SetupChecklist";
 import HelpNote from "./_components/HelpNote";
 import {
@@ -21,7 +22,8 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const money = (n: number) => n.toLocaleString("ka-GE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Quantities only. Money and dates come from the organisation — see lib/format.
+const qty = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** ერთი მაჩვენებელი — დიდი ციფრი, ქვეშ კონტექსტი. */
 function Stat({
@@ -79,9 +81,10 @@ export default async function Dashboard({
   const days = Math.min(365, Math.max(1, Number(sp.d) || 30));
   const p = periodOf(days);
 
-  const [session, core, costs, labour, products, branches, load, yieldStats, stock, fixed, pending, setup] =
+  const [session, f, core, costs, labour, products, branches, load, yieldStats, stock, fixed, pending, setup] =
     await Promise.all([
       getSession(),
+      fmt(),
       coreMetrics(p),
       costMetrics(p),
       labourCost(p),
@@ -164,11 +167,11 @@ export default async function Dashboard({
         <>
           {/* ── ბრუნვა ── */}
           <div className="admin-stats">
-            <Stat value={`${money(core.revenue)} ₾`} label="Revenue" sub={`${money(core.perDay)} ₾ / day`} />
+            <Stat value={`${f.money(core.revenue)}`} label="Revenue" sub={`${f.money(core.perDay)} / day`} />
             <Stat value={String(core.count)} label="Orders" sub={`previous: ${core.prevCount}`} />
-            <Stat value={`${money(core.avgCheck)} ₾`} label="Average check" />
+            <Stat value={`${f.money(core.avgCheck)}`} label="Average check" />
             <Stat
-              value={grossProfit >= 0 ? `${money(grossProfit)} ₾` : `−${money(-grossProfit)} ₾`}
+              value={grossProfit >= 0 ? `${f.money(grossProfit)}` : `−${f.money(-grossProfit)}`}
               label="Gross profit"
               sub="after ingredients"
               tone={grossProfit >= 0 ? "ok" : "bad"}
@@ -194,7 +197,7 @@ export default async function Dashboard({
                 <tr>
                   <td style={{ width: 260 }}>Revenue</td>
                   <td style={{ width: 140 }}>
-                    <b>{money(core.revenue)} ₾</b>
+                    <b>{f.money(core.revenue)}</b>
                   </td>
                   <td>
                     <Delta pct={core.growth} />
@@ -202,7 +205,7 @@ export default async function Dashboard({
                 </tr>
                 <tr>
                   <td>Ingredients (COGS)</td>
-                  <td>−{money(costs.cogs)} ₾</td>
+                  <td>−{f.money(costs.cogs)}</td>
                   <td>
                     {foodCostPct !== null && (
                       <span
@@ -221,7 +224,7 @@ export default async function Dashboard({
                 </tr>
                 <tr>
                   <td>Labour</td>
-                  <td>−{money(labour.cost)} ₾</td>
+                  <td>−{f.money(labour.cost)}</td>
                   <td>
                     {labourPct !== null && (
                       <span
@@ -247,7 +250,7 @@ export default async function Dashboard({
                     <b>Prime cost</b>
                   </td>
                   <td>
-                    <b>{money(primeCost)} ₾</b>
+                    <b>{f.money(primeCost)}</b>
                   </td>
                   <td>
                     {primePct !== null && (
@@ -268,7 +271,7 @@ export default async function Dashboard({
                 {costs.waste > 0 && (
                   <tr>
                     <td>Waste</td>
-                    <td style={{ color: "var(--a-danger)" }}>−{money(costs.waste)} ₾</td>
+                    <td style={{ color: "var(--a-danger)" }}>−{f.money(costs.waste)}</td>
                     <td>
                       <span className="hint">
                         {pct(costs.waste, core.revenue)}% of revenue
@@ -281,7 +284,7 @@ export default async function Dashboard({
                     <td>Stock count variance</td>
                     <td style={{ color: costs.countAdjust < 0 ? "var(--a-danger)" : undefined }}>
                       {costs.countAdjust > 0 ? "+" : ""}
-                      {money(costs.countAdjust)} ₾
+                      {f.money(costs.countAdjust)}
                     </td>
                     <td>
                       <span className="hint">
@@ -296,9 +299,9 @@ export default async function Dashboard({
                   <>
                     <tr>
                       <td>Fixed costs</td>
-                      <td>−{money(fixedForPeriod)} ₾</td>
+                      <td>−{f.money(fixedForPeriod)}</td>
                       <td>
-                        <span className="hint">{money(fixed!.monthly)} ₾/month, pro-rated</span>
+                        <span className="hint">{f.money(fixed!.monthly)}/month, pro-rated</span>
                       </td>
                     </tr>
                     <tr style={{ borderTop: "2px solid var(--a-line)" }}>
@@ -308,7 +311,7 @@ export default async function Dashboard({
                       <td>
                         <b style={{ color: netProfit! >= 0 ? "var(--a-ok)" : "var(--a-danger)" }}>
                           {netProfit! >= 0 ? "" : "−"}
-                          {money(Math.abs(netProfit!))} ₾
+                          {f.money(Math.abs(netProfit!))}
                         </b>
                       </td>
                       <td>
@@ -356,9 +359,9 @@ export default async function Dashboard({
                       <td>{i18nText(b.name)}</td>
                       <td>{b.count}</td>
                       <td>
-                        <b>{money(b.revenue)} ₾</b>
+                        <b>{f.money(b.revenue)}</b>
                       </td>
-                      <td>{b.count > 0 ? `${money(b.avgCheck)} ₾` : <span className="hint">—</span>}</td>
+                      <td>{b.count > 0 ? `${f.money(b.avgCheck)}` : <span className="hint">—</span>}</td>
                       <td>
                         <Bar value={b.revenue} max={maxBranch} />
                       </td>
@@ -386,7 +389,7 @@ export default async function Dashboard({
                       </td>
                       <td style={{ width: 70 }}>{h.count}</td>
                       <td style={{ width: 120 }}>
-                        <span className="hint">{money(h.revenue)} ₾</span>
+                        <span className="hint">{f.money(h.revenue)}</span>
                       </td>
                       <td>
                         <Bar value={h.count} max={maxHour} tone={h.hour === load.peak.hour ? "var(--a-saffron)" : undefined} />
@@ -420,7 +423,7 @@ export default async function Dashboard({
                     </td>
                     <td>{x.qty}</td>
                     <td>
-                      <b>{money(x.revenue)} ₾</b>
+                      <b>{f.money(x.revenue)}</b>
                     </td>
                   </tr>
                 ))}
@@ -438,8 +441,8 @@ export default async function Dashboard({
               <h2>Production yield</h2>
               <div className="admin-stats" style={{ marginBottom: 0 }}>
                 <Stat value={String(yieldStats.batches)} label="Batches" />
-                <Stat value={money(yieldStats.planned)} label="Planned" />
-                <Stat value={money(yieldStats.actual)} label="Actual" />
+                <Stat value={qty(yieldStats.planned)} label="Planned" />
+                <Stat value={qty(yieldStats.actual)} label="Actual" />
                 <Stat
                   value={`${yieldStats.pct}%`}
                   label="Yield"
@@ -456,7 +459,7 @@ export default async function Dashboard({
       <div className="admin-panel">
         <h2>Stock</h2>
         <div className="admin-stats" style={{ marginBottom: stock.items.length ? 14 : 0 }}>
-          <Stat value={`${money(stock.stockValue)} ₾`} label="Stock value" />
+          <Stat value={`${f.money(stock.stockValue)}`} label="Stock value" />
           <Stat
             value={String(stock.low)}
             label="Low on stock"
