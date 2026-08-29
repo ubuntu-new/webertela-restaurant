@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { LOCALES, DEFAULT_LOCALE } from "./lib/locales";
+import { ALL_LOCALES, LOCALES, DEFAULT_LOCALE } from "./lib/locales";
 import { jwtVerify } from "jose";
 
 const ADMIN_COOKIE = "ronnys_admin";
@@ -81,12 +81,29 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── საიტის i18n (უცვლელი) ──
+  // ── site i18n ──
   const hasLocale = LOCALES.some((l) => pathname === `/${l}` || pathname.startsWith(`/${l}/`));
   if (hasLocale) return NextResponse.next();
 
+  // A language this build knows about but this restaurant does not offer —
+  // /ka on an English-only menu. Replace that segment instead of prefixing it,
+  // or every request grows another /ka and the browser gives up after twenty.
+  const first = pathname.split("/")[1];
+  if ((ALL_LOCALES as readonly string[]).includes(first)) {
+    const rest = pathname.slice(first.length + 1) || "";
+    return NextResponse.redirect(publicUrl(req, `/${DEFAULT_LOCALE}${rest}`));
+  }
+
+  // What the browser asks for only counts if the restaurant serves it. A Monroe
+  // pizzeria offers English; a visitor whose phone is set to Georgian still
+  // gets the English menu, because there is no other one.
   const accept = (req.headers.get("accept-language") || "").toLowerCase();
-  const detected = accept.includes("ka") || accept.includes("ge") ? "ka" : accept.includes("en") ? "en" : DEFAULT_LOCALE;
+  const wanted =
+    accept.includes("ka") || accept.includes("ge") ? "ka"
+    : accept.includes("en") ? "en"
+    : DEFAULT_LOCALE;
+  const detected = (LOCALES as readonly string[]).includes(wanted) ? wanted : DEFAULT_LOCALE;
+
   const url = publicUrl(req, `/${detected}${pathname === "/" ? "" : pathname}`);
   return NextResponse.redirect(url);
 }
