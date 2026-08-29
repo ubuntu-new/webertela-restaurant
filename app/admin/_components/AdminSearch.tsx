@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useT } from "./AdminLang";
 
 /**
  * ცხრილების ძებნა — ერთი კომპონენტი მთელი admin-ისთვის.
@@ -15,6 +16,7 @@ import { usePathname, useSearchParams } from "next/navigation";
  * ძებნა იმ ნაწილში ხდება — ამიტომ იქ სტატუსის/ლოკაციის ფილტრებიც დარჩა.
  */
 export default function AdminSearch() {
+  const t = useT();
   const pathname = usePathname();
   const params = useSearchParams();
   const [q, setQ] = useState("");
@@ -96,8 +98,8 @@ export default function AdminSearch() {
         type="text"
         value={q}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="ძებნა ცხრილში…  ( / )"
-        aria-label="ძებნა"
+        placeholder={t("Search this table…  ( / )")}
+        aria-label={t("Search")}
       />
       {q && (
         <>
@@ -105,7 +107,7 @@ export default function AdminSearch() {
             {stats ? `${stats.shown} / ${stats.total}` : ""}
           </span>
           <button type="button" onClick={() => onChange("")}>
-            გასუფთავება
+            {t("Clear")}
           </button>
         </>
       )}

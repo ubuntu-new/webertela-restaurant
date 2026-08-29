@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useT } from "./AdminLang";
 
 interface Alert {
   key: string;
@@ -19,6 +20,7 @@ interface Alert {
  * (შეკვეთა დადასტურდა, მოთხოვნა დამტკიცდა, მარაგი შეივსო).
  */
 export default function AlertBell() {
+  const t = useT();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -49,7 +51,7 @@ export default function AlertBell() {
 
   return (
     <div className="alert-bell">
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-label="შეტყობინებები">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-label={t("Notifications")}>
         <span aria-hidden="true">🔔</span>
         {total > 0 && <span className="alert-bell-dot">{total > 99 ? "99+" : total}</span>}
       </button>
@@ -57,7 +59,7 @@ export default function AlertBell() {
       {open && (
         <div className="alert-bell-menu">
           {alerts.length === 0 ? (
-            <div className="alert-bell-empty">ყველაფერი წესრიგშია</div>
+            <div className="alert-bell-empty">{t("All clear")}</div>
           ) : (
             alerts.map((a) => (
               <Link key={a.key} href={a.href} onClick={() => setOpen(false)}>

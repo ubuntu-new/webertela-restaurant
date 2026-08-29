@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useT } from "./AdminLang";
 
 interface Props {
   name: string;
@@ -10,7 +11,8 @@ interface Props {
 }
 
 /** ფოტოს ველი: ატვირთვა ფაილიდან ან URL-ის ჩასმა. მნიშვნელობა hidden input-ში ჯდება. */
-export default function ImageField({ name, label = "ფოტო", defaultValue, hint }: Props) {
+export default function ImageField({ name, label, defaultValue, hint }: Props) {
+  const t = useT();
   const [url, setUrl] = useState(defaultValue ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,10 +26,10 @@ export default function ImageField({ name, label = "ფოტო", defaultValue,
       fd.append("file", file);
       const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "ატვირთვა ვერ მოხერხდა");
+      if (!res.ok) throw new Error(data.error || t("Upload failed"));
       setUrl(data.url);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "ატვირთვა ვერ მოხერხდა");
+      setError(e instanceof Error ? e.message : t("Upload failed"));
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -36,7 +38,7 @@ export default function ImageField({ name, label = "ფოტო", defaultValue,
 
   return (
     <div className="field">
-      <label>{label}</label>
+      <label>{label ?? t("Photo")}</label>
 
       <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
         <div
@@ -56,7 +58,7 @@ export default function ImageField({ name, label = "ფოტო", defaultValue,
             // eslint-disable-next-line @next/next/no-img-element
             <img src={url} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
           ) : (
-            <span className="hint">ცარიელი</span>
+            <span className="hint">{t("Empty")}</span>
           )}
         </div>
 
@@ -65,7 +67,7 @@ export default function ImageField({ name, label = "ფოტო", defaultValue,
             type="text"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://… ან ატვირთე ფაილი"
+            placeholder={t("https://… or upload a file")}
           />
           <input type="hidden" name={name} value={url} />
 
@@ -86,18 +88,18 @@ export default function ImageField({ name, label = "ფოტო", defaultValue,
               disabled={busy}
               onClick={() => fileRef.current?.click()}
             >
-              {busy ? "იტვირთება…" : "ფაილის ატვირთვა"}
+              {busy ? t("Uploading…") : t("Upload a file")}
             </button>
             {url && (
               <button type="button" className="btn btn-ghost" onClick={() => setUrl("")}>
-                მოცილება
+                {t("Remove")}
               </button>
             )}
           </div>
 
           {error && <span style={{ color: "var(--a-danger)", fontSize: 13 }}>{error}</span>}
           {hint && <span className="hint">{hint}</span>}
-          <span className="hint">JPG · PNG · WebP · AVIF · GIF, მაქს. 5 MB</span>
+          <span className="hint">{t("JPG · PNG · WebP · AVIF · GIF, max 5 MB")}</span>
         </div>
       </div>
     </div>

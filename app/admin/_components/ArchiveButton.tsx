@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "./AdminLang";
 
 interface Props {
   action: () => Promise<void>;
@@ -15,7 +16,8 @@ interface Props {
  * არქივში გადატანა — ფიზიკური წაშლა არასდროს ხდება.
  * ღილაკი ხსნის პანელს, სადაც ყველა შედეგი ჩამოთვლილია, და მხოლოდ მერე ადასტურებ.
  */
-export default function ArchiveButton({ action, subject, consequences, label = "არქივში გადატანა" }: Props) {
+export default function ArchiveButton({ action, subject, consequences, label }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
 
@@ -27,7 +29,7 @@ export default function ArchiveButton({ action, subject, consequences, label = "
         style={{ color: "var(--a-danger)", borderColor: "#f3d5d2" }}
         onClick={() => setOpen(true)}
       >
-        {label}
+        {label ?? t("Move to archive")}
       </button>
     );
   }
@@ -42,22 +44,24 @@ export default function ArchiveButton({ action, subject, consequences, label = "
       }}
     >
       <p style={{ margin: "0 0 10px", fontWeight: 600 }}>
-        არქივში გადავიდეს „{subject}“?
+        „{subject}“ — {t("Move to the archive?")}
       </p>
 
       <p className="hint" style={{ margin: "0 0 8px" }}>
-        რა მოხდება:
+        {t("What happens:")}
       </p>
       <ul style={{ margin: "0 0 12px", paddingLeft: 20, fontSize: 14, lineHeight: 1.7 }}>
         {consequences.map((c, i) => (
           <li key={i}>{c}</li>
         ))}
         <li>
-          <b>ბაზიდან არაფერი იშლება</b> — ჩანაწერი და მისი ისტორია რჩება.
+          <b>{t("Nothing is deleted from the database")}</b>{" "}
+          {t("— the record and its history stay.")}
         </li>
         <li>
-          „არქივი“ გვერდიდან ნებისმიერ დროს დააბრუნებ — ჩართულობის სტატუსიც უცვლელი
-          დაბრუნდება.
+          {t(
+            "You can restore it any time from the Archive page, and it comes back with the same on/off status.",
+          )}
         </li>
       </ul>
 
@@ -69,10 +73,10 @@ export default function ArchiveButton({ action, subject, consequences, label = "
           style={{ background: "var(--a-danger)" }}
           onClick={() => start(() => void action())}
         >
-          {pending ? "მიმდინარეობს…" : "დიახ, არქივში"}
+          {pending ? t("Working…") : t("Yes, archive it")}
         </button>
         <button type="button" className="btn btn-ghost" disabled={pending} onClick={() => setOpen(false)}>
-          გაუქმება
+          {t("Cancel")}
         </button>
       </div>
     </div>

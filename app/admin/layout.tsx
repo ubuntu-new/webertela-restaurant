@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import { getSession } from "@/lib/admin-auth";
-import { tr } from "@/lib/admin-i18n";
+import { tr, getAdminLang } from "@/lib/admin-i18n";
 import { logout } from "./actions";
 import AdminSearch from "./_components/AdminSearch";
+import { AdminLangProvider } from "./_components/AdminLang";
 import AlertBell from "./_components/AlertBell";
 import "./admin.css";
 
@@ -39,11 +40,15 @@ const NAV: { href: string; label: string }[] = [
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
+  const lang = await getAdminLang();
 
   if (!session) {
+    // The login screen renders here — it needs the language too.
     return (
       <html lang="en">
-        <body className="admin-body">{children}</body>
+        <body className="admin-body">
+          <AdminLangProvider lang={lang}>{children}</AdminLangProvider>
+        </body>
       </html>
     );
   }
@@ -53,6 +58,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <html lang="en">
       <body className="admin-body">
+        <AdminLangProvider lang={lang}>
         <div className="admin-shell">
           <aside className="admin-side">
             <div className="admin-brand">
@@ -82,6 +88,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             {children}
           </main>
         </div>
+        </AdminLangProvider>
       </body>
     </html>
   );
