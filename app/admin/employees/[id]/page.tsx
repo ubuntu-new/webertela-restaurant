@@ -13,6 +13,7 @@ import {
 import ArchiveButton from "../../_components/ArchiveButton";
 import { PERMISSIONS } from "@/lib/permissions";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export default async function EmployeeEdit({
   const { id } = await params;
   const sp = await searchParams;
   const t = await tr();
+  const f = await fmt();
 
   const [e, branches, session] = await Promise.all([
     db.employee.findUnique({
@@ -124,7 +126,7 @@ export default async function EmployeeEdit({
               </select>
             </div>
             <div className="field">
-              <label htmlFor="hourlyRate">{t("Hourly rate")} (₾)</label>
+              <label htmlFor="hourlyRate">{t("Hourly rate")} ({f.symbol})</label>
               <input
                 id="hourlyRate"
                 name="hourlyRate"

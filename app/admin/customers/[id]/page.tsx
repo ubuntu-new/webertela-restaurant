@@ -3,10 +3,9 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { formatPhone, addressLine } from "@/lib/phone";
 import { i18nText } from "@/lib/admin-utils";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-const money = (n: number) => n.toFixed(2);
 
 const TYPE_LABEL: Record<string, string> = {
   earn: "Earned",
@@ -16,6 +15,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 export default async function CustomerDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const f = await fmt();
 
   const [customer, orders, points] = await Promise.all([
     db.user.findUnique({
@@ -55,16 +55,16 @@ export default async function CustomerDetail({ params }: { params: Promise<{ id:
           <span>orders</span>
         </div>
         <div className="admin-stat">
-          <b>{money(Number(customer.totalSpent))} ₾</b>
+          <b>{f.money(Number(customer.totalSpent))}</b>
           <span>lifetime</span>
         </div>
         <div className="admin-stat">
-          <b>{money(avg)} ₾</b>
+          <b>{f.money(avg)}</b>
           <span>average order</span>
         </div>
         <div className="admin-stat">
           <b>{customer.loyaltyPoints}</b>
-          <span>points · {money(customer.loyaltyPoints * 0.1)} ₾</span>
+          <span>points · {f.money(customer.loyaltyPoints * 0.1)}</span>
         </div>
       </div>
 
@@ -99,7 +99,7 @@ export default async function CustomerDetail({ params }: { params: Promise<{ id:
                   <td>{i18nText(d.discount.name)}</td>
                   <td style={{ width: 180 }}>
                     <span className="hint">
-                      {d.expiresAt ? `until ${new Date(d.expiresAt).toLocaleDateString("ka-GE")}` : "no expiry"}
+                      {d.expiresAt ? `until ${f.date(d.expiresAt)}` : "no expiry"}
                     </span>
                   </td>
                 </tr>
@@ -138,9 +138,9 @@ export default async function CustomerDetail({ params }: { params: Promise<{ id:
                   </td>
                   <td>{o._count.items}</td>
                   <td>
-                    <b>{money(Number(o.total))} ₾</b>
+                    <b>{f.money(Number(o.total))}</b>
                     {Number(o.pointsValue) > 0 && (
-                      <div className="hint">−{money(Number(o.pointsValue))} ₾ points</div>
+                      <div className="hint">−{f.money(Number(o.pointsValue))} points</div>
                     )}
                   </td>
                   <td>
@@ -151,7 +151,7 @@ export default async function CustomerDetail({ params }: { params: Promise<{ id:
                     </span>
                   </td>
                   <td>
-                    <span className="hint">{new Date(o.createdAt).toLocaleString("ka-GE")}</span>
+                    <span className="hint">{f.dateTime(o.createdAt)}</span>
                   </td>
                 </tr>
               ))}
@@ -178,7 +178,7 @@ export default async function CustomerDetail({ params }: { params: Promise<{ id:
               {points.map((p) => (
                 <tr key={p.id}>
                   <td>
-                    <span className="hint">{new Date(p.createdAt).toLocaleString("ka-GE")}</span>
+                    <span className="hint">{f.dateTime(p.createdAt)}</span>
                   </td>
                   <td>
                     <span className="hint">{TYPE_LABEL[p.type] ?? p.type}</span>

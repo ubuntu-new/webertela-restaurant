@@ -2,10 +2,9 @@ import Link from "next/link";
 import { i18nText } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
 import { computeMenuCosts, stockValue } from "@/lib/costing";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-const money = (n: number) => n.toFixed(2);
 
 function MarginBadge({ pct }: { pct: number | null }) {
   if (pct === null) return <span className="hint">—</span>;
@@ -24,6 +23,7 @@ function MarginBadge({ pct }: { pct: number | null }) {
 
 export default async function CostingPage() {
   const t = await tr();
+  const f = await fmt();
   const [{ products, toppings }, values] = await Promise.all([computeMenuCosts(), stockValue()]);
 
   const totalValue = values.reduce((s, v) => s + v.value, 0);
@@ -41,7 +41,7 @@ export default async function CostingPage() {
         <div>
           <h1>{t("Costing")}</h1>
           <p>
-            {t("Stock value")} <b>{money(totalValue)} ₾</b>
+            {t("Stock value")} <b>{f.money(totalValue)}</b>
             {unpriced > 0 && ` · ${unpriced} ${t("items are missing a price")}`}
           </p>
         </div>
@@ -82,7 +82,7 @@ export default async function CostingPage() {
                 </td>
                 <td>{v.items}</td>
                 <td>
-                  <b>{money(v.value)} ₾</b>
+                  <b>{f.money(v.value)}</b>
                 </td>
                 <td>
                   {v.unpriced > 0 ? (
@@ -147,12 +147,12 @@ export default async function CostingPage() {
                   <td>
                     <span className="hint">{p.sizeKey ?? "—"}</span>
                   </td>
-                  <td>{money(p.cost)} ₾</td>
-                  <td>{p.price != null ? `${money(p.price)} ₾` : <span className="hint">—</span>}</td>
+                  <td>{f.money(p.cost)}</td>
+                  <td>{p.price != null ? f.money(p.price) : <span className="hint">—</span>}</td>
                   <td>
                     {p.margin != null ? (
                       <b style={p.margin < 0 ? { color: "var(--a-danger)" } : undefined}>
-                        {money(p.margin)} ₾
+                        {f.money(p.margin)}
                       </b>
                     ) : (
                       <span className="hint">—</span>
@@ -199,12 +199,12 @@ export default async function CostingPage() {
                   <td>
                     <span className="hint">{tp.sizeKey ?? t("All")}</span>
                   </td>
-                  <td>{money(tp.cost)} ₾</td>
-                  <td>{tp.price != null ? `${money(tp.price)} ₾` : <span className="hint">—</span>}</td>
+                  <td>{f.money(tp.cost)}</td>
+                  <td>{tp.price != null ? f.money(tp.price) : <span className="hint">—</span>}</td>
                   <td>
                     {tp.margin != null ? (
                       <b style={tp.margin < 0 ? { color: "var(--a-danger)" } : undefined}>
-                        {money(tp.margin)} ₾
+                        {f.money(tp.margin)}
                       </b>
                     ) : (
                       <span className="hint">—</span>

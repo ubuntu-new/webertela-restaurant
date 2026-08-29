@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 import { createTopping } from "../actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewTopping() {
   const t = await tr();
+  const f = await fmt();
 
   return (
     <>
@@ -42,7 +44,7 @@ export default async function NewTopping() {
         </div>
 
         <div className="field">
-          <label>{t("Prices by size")} (₾)</label>
+          <label>{t("Prices by size")} ({f.symbol})</label>
           <div className="field-row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
             <input name="price_S" type="number" step="0.01" min="0" placeholder="S" defaultValue="0" />
             <input name="price_M" type="number" step="0.01" min="0" placeholder="M" defaultValue="0" />

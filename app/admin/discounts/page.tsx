@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText, num } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function DiscountsPage({
 }) {
   const sp = await searchParams;
   const t = await tr();
+  const f = await fmt();
 
   const discounts = await db.discount.findMany({
     where: { deletedAt: null },
@@ -68,8 +70,10 @@ export default async function DiscountsPage({
                 </td>
                 <td>{t(TYPE_LABEL[d.type] ?? d.type)}</td>
                 <td>
-                  −{num(d.defaultValue)}
-                  {d.defaultMode === "percent" ? "%" : "₾"}
+                  −
+                  {d.defaultMode === "percent"
+                    ? `${num(d.defaultValue)}%`
+                    : f.money(num(d.defaultValue))}
                 </td>
                 <td>{d._count.rules}</td>
                 <td>{d._count.users}</td>

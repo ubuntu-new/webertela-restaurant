@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { i18nOf, i18nText, money, num } from "@/lib/admin-utils";
 import { updateCombo, addComboSlot, archiveCombo } from "../actions";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 import ImageField from "../../_components/ImageField";
 import ArchiveButton from "../../_components/ArchiveButton";
 
@@ -28,6 +29,7 @@ function dateVal(d: Date | null) {
 export default async function ComboEdit({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const t = await tr();
+  const f = await fmt();
 
   const [c, products, branches] = await Promise.all([
     db.combo.findUnique({
@@ -128,7 +130,7 @@ export default async function ComboEdit({ params }: { params: Promise<{ id: stri
               </select>
             </div>
             <div className="field">
-              <label htmlFor="price">{t("Fixed price")} (₾)</label>
+              <label htmlFor="price">{t("Fixed price")} ({f.symbol})</label>
               <input id="price" name="price" type="number" step="0.01" min="0" defaultValue={c.price ? money(c.price) : ""} />
             </div>
           </div>

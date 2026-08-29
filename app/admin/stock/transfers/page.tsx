@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 import { STATUS, TONE } from "./status";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export default async function TransfersPage({
 }) {
   const sp = await searchParams;
   const tx = await tr();
+  const f = await fmt();
 
   const [transfers, counts] = await Promise.all([
     db.transfer.findMany({
@@ -104,7 +106,7 @@ export default async function TransfersPage({
                     </span>
                   </td>
                   <td>
-                    <span className="hint">{new Date(t.createdAt).toLocaleString("ka-GE")}</span>
+                    <span className="hint">{f.dateTime(t.createdAt)}</span>
                   </td>
                 </tr>
               ))}

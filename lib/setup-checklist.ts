@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { fmt } from "@/lib/format";
 
 /**
  * Setup checklist — the program teaching the user what to do next.
@@ -47,6 +48,8 @@ export async function setupChecklist(): Promise<{ steps: Step[]; done: number; t
 
   const fc = (fixedCosts?.value ?? {}) as Record<string, unknown>;
   const fcTotal = Number(fc.rent ?? 0) + Number(fc.utilities ?? 0) + Number(fc.other ?? 0);
+
+  const f = await fmt();
 
   const steps: Step[] = [
     {
@@ -106,7 +109,7 @@ export async function setupChecklist(): Promise<{ steps: Step[]; done: number; t
       why: "Net profit stays hidden until rent and utilities are known — a profit figure without them is a lie.",
       href: "/admin/settings",
       done: fcTotal > 0,
-      detail: fcTotal > 0 ? `${fcTotal} ₾ / month` : "Net profit is hidden",
+      detail: fcTotal > 0 ? `${f.money(fcTotal)} / month` : "Net profit is hidden",
     },
     {
       id: "recipes",

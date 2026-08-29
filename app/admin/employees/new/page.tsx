@@ -4,6 +4,7 @@ import { i18nText } from "@/lib/admin-utils";
 import { createEmployee } from "../actions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ const cell: React.CSSProperties = { display: "flex", alignItems: "center", gap: 
 
 export default async function NewEmployee() {
   const t = await tr();
+  const f = await fmt();
   const branches = await db.branch.findMany({ where: { deletedAt: null }, orderBy: { sortOrder: "asc" } });
 
   return (
@@ -69,7 +71,7 @@ export default async function NewEmployee() {
           </div>
 
           <div className="field">
-            <label htmlFor="hourlyRate">{t("Hourly rate")} (₾)</label>
+            <label htmlFor="hourlyRate">{t("Hourly rate")} ({f.symbol})</label>
             <input id="hourlyRate" name="hourlyRate" type="number" step="0.01" min="0" />
           </div>
         </div>

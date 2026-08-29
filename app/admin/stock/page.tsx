@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 import { addMovement } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export default async function StockPage({
 }) {
   const sp = await searchParams;
   const t = await tr();
+  const f = await fmt();
 
   const locations = await db.stockLocation.findMany({
     where: { deletedAt: null },
@@ -192,7 +194,7 @@ export default async function StockPage({
 
             <div className="field-row">
               <div className="field">
-                <label htmlFor="unitCost">{t("Unit cost")} (₾)</label>
+                <label htmlFor="unitCost">{t("Unit cost")} ({f.symbol})</label>
                 <input id="unitCost" name="unitCost" type="number" step="0.0001" min="0" placeholder={t("Receipts only")} />
                 <span className="hint">
                   {t("Purchase price per unit. Without it we cannot work out food cost.")}

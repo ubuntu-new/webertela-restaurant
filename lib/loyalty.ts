@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { fmt } from "@/lib/format";
 
 /**
  * Loyalty points.
@@ -76,6 +77,8 @@ export async function awardPoints(opts: {
   const points = Math.floor(base * s.pointsPerGel);
   if (points <= 0) return 0;
 
+  const f = await fmt();
+
   await db.$transaction([
     db.pointsEntry.create({
       data: {
@@ -83,7 +86,7 @@ export async function awardPoints(opts: {
         type: "earn",
         points,
         orderId: opts.orderId,
-        reason: `Order · ${base.toFixed(2)} ₾`,
+        reason: `Order · ${f.money(base)}`,
       },
     }),
     db.user.update({
@@ -104,6 +107,8 @@ export async function redeemPoints(opts: {
 }) {
   if (opts.points <= 0) return 0;
 
+  const f = await fmt();
+
   await db.$transaction([
     db.pointsEntry.create({
       data: {
@@ -111,7 +116,7 @@ export async function redeemPoints(opts: {
         type: "redeem",
         points: -opts.points,
         orderId: opts.orderId,
-        reason: `Redeemed · ${opts.value.toFixed(2)} ₾`,
+        reason: `Redeemed · ${f.money(opts.value)}`,
       },
     }),
     db.user.update({

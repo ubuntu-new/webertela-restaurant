@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText, money } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 import { saveToppingPrices } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export default async function ToppingsPage({
 }) {
   const sp = await searchParams;
   const t = await tr();
+  const f = await fmt();
 
   const toppings = await db.topping.findMany({
     where: { deletedAt: null },
@@ -60,7 +62,7 @@ export default async function ToppingsPage({
                 <th>{t("Group")}</th>
                 {sizeKeys.map((k) => (
                   <th key={k} style={{ width: 90 }}>
-                    {k} (₾)
+                    {k} ({f.symbol})
                   </th>
                 ))}
                 <th style={{ width: 90 }}>{t("Enabled")}</th>

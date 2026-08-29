@@ -2,12 +2,14 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 import { createProduct } from "../actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewProduct() {
   const t = await tr();
+  const f = await fmt();
   const categories = await db.category.findMany({ where: { deletedAt: null }, orderBy: { sortOrder: "asc" } });
 
   return (
@@ -58,7 +60,7 @@ export default async function NewProduct() {
         </div>
 
         <div className="field">
-          <label htmlFor="price">{t("Price")} (₾)</label>
+          <label htmlFor="price">{t("Price")} ({f.symbol})</label>
           <input id="price" name="price" type="number" step="0.01" min="0" defaultValue="0" />
           <span className="hint">{t("Ignored for pizzas — size prices are set on the edit page.")}</span>
         </div>

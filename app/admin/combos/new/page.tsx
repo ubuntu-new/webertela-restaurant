@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { createCombo } from "../actions";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewCombo() {
   const t = await tr();
+  const f = await fmt();
 
   return (
     <>
@@ -47,7 +49,7 @@ export default async function NewCombo() {
 
         <div className="field-row">
           <div className="field">
-            <label htmlFor="price">{t("Fixed price")} (₾)</label>
+            <label htmlFor="price">{t("Fixed price")} ({f.symbol})</label>
             <input id="price" name="price" type="number" step="0.01" min="0" />
           </div>
           <div className="field">

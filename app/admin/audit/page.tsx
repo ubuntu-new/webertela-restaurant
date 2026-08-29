@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,7 @@ export default async function AuditPage({
 }) {
   const sp = await searchParams;
   const t = await tr();
+  const f = await fmt();
 
   const days = Math.min(90, Math.max(1, Number(sp.days) || 7));
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -193,7 +195,7 @@ export default async function AuditPage({
                 return (
                   <tr key={l.id}>
                     <td>
-                      <span className="hint">{new Date(l.at).toLocaleString("ka-GE")}</span>
+                      <span className="hint">{f.dateTime(l.at)}</span>
                     </td>
                     <td>{l.employee?.name ?? <span className="hint">{t("System")}</span>}</td>
                     <td>{t(group)}</td>

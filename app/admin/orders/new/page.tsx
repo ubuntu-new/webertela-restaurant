@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { i18nText, money } from "@/lib/admin-utils";
+import { i18nText } from "@/lib/admin-utils";
+import { fmt } from "@/lib/format";
 import { createManualOrder } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export default async function NewOrderPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const sp = await searchParams;
+  const f = await fmt();
 
   const [branches, products, settings] = await Promise.all([
     db.branch.findMany({ where: { deletedAt: null, active: true }, orderBy: { sortOrder: "asc" } }),
@@ -134,7 +136,7 @@ export default async function NewOrderPage({
                               if (!sz) return null;
                               return (
                                 <option key={k} value={i}>
-                                  {k} · {money(sz.price)} ₾
+                                  {k} · {f.money(Number(sz.price))}
                                 </option>
                               );
                             })}
@@ -147,7 +149,7 @@ export default async function NewOrderPage({
                         {hasSizes ? (
                           <span className="hint">by size</span>
                         ) : (
-                          <b>{p.price != null ? `${money(p.price)} ₾` : "—"}</b>
+                          <b>{p.price != null ? f.money(Number(p.price)) : "—"}</b>
                         )}
                       </td>
                       <td>
@@ -177,7 +179,7 @@ export default async function NewOrderPage({
             </li>
             {minOrder > 0 && (
               <li>
-                Minimum order is <b>{minOrder} ₾</b>. Manual orders are exempt — staff sometimes
+                Minimum order is <b>{f.money(minOrder)}</b>. Manual orders are exempt — staff sometimes
                 need to record a small one.
               </li>
             )}

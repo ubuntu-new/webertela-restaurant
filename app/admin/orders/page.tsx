@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { i18nText, money } from "@/lib/admin-utils";
+import { i18nText } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export default async function OrdersPage({
 }) {
   const sp = await searchParams;
   const t = await tr();
+  const f = await fmt();
 
   const [branches, orders, counts] = await Promise.all([
     db.branch.findMany({ where: { deletedAt: null }, orderBy: { sortOrder: "asc" } }),
@@ -145,7 +147,7 @@ export default async function OrdersPage({
                   </td>
                   <td>{o._count.items}</td>
                   <td>
-                    <b>{money(o.total)} ₾</b>
+                    <b>{f.money(Number(o.total))}</b>
                   </td>
                   <td>
                     <span className="badge" style={TONE[o.status] ?? { background: "#f5f5f4", color: "#78716c" }}>
@@ -153,7 +155,7 @@ export default async function OrdersPage({
                     </span>
                   </td>
                   <td>
-                    <span className="hint">{new Date(o.createdAt).toLocaleString("ka-GE")}</span>
+                    <span className="hint">{f.dateTime(o.createdAt)}</span>
                   </td>
                 </tr>
               ))}

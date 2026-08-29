@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { formatPhone } from "@/lib/phone";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-const money = (n: number) => n.toFixed(2);
 
 export default async function CustomersPage({
   searchParams,
@@ -12,6 +11,7 @@ export default async function CustomersPage({
   searchParams: Promise<{ sort?: string }>;
 }) {
   const sp = await searchParams;
+  const f = await fmt();
 
   const orderBy =
     sp.sort === "spent"
@@ -40,7 +40,7 @@ export default async function CustomersPage({
         <div>
           <h1>Customers</h1>
           <p>
-            {totals._count} customers · {money(Number(totals._sum.totalSpent ?? 0))} ₾ lifetime ·{" "}
+            {totals._count} customers · {f.money(Number(totals._sum.totalSpent ?? 0))} lifetime ·{" "}
             {totals._sum.loyaltyPoints ?? 0} points outstanding
           </p>
         </div>
@@ -88,7 +88,7 @@ export default async function CustomersPage({
                   </td>
                   <td>{c.orderCount}</td>
                   <td>
-                    <b>{money(Number(c.totalSpent))} ₾</b>
+                    <b>{f.money(Number(c.totalSpent))}</b>
                   </td>
                   <td>
                     {c.loyaltyPoints > 0 ? (
@@ -101,7 +101,7 @@ export default async function CustomersPage({
                   </td>
                   <td>
                     <span className="hint">
-                      {c.lastOrderAt ? new Date(c.lastOrderAt).toLocaleDateString("ka-GE") : "—"}
+                      {f.date(c.lastOrderAt)}
                     </span>
                   </td>
                 </tr>
@@ -115,11 +115,11 @@ export default async function CustomersPage({
         <h2>How loyalty works</h2>
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.8, color: "var(--a-muted)" }}>
           <li>
-            <b>1 point per ₾</b> on the items subtotal — not on the delivery fee, and not on the
+            <b>1 point per {f.symbol}</b> on the items subtotal — not on the delivery fee, and not on the
             part paid with points. Otherwise points could be farmed in a loop.
           </li>
           <li>
-            <b>100 points = 10 ₾</b>, minimum 100 to redeem. Editable in Settings.
+            <b>100 points = {f.money(10)}</b>, minimum 100 to redeem. Editable in Settings.
           </li>
           <li>
             The points ledger is the truth; the balance shown is a cache kept in the same

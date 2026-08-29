@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { i18nOf, i18nText, money, num } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 import { updateProductFull, archiveProduct } from "../actions";
 import ImageField from "../../_components/ImageField";
 import ArchiveButton from "../../_components/ArchiveButton";
@@ -31,6 +32,7 @@ function nutritionOf(v: unknown) {
 export default async function ProductEdit({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const t = await tr();
+  const f = await fmt();
 
   const [p, categories, toppings, branches, orderCount, comboSlots] = await Promise.all([
     db.product.findUnique({
@@ -213,7 +215,7 @@ export default async function ProductEdit({ params }: { params: Promise<{ id: st
                 <tr>
                   <th style={{ width: 90 }}>{t("Size")}</th>
                   <th style={{ width: 90 }}>{t("cm")}</th>
-                  <th style={{ width: 110 }}>{t("Price")} (₾)</th>
+                  <th style={{ width: 110 }}>{t("Price")} ({f.symbol})</th>
                   <th style={{ width: 90 }}>{t("Sort")}</th>
                   <th style={{ width: 70 }}>{t("Delete")}</th>
                 </tr>
@@ -252,7 +254,7 @@ export default async function ProductEdit({ params }: { params: Promise<{ id: st
           </div>
 
           <div className="field">
-            <label htmlFor="price">{t("Single price")} (₾)</label>
+            <label htmlFor="price">{t("Single price")} ({f.symbol})</label>
             <input id="price" name="price" type="number" step="0.01" min="0" defaultValue={p.price ? money(p.price) : ""} />
             <span className="hint">{t("Use this when the product has no sizes. Empty = it sells by size.")}</span>
           </div>
@@ -289,7 +291,7 @@ export default async function ProductEdit({ params }: { params: Promise<{ id: st
               <label htmlFor="promo_mode">{t("Type")}</label>
               <select id="promo_mode" name="promo_mode" defaultValue={p.promo?.mode ?? "percent"}>
                 <option value="percent">{t("Percent")} (%)</option>
-                <option value="fixed">{t("Fixed")} (₾)</option>
+                <option value="fixed">{t("Fixed")} ({f.symbol})</option>
               </select>
             </div>
             <div className="field">

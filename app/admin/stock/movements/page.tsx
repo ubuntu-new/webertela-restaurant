@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default async function MovementsPage({
 }) {
   const sp = await searchParams;
   const t = await tr();
+  const f = await fmt();
 
   const [locations, movements] = await Promise.all([
     db.stockLocation.findMany({ where: { deletedAt: null }, orderBy: { type: "asc" } }),
@@ -106,7 +108,7 @@ export default async function MovementsPage({
                 return (
                   <tr key={m.id}>
                     <td>
-                      <span className="hint">{new Date(m.at).toLocaleString("ka-GE")}</span>
+                      <span className="hint">{f.dateTime(m.at)}</span>
                     </td>
                     <td>
                       <Link href={`/admin/stock/items/${m.itemId}`}>{i18nText(m.item.name)}</Link>

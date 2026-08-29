@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { i18nText, money } from "@/lib/admin-utils";
+import { i18nText } from "@/lib/admin-utils";
 import { setOrderStatus } from "../actions";
 import { detailLines, lineColor } from "@/lib/item-detail";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,7 @@ const KIND: Record<string, string> = {
 export default async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const t = await tr();
+  const f = await fmt();
 
   const o = await db.order.findUnique({
     where: { id },
@@ -89,7 +91,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           </h1>
           <p>
             {i18nText(o.branch.name)} · {o.fulfillmentType === "pickup" ? t("Pickup") : t("Delivery")}{" "}
-            · {new Date(o.createdAt).toLocaleString("ka-GE")}
+            · {f.dateTime(o.createdAt)}
           </p>
         </div>
         <Link className="btn btn-ghost" href="/admin/orders">
@@ -146,7 +148,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                   {o.deliveredAt && (
                     <span className="hint">
                       {" "}
-                      · {t("delivered")} {new Date(o.deliveredAt).toLocaleString("ka-GE")}
+                      · {t("delivered")} {f.dateTime(o.deliveredAt)}
                     </span>
                   )}
                 </td>
@@ -212,9 +214,9 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                   <span className="hint">{KIND[it.kind] ? t(KIND[it.kind]) : it.kind}</span>
                 </td>
                 <td>{it.qty}</td>
-                <td>{money(it.unitPrice)} ₾</td>
+                <td>{f.money(Number(it.unitPrice))}</td>
                 <td>
-                  <b>{money(it.lineTotal)} ₾</b>
+                  <b>{f.money(Number(it.lineTotal))}</b>
                 </td>
               </tr>
             ))}
@@ -225,12 +227,12 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           <tbody>
             <tr>
               <td>{t("Subtotal")}</td>
-              <td style={{ textAlign: "right" }}>{money(o.subtotal)} ₾</td>
+              <td style={{ textAlign: "right" }}>{f.money(Number(o.subtotal))}</td>
             </tr>
             <tr>
               <td>{t("Delivery")}</td>
               <td style={{ textAlign: "right" }}>
-                {Number(o.deliveryFee) > 0 ? `${money(o.deliveryFee)} ₾` : t("Free")}
+                {Number(o.deliveryFee) > 0 ? f.money(Number(o.deliveryFee)) : t("Free")}
               </td>
             </tr>
             <tr>
@@ -238,7 +240,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                 <b>{t("Total")}</b>
               </td>
               <td style={{ textAlign: "right" }}>
-                <b>{money(o.total)} ₾</b>
+                <b>{f.money(Number(o.total))}</b>
               </td>
             </tr>
           </tbody>
@@ -259,7 +261,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                     {LABEL[h.status ?? ""] ? t(LABEL[h.status ?? ""]) : h.status}
                   </td>
                   <td>
-                    <span className="hint">{h.at ? new Date(h.at).toLocaleString("ka-GE") : ""}</span>
+                    <span className="hint">{f.dateTime(h.at)}</span>
                   </td>
                   <td>
                     <span className="hint">{h.by ?? ""}</span>

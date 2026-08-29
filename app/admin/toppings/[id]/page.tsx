@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { i18nOf, money } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 import { updateTopping, archiveTopping } from "../actions";
 import ImageField from "../../_components/ImageField";
 import ArchiveButton from "../../_components/ArchiveButton";
@@ -14,6 +15,7 @@ const GROUPS = ["cheese", "protein", "veg", "heat"];
 export default async function ToppingEdit({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const t = await tr();
+  const f = await fmt();
 
   const top = await db.topping.findUnique({
     where: { id },
@@ -100,7 +102,7 @@ export default async function ToppingEdit({ params }: { params: Promise<{ id: st
         </div>
 
         <div className="admin-panel">
-          <h2>{t("Prices by size")} (₾)</h2>
+          <h2>{t("Prices by size")} ({f.symbol})</h2>
           <div className="field-row" style={{ gridTemplateColumns: `repeat(${top.prices.length || 1}, 1fr)` }}>
             {top.prices.map((p) => (
               <div className="field" key={p.id}>

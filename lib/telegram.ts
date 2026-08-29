@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { fmt } from "@/lib/format";
 
 /**
  * Telegram შეტყობინებები.
@@ -94,11 +95,12 @@ export async function notifyNewOrder(o: {
   phone?: string | null;
 }) {
   const kind = o.type === "pickup" ? "წაღება" : "მიწოდება";
+  const f = await fmt();
   await sendTelegram(
     "order",
     `🍕 <b>ახალი შეკვეთა #${o.orderNo}</b>\n` +
       `${esc(o.branch)} · ${kind}\n` +
-      `${o.itemCount} პოზიცია · <b>${o.total} ₾</b>` +
+      `${o.itemCount} პოზიცია · <b>${f.money(Number(o.total))}</b>` +
       (o.customer ? `\n${esc(o.customer)}` : "") +
       (o.phone ? ` · ${esc(o.phone)}` : ""),
   );

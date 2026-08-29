@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 import { finishProduction, cancelProduction } from "../actions";
 import { PSTATUS } from "../status";
 
@@ -27,6 +28,7 @@ export default async function ProductionDetail({
   const { id } = await params;
   const sp = await searchParams;
   const t = await tr();
+  const f = await fmt();
 
   const o = await db.productionOrder.findUnique({
     where: { id },
@@ -150,7 +152,7 @@ export default async function ProductionDetail({
                 <td style={{ width: 150 }}>{s.label}</td>
                 <td style={{ width: 200 }}>{nameOf(s.by)}</td>
                 <td>
-                  <span className="hint">{s.at ? new Date(s.at).toLocaleString("ka-GE") : ""}</span>
+                  <span className="hint">{f.dateTime(s.at)}</span>
                 </td>
               </tr>
             ))}

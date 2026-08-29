@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { i18nText, money } from "@/lib/admin-utils";
+import { i18nText } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,7 @@ export default async function ProductsPage({
 }) {
   const sp = await searchParams;
   const t = await tr();
+  const f = await fmt();
 
   const categories = await db.category.findMany({ where: { deletedAt: null }, orderBy: { sortOrder: "asc" } });
   const branchCount = await db.branch.count({ where: { deletedAt: null } });
@@ -95,14 +97,16 @@ export default async function ProductsPage({
                 <td>{i18nText(p.category.name)}</td>
                 <td>
                   {p.sizes.length > 0
-                    ? p.sizes.map((s) => `${s.key} ${money(s.price)}`).join(" · ")
-                    : `${money(p.price)} ₾`}
+                    ? p.sizes.map((s) => `${s.key} ${f.money(Number(s.price))}`).join(" · ")
+                    : f.money(Number(p.price))}
                 </td>
                 <td>
                   {p.promo?.active ? (
                     <span className="badge badge-promo">
-                      −{money(p.promo.value)}
-                      {p.promo.mode === "percent" ? "%" : "₾"}
+                      −
+                      {p.promo.mode === "percent"
+                        ? `${f.num(Number(p.promo.value), 2)}%`
+                        : f.money(Number(p.promo.value))}
                     </span>
                   ) : (
                     <span className="hint">—</span>

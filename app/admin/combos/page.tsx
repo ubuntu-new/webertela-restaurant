@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { i18nText, money, num } from "@/lib/admin-utils";
+import { i18nText, num } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,7 @@ export default async function CombosPage({
 }) {
   const sp = await searchParams;
   const t = await tr();
+  const f = await fmt();
   const branchCount = await db.branch.count({ where: { deletedAt: null } });
 
   const combos = await db.combo.findMany({
@@ -69,7 +71,7 @@ export default async function CombosPage({
                 </td>
                 <td>
                   {c.pricingMode === "fixed" ? (
-                    <>{money(c.price)} ₾</>
+                    <>{f.money(num(c.price))}</>
                   ) : (
                     <span className="badge badge-promo">−{num(c.percent)}%</span>
                   )}

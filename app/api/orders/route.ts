@@ -8,6 +8,7 @@ import { applyOutgoingCost } from "@/lib/costing";
 import { notifyNewOrder } from "@/lib/telegram";
 import { awardPoints } from "@/lib/loyalty";
 import { normalizePhone } from "@/lib/phone";
+import { fmt } from "@/lib/format";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,8 +76,9 @@ export async function POST(req: Request) {
   }
 
   if (priced.subtotal < menu.MIN_ORDER) {
+    const f = await fmt();
     return NextResponse.json(
-      { error: `მინიმალური შეკვეთაა ${menu.MIN_ORDER} ₾` },
+      { error: `მინიმალური შეკვეთაა ${f.money(menu.MIN_ORDER)}` },
       { status: 400 },
     );
   }

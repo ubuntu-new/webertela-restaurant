@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 import {
   restoreProduct,
   restoreTopping,
@@ -14,10 +15,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function when(d: Date | null) {
-  return d ? new Date(d).toLocaleString("ka-GE") : "—";
-}
-
 function RestoreButton({ action, label }: { action: () => Promise<void>; label: string }) {
   return (
     <form action={action}>
@@ -30,6 +27,7 @@ function RestoreButton({ action, label }: { action: () => Promise<void>; label: 
 
 export default async function ArchivePage() {
   const t = await tr();
+  const f = await fmt();
 
   const [products, toppings, combos, branches, categories, subcategories, employees, discounts] =
     await Promise.all([
@@ -208,7 +206,7 @@ export default async function ArchivePage() {
                     </span>
                   </td>
                   <td>
-                    <span className="hint">{when(r.at)}</span>
+                    <span className="hint">{f.dateTime(r.at)}</span>
                   </td>
                   <td>
                     <RestoreButton action={r.action} label={t("Restore")} />

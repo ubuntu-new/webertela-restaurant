@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { i18nText, i18nOf } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 import { updateStockItem, archiveStockItem } from "../../actions";
 import ArchiveButton from "../../../_components/ArchiveButton";
 
@@ -23,6 +24,7 @@ const MOVE_LABEL: Record<string, string> = {
 export default async function StockItemEdit({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const t = await tr();
+  const f = await fmt();
 
   const [item, locations, movements] = await Promise.all([
     db.stockItem.findUnique({ where: { id }, include: { levels: true } }),
@@ -218,7 +220,7 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
                 return (
                   <tr key={m.id}>
                     <td>
-                      <span className="hint">{new Date(m.at).toLocaleString("ka-GE")}</span>
+                      <span className="hint">{f.dateTime(m.at)}</span>
                     </td>
                     <td>
                       {i18nText(m.location.name)}

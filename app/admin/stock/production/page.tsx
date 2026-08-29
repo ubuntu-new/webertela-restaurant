@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 import { PSTATUS, PTONE } from "./status";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export default async function ProductionPage({
 }) {
   const sp = await searchParams;
   const t = await tr();
+  const f = await fmt();
 
   const [orders, counts] = await Promise.all([
     db.productionOrder.findMany({
@@ -129,7 +131,7 @@ export default async function ProductionPage({
                       </span>
                     </td>
                     <td>
-                      <span className="hint">{new Date(o.startedAt).toLocaleString("ka-GE")}</span>
+                      <span className="hint">{f.dateTime(o.startedAt)}</span>
                     </td>
                   </tr>
                 );

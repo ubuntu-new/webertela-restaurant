@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { createDiscount } from "../actions";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewDiscount() {
   const t = await tr();
+  const f = await fmt();
 
   return (
     <>
@@ -48,7 +50,7 @@ export default async function NewDiscount() {
             <label htmlFor="defaultMode">{t("Default type")}</label>
             <select id="defaultMode" name="defaultMode" defaultValue="percent">
               <option value="percent">{t("Percent (%)")}</option>
-              <option value="fixed">{t("Fixed")} (₾)</option>
+              <option value="fixed">{t("Fixed")} ({f.symbol})</option>
             </select>
           </div>
           <div className="field">

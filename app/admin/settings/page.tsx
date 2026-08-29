@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/admin-auth";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 import {
   saveOrderSettings,
   saveLoyaltySettings,
@@ -35,6 +36,7 @@ export default async function SettingsPage({
 }) {
   const sp = await searchParams;
   const t = await tr();
+  const f = await fmt();
 
   const session = await getSession();
   const rows = await db.setting.findMany();
@@ -100,17 +102,17 @@ export default async function SettingsPage({
         <h2>{t("Orders and delivery")}</h2>
         <div className="field-row">
           <div className="field">
-            <label htmlFor="minOrder">{t("Minimum order")} (₾)</label>
+            <label htmlFor="minOrder">{t("Minimum order")} ({f.symbol})</label>
             <input id="minOrder" name="minOrder" type="number" step="0.01" min="0" defaultValue={n(order.minOrder, 25)} />
           </div>
           <div className="field">
-            <label htmlFor="deliveryFee">{t("Delivery fee")} (₾)</label>
+            <label htmlFor="deliveryFee">{t("Delivery fee")} ({f.symbol})</label>
             <input id="deliveryFee" name="deliveryFee" type="number" step="0.01" min="0" defaultValue={n(order.deliveryFee, 5.5)} />
           </div>
         </div>
         <div className="field-row">
           <div className="field">
-            <label htmlFor="freeDeliveryThreshold">{t("Free delivery over")} (₾)</label>
+            <label htmlFor="freeDeliveryThreshold">{t("Free delivery over")} ({f.symbol})</label>
             <input id="freeDeliveryThreshold" name="freeDeliveryThreshold" type="number" step="0.01" min="0" defaultValue={n(order.freeDeliveryThreshold, 60)} />
           </div>
           <div className="field">
@@ -136,11 +138,11 @@ export default async function SettingsPage({
         </div>
         <div className="field-row">
           <div className="field">
-            <label htmlFor="pointsPerGel">{t("Points per")} 1 ₾</label>
+            <label htmlFor="pointsPerGel">{t("Points per")} 1 {f.symbol}</label>
             <input id="pointsPerGel" name="pointsPerGel" type="number" step="0.01" min="0" defaultValue={n(loyalty.pointsPerGel, 1)} />
           </div>
           <div className="field">
-            <label htmlFor="redeemRate">{t("Value of 1 point")} (₾)</label>
+            <label htmlFor="redeemRate">{t("Value of 1 point")} ({f.symbol})</label>
             <input id="redeemRate" name="redeemRate" type="number" step="0.01" min="0" defaultValue={n(loyalty.redeemRate, 0.1)} />
           </div>
         </div>
@@ -149,7 +151,7 @@ export default async function SettingsPage({
           <input id="minRedeem" name="minRedeem" type="number" min="0" defaultValue={n(loyalty.minRedeem, 100)} />
           <span className="hint">
             {t("Right now 100 points are worth")}{" "}
-            {(n(loyalty.minRedeem, 100) * n(loyalty.redeemRate, 0.1)).toFixed(2)} ₾
+            {f.money(n(loyalty.minRedeem, 100) * n(loyalty.redeemRate, 0.1))}
           </span>
         </div>
         <div className="form-actions">
@@ -173,7 +175,7 @@ export default async function SettingsPage({
             <label htmlFor="e_mode">{t("Type")}</label>
             <select id="e_mode" name="mode" defaultValue={String(emp.mode ?? "percent")}>
               <option value="percent">{t("Percent")} (%)</option>
-              <option value="fixed">{t("Fixed")} (₾)</option>
+              <option value="fixed">{t("Fixed")} ({f.symbol})</option>
             </select>
           </div>
         </div>
@@ -224,15 +226,15 @@ export default async function SettingsPage({
         </p>
         <div className="field-row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
           <div className="field">
-            <label htmlFor="rent">{t("Rent")} (₾)</label>
+            <label htmlFor="rent">{t("Rent")} ({f.symbol})</label>
             <input id="rent" name="rent" type="number" step="0.01" min="0" defaultValue={n(fc.rent, 0)} />
           </div>
           <div className="field">
-            <label htmlFor="utilities">{t("Utilities")} (₾)</label>
+            <label htmlFor="utilities">{t("Utilities")} ({f.symbol})</label>
             <input id="utilities" name="utilities" type="number" step="0.01" min="0" defaultValue={n(fc.utilities, 0)} />
           </div>
           <div className="field">
-            <label htmlFor="other">{t("Other")} (₾)</label>
+            <label htmlFor="other">{t("Other")} ({f.symbol})</label>
             <input id="other" name="other" type="number" step="0.01" min="0" defaultValue={n(fc.other, 0)} />
           </div>
         </div>

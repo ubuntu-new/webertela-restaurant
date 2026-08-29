@@ -5,6 +5,7 @@ import { i18nOf, i18nText, num } from "@/lib/admin-utils";
 import { updateDiscount, archiveDiscount } from "../actions";
 import ArchiveButton from "../../_components/ArchiveButton";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ function dateVal(d: Date | null) {
 export default async function DiscountEdit({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const t = await tr();
+  const f = await fmt();
 
   const [d, categories, products] = await Promise.all([
     db.discount.findUnique({
@@ -121,7 +123,7 @@ export default async function DiscountEdit({ params }: { params: Promise<{ id: s
               <label htmlFor="defaultMode">{t("Default type")}</label>
               <select id="defaultMode" name="defaultMode" defaultValue={d.defaultMode}>
                 <option value="percent">{t("Percent (%)")}</option>
-                <option value="fixed">{t("Fixed")} (₾)</option>
+                <option value="fixed">{t("Fixed")} ({f.symbol})</option>
               </select>
             </div>
             <div className="field">
@@ -163,7 +165,7 @@ export default async function DiscountEdit({ params }: { params: Promise<{ id: s
                     <td>
                       <select name={`rule_${r.id}_mode`} defaultValue={r.mode} style={inp}>
                         <option value="percent">%</option>
-                        <option value="fixed">₾</option>
+                        <option value="fixed">{f.symbol}</option>
                       </select>
                     </td>
                     <td>
@@ -216,7 +218,7 @@ export default async function DiscountEdit({ params }: { params: Promise<{ id: s
               </select>
               <select name="newrule_mode" defaultValue="percent">
                 <option value="percent">{t("Percent (%)")}</option>
-                <option value="fixed">{t("Fixed")} (₾)</option>
+                <option value="fixed">{t("Fixed")} ({f.symbol})</option>
               </select>
               <input name="newrule_value" type="number" step="0.01" min="0" placeholder={t("Amount")} />
             </div>

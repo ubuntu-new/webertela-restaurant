@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 import { approveTransfer, sendTransfer, receiveTransfer, cancelTransfer } from "../actions";
 import { STATUS } from "../status";
 
@@ -27,6 +28,7 @@ export default async function TransferDetail({
   const { id } = await params;
   const sp = await searchParams;
   const tx = await tr();
+  const f = await fmt();
 
   const t = await db.transfer.findUnique({
     where: { id },
@@ -92,7 +94,7 @@ export default async function TransferDetail({
                 <td style={{ width: 200 }}>{nameOf(s.by)}</td>
                 <td>
                   <span className="hint">
-                    {s.at ? new Date(s.at).toLocaleString("ka-GE") : ""}
+                    {f.dateTime(s.at)}
                   </span>
                 </td>
               </tr>

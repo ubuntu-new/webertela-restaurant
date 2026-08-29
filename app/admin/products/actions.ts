@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { fmt } from "@/lib/format";
 
 const TYPES = ["pizza", "item", "sticks", "drink", "merch"] as const;
 type ProductType = (typeof TYPES)[number];
@@ -203,7 +204,8 @@ export async function updateProductFull(id: string, fd: FormData) {
   const promoSizes = fd.getAll("promo_size").map(String);
 
   if (promoActive && promoValue !== null) {
-    const label = `-${promoValue}${promoMode === "fixed" ? "₾" : "%"}`;
+    const f = await fmt();
+    const label = promoMode === "fixed" ? `-${f.money(promoValue)}` : `-${promoValue}%`;
     const base = {
       active: true,
       mode: promoMode as "percent" | "fixed",
