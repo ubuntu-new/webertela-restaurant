@@ -102,7 +102,7 @@ export interface ProductCost {
  * ღირებულება საწარმოს ლოკაციიდან მოდის — ის ცენტრალური მიღების წერტილია.
  */
 export async function computeMenuCosts(): Promise<{ products: ProductCost[]; toppings: ProductCost[] }> {
-  const [warehouse, rules, levels] = await Promise.all([
+  const [warehouse, rules, levels, defaults] = await Promise.all([
     db.stockLocation.findFirst({ where: { type: "warehouse", deletedAt: null }, select: { id: true } }),
     db.consumptionRule.findMany({
       include: {
@@ -112,6 +112,12 @@ export async function computeMenuCosts(): Promise<{ products: ProductCost[]; top
       },
     }),
     db.stockLevel.findMany({ select: { locationId: true, itemId: true, avgCost: true } }),
+    // A pizza's cheese and pepperoni are Topping rules, linked to the pizza
+    // here. Without these the plate cost is dough, sauce and a box — which is
+    // how every pizza on the costing page came out at ~90% margin while the
+    // dashboard's food cost, which does count toppings, said 31%. Two screens,
+    // two answers, and the owner stops believing both.
+    db.productTopping.findMany({ select: { productId: true, toppingId: true } }),
   ]);
 
   const costOf = new Map<string, number>();
@@ -119,6 +125,22 @@ export async function computeMenuCosts(): Promise<{ products: ProductCost[]; top
     for (const l of levels) {
       if (l.locationId === warehouse.id && l.avgCost != null) costOf.set(l.itemId, Number(l.avgCost));
     }
+  }
+
+  // Topping rules, reachable by topping id — used to complete a product's plate.
+  const toppingRules = new Map<string, typeof rules>();
+  for (const r of rules) {
+    if (!r.toppingId) continue;
+    const list = toppingRules.get(r.toppingId) ?? [];
+    list.push(r);
+    toppingRules.set(r.toppingId, list);
+  }
+
+  const defaultToppings = new Map<string, string[]>();
+  for (const d of defaults) {
+    const list = defaultToppings.get(d.productId) ?? [];
+    list.push(d.toppingId);
+    defaultToppings.set(d.productId, list);
   }
 
   // ჯგუფდება მფლობელისა და ზომის მიხედვით
@@ -138,7 +160,20 @@ export async function computeMenuCosts(): Promise<{ products: ProductCost[]; top
     let cost = 0;
     let missing = 0;
 
-    const lines = list.map((r) => {
+    // A product is what it is made of, including the ingredients that come on
+    // it by default. A size-specific topping rule wins over the general one —
+    // an XL takes more cheese than an S.
+    const extra: typeof rules = [];
+    if (first.productId) {
+      for (const tid of defaultToppings.get(first.productId) ?? []) {
+        const candidates = toppingRules.get(tid) ?? [];
+        const sized = candidates.filter((r) => r.sizeKey === first.sizeKey);
+        const general = candidates.filter((r) => r.sizeKey === null);
+        extra.push(...(sized.length ? sized : general));
+      }
+    }
+
+    const lines = [...list, ...extra].map((r) => {
       const avg = costOf.get(r.itemId) ?? null;
       const qty = Number(r.qty);
       const total = avg != null ? Math.round(qty * avg * 100) / 100 : null;
