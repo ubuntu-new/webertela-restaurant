@@ -160,6 +160,12 @@ UPLOAD_DIR=$UPLOAD_DIR
 # Middleware runs before the database is reachable, so the landing language
 # comes from here rather than from Setting: org.
 NEXT_PUBLIC_DEFAULT_LOCALE=$LOCALE_LANG
+# One language unless the restaurant asks for more. A US menu with a Georgian
+# switch in the header is a question the customer cannot answer.
+NEXT_PUBLIC_LOCALES=$LOCALE_LANG
+# The app must agree with Setting: org about what time it is, or the hourly
+# load chart peaks at midnight while the tickets say six.
+TZ=$TZ_NAME
 EOF
 # Telegram is optional and per-restaurant. Left empty rather than absent so the
 # key is visible when someone comes to fill it in.
@@ -207,6 +213,7 @@ Environment=NODE_ENV=production
 Environment=HOSTNAME=127.0.0.1
 Environment=PORT=$PORT
 Environment=HOME=/home/$SLUG
+Environment=TZ=$TZ_NAME
 ExecStart=/usr/bin/npm start -- -H 127.0.0.1 -p $PORT
 Restart=always
 RestartSec=5
