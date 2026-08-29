@@ -1,17 +1,18 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText, money } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 export const dynamic = "force-dynamic";
 
 const LABEL: Record<string, string> = {
-  new: "ახალი",
-  confirmed: "დადასტურებული",
-  preparing: "მზადდება",
-  ready: "მზადაა",
-  delivering: "მიაქვთ",
-  completed: "დასრულებული",
-  cancelled: "გაუქმებული",
+  new: "New",
+  confirmed: "Confirmed",
+  preparing: "Preparing",
+  ready: "Ready",
+  delivering: "Out for delivery",
+  completed: "Done",
+  cancelled: "Cancelled",
 };
 
 const TONE: Record<string, React.CSSProperties> = {
@@ -26,6 +27,7 @@ export default async function OrdersPage({
   searchParams: Promise<{ status?: string; branch?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const [branches, orders, counts] = await Promise.all([
     db.branch.findMany({ where: { deletedAt: null }, orderBy: { sortOrder: "asc" } }),
@@ -52,20 +54,21 @@ export default async function OrdersPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>შეკვეთები</h1>
+          <h1>{t("Orders")}</h1>
           <p>
-            {orders.length} ნაჩვენები · ახალი {countOf("new")} · მზადდება {countOf("preparing")}
+            {orders.length} {t("shown")} · {t("New")} {countOf("new")} · {t("Preparing")}{" "}
+            {countOf("preparing")}
           </p>
         </div>
         <Link className="btn" href="/admin/orders/new">
-          + New order
+          + {t("New order")}
         </Link>
       </div>
 
       <div className="admin-panel">
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
           <Link className={sp.status ? "btn btn-ghost" : "btn"} href="/admin/orders">
-            ყველა
+            {t("All")}
           </Link>
           {Object.keys(LABEL).map((s) => (
             <Link
@@ -73,13 +76,13 @@ export default async function OrdersPage({
               className={sp.status === s ? "btn" : "btn btn-ghost"}
               href={`/admin/orders?status=${s}`}
             >
-              {LABEL[s]} {countOf(s) > 0 && `(${countOf(s)})`}
+              {t(LABEL[s])} {countOf(s) > 0 && `(${countOf(s)})`}
             </Link>
           ))}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link className={sp.branch ? "btn btn-ghost" : "btn"} href="/admin/orders">
-            ყველა ფილიალი
+            {t("All branches")}
           </Link>
           {branches.map((b) => (
             <Link
@@ -96,21 +99,21 @@ export default async function OrdersPage({
       <div className="admin-panel">
         {orders.length === 0 ? (
           <p className="hint" style={{ margin: 0 }}>
-            შეკვეთა ჯერ არ არის.
+            {t("No orders yet.")}
           </p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
                 <th style={{ width: 80 }}>№</th>
-                <th>კლიენტი</th>
-                <th>ფილიალი</th>
-                <th style={{ width: 140 }}>ვინ</th>
-                <th>ტიპი</th>
-                <th>პოზიცია</th>
-                <th>ჯამი</th>
-                <th>სტატუსი</th>
-                <th>დრო</th>
+                <th>{t("Customer")}</th>
+                <th>{t("Branch")}</th>
+                <th style={{ width: 140 }}>{t("Who")}</th>
+                <th>{t("Type")}</th>
+                <th>{t("Lines")}</th>
+                <th>{t("Total")}</th>
+                <th>{t("Status")}</th>
+                <th>{t("Time")}</th>
               </tr>
             </thead>
             <tbody>
@@ -130,13 +133,13 @@ export default async function OrdersPage({
                     {o.createdBy ? (
                       o.createdBy.name
                     ) : (
-                      <span className="hint">{o.source === "web" ? "საიტი" : o.source}</span>
+                      <span className="hint">{o.source === "web" ? t("Website") : o.source}</span>
                     )}
                     {o.posId && <div className="hint">{o.posId}</div>}
                   </td>
                   <td>
                     <span className="hint">
-                      {o.fulfillmentType === "pickup" ? "წაღება" : "მიწოდება"}
+                      {o.fulfillmentType === "pickup" ? t("Pickup") : t("Delivery")}
                     </span>
                     {o.driver && <div className="hint">🛵 {o.driver.name}</div>}
                   </td>
@@ -146,7 +149,7 @@ export default async function OrdersPage({
                   </td>
                   <td>
                     <span className="badge" style={TONE[o.status] ?? { background: "#f5f5f4", color: "#78716c" }}>
-                      {LABEL[o.status] ?? o.status}
+                      {LABEL[o.status] ? t(LABEL[o.status]) : o.status}
                     </span>
                   </td>
                   <td>

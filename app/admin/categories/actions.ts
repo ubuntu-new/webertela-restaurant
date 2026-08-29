@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 export async function saveCategories(fd: FormData) {
   const session = await requirePermission("can_edit_menu");
@@ -55,8 +56,9 @@ export async function saveCategories(fd: FormData) {
 
 export async function createCategory(fd: FormData) {
   const session = await requirePermission("can_edit_menu");
+  const t = await tr();
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
+  if (!nameEn) throw new Error(t("The English name is required"));
 
   const c = await db.category.create({
     data: {
@@ -78,8 +80,9 @@ export async function createCategory(fd: FormData) {
 
 export async function createSubcategory(categoryId: string, fd: FormData) {
   await requirePermission("can_edit_menu");
+  const t = await tr();
   const nameEn = fdStr(fd, "sub_name_en");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
+  if (!nameEn) throw new Error(t("The English name is required"));
 
   await db.subcategory.create({
     data: {

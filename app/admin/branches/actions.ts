@@ -5,20 +5,22 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 export async function createBranch(fd: FormData) {
   const session = await requirePermission("can_edit_menu");
+  const t = await tr();
 
   const code = fdStr(fd, "code").toUpperCase();
   const nameEn = fdStr(fd, "name_en");
-  if (!code) throw new Error("ფილიალის კოდი სავალდებულოა");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
+  if (!code) throw new Error(t("A branch code is required"));
+  if (!nameEn) throw new Error(t("The English name is required"));
 
   const clash = await db.branch.findUnique({ where: { code } });
-  if (clash) throw new Error(`კოდი "${code}" უკვე გამოიყენება`);
+  if (clash) throw new Error(`${t("Code")} "${code}" ${t("is already in use")}`);
 
   const org = await db.organization.findFirst();
-  if (!org) throw new Error("ორგანიზაცია ვერ მოიძებნა");
+  if (!org) throw new Error(t("Organization not found"));
 
   const b = await db.branch.create({
     data: {
@@ -55,14 +57,15 @@ export async function createBranch(fd: FormData) {
 
 export async function updateBranch(id: string, fd: FormData) {
   const session = await requirePermission("can_edit_menu");
+  const t = await tr();
 
   const code = fdStr(fd, "code").toUpperCase();
   const nameEn = fdStr(fd, "name_en");
-  if (!code) throw new Error("ბრანჩის კოდი სავალდებულოა");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
+  if (!code) throw new Error(t("A branch code is required"));
+  if (!nameEn) throw new Error(t("The English name is required"));
 
   const clash = await db.branch.findFirst({ where: { code, NOT: { id } } });
-  if (clash) throw new Error(`კოდი "${code}" უკვე გამოიყენება სხვა ფილიალში`);
+  if (clash) throw new Error(`${t("Code")} "${code}" ${t("is already used by another branch")}`);
 
   const hoursText = fdStr(fd, "hours");
 
@@ -82,20 +85,20 @@ export async function updateBranch(id: string, fd: FormData) {
   });
 
   const terminals = await db.terminal.findMany({ where: { branchId: id } });
-  for (const t of terminals) {
-    if (fd.get(`term_${t.id}_del`) !== null) {
+  for (const term of terminals) {
+    if (fd.get(`term_${term.id}_del`) !== null) {
       // ტერმინალიც არ იშლება — უბრალოდ დეაქტივირდება, რომ POS ID ისტორიაში დარჩეს
-      await db.terminal.update({ where: { id: t.id }, data: { active: false } });
+      await db.terminal.update({ where: { id: term.id }, data: { active: false } });
       continue;
     }
-    if (fd.get(`term_${t.id}_present`) === null) continue;
-    const labelEn = fdStr(fd, `term_${t.id}_label_en`);
+    if (fd.get(`term_${term.id}_present`) === null) continue;
+    const labelEn = fdStr(fd, `term_${term.id}_label_en`);
     await db.terminal.update({
-      where: { id: t.id },
+      where: { id: term.id },
       data: {
-        label: labelEn ? { en: labelEn, ka: fdStr(fd, `term_${t.id}_label_ka`) || labelEn } : undefined,
-        active: fdBool(fd, `term_${t.id}_active`),
-        hasCardTerminal: fdBool(fd, `term_${t.id}_card`),
+        label: labelEn ? { en: labelEn, ka: fdStr(fd, `term_${term.id}_label_ka`) || labelEn } : undefined,
+        active: fdBool(fd, `term_${term.id}_active`),
+        hasCardTerminal: fdBool(fd, `term_${term.id}_card`),
       },
     });
   }
@@ -116,16 +119,17 @@ export async function updateBranch(id: string, fd: FormData) {
 
 export async function addTerminal(branchId: string) {
   await requirePermission("can_edit_menu");
+  const t = await tr();
 
   const branch = await db.branch.findUnique({
     where: { id: branchId },
     include: { terminals: true },
   });
-  if (!branch) throw new Error("ფილიალი ვერ მოიძებნა");
+  if (!branch) throw new Error(t("Branch not found"));
 
   // თავისუფალი ნომერი — უკვე წაშლილების გამო რაოდენობა არ გამოდგება
   let n = branch.terminals.length + 1;
-  const taken = new Set(branch.terminals.map((t) => t.posId));
+  const taken = new Set(branch.terminals.map((term) => term.posId));
   while (taken.has(`${branch.code}-POS-${n}`)) n++;
 
   await db.terminal.create({

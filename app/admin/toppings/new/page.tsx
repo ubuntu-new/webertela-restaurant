@@ -1,35 +1,38 @@
 import Link from "next/link";
+import { tr } from "@/lib/admin-i18n";
 import { createTopping } from "../actions";
 
 export const dynamic = "force-dynamic";
 
-export default function NewTopping() {
+export default async function NewTopping() {
+  const t = await tr();
+
   return (
     <>
       <div className="admin-head">
         <div>
-          <h1>ახალი ტოპინგი</h1>
-          <p>შექმნის შემდეგ ფოტოს დაამატებ</p>
+          <h1>{t("New topping")}</h1>
+          <p>{t("You'll add the photo after you create it")}</p>
         </div>
         <Link className="btn btn-ghost" href="/admin/toppings">
-          ← სია
+          {t("Back to list")}
         </Link>
       </div>
 
       <form className="admin-panel admin-form" action={createTopping}>
         <div className="field-row">
           <div className="field">
-            <label htmlFor="name_en">დასახელება (EN)</label>
+            <label htmlFor="name_en">{t("Name")} (EN)</label>
             <input id="name_en" name="name_en" type="text" required autoFocus />
           </div>
           <div className="field">
-            <label htmlFor="name_ka">დასახელება (KA)</label>
+            <label htmlFor="name_ka">{t("Name")} (KA)</label>
             <input id="name_ka" name="name_ka" type="text" />
           </div>
         </div>
 
         <div className="field">
-          <label htmlFor="category">ჯგუფი</label>
+          <label htmlFor="category">{t("Group")}</label>
           <select id="category" name="category" defaultValue="veg">
             <option value="cheese">cheese</option>
             <option value="protein">protein</option>
@@ -39,7 +42,7 @@ export default function NewTopping() {
         </div>
 
         <div className="field">
-          <label>ფასი ზომების მიხედვით (₾)</label>
+          <label>{t("Prices by size")} (₾)</label>
           <div className="field-row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
             <input name="price_S" type="number" step="0.01" min="0" placeholder="S" defaultValue="0" />
             <input name="price_M" type="number" step="0.01" min="0" placeholder="M" defaultValue="0" />
@@ -49,15 +52,15 @@ export default function NewTopping() {
 
         <div className="field-check">
           <input id="recipeOnly" name="recipeOnly" type="checkbox" />
-          <label htmlFor="recipeOnly">მხოლოდ რეცეპტში</label>
+          <label htmlFor="recipeOnly">{t("recipe only")}</label>
         </div>
 
         <div className="form-actions">
           <button className="btn" type="submit">
-            შექმნა
+            {t("Create")}
           </button>
           <Link className="btn btn-ghost" href="/admin/toppings">
-            გაუქმება
+            {t("Cancel")}
           </Link>
         </div>
       </form>

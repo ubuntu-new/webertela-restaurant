@@ -1,16 +1,17 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText, num } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 export const dynamic = "force-dynamic";
 
 const TYPE_LABEL: Record<string, string> = {
-  student: "სტუდენტი",
-  diplomatic: "დიპლომატიური",
-  employee: "თანამშრომელი",
-  loyalty: "ლოიალობა",
-  promo: "პრომო",
-  custom: "სხვა",
+  student: "Student",
+  diplomatic: "Diplomatic",
+  employee: "Employee",
+  loyalty: "Loyalty",
+  promo: "Promo",
+  custom: "Other",
 };
 
 export default async function DiscountsPage({
@@ -19,6 +20,7 @@ export default async function DiscountsPage({
   searchParams: Promise<{ saved?: string; archived?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const discounts = await db.discount.findMany({
     where: { deletedAt: null },
@@ -30,27 +32,31 @@ export default async function DiscountsPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>ფასდაკლებები</h1>
-          <p>{discounts.length} ჩანაწერი</p>
+          <h1>{t("Discounts")}</h1>
+          <p>
+            {discounts.length} {t("records")}
+          </p>
         </div>
         <Link className="btn" href="/admin/discounts/new">
-          + ახალი ფასდაკლება
+          + {t("New discount")}
         </Link>
       </div>
 
-      {sp.saved && <div className="alert alert-ok">შენახულია.</div>}
-      {sp.archived && <div className="alert alert-ok">არქივში გადავიდა. დაბრუნება — „არქივი“ გვერდიდან.</div>}
+      {sp.saved && <div className="alert alert-ok">{t("Saved.")}</div>}
+      {sp.archived && (
+        <div className="alert alert-ok">{t("Moved to the archive. Restore it from the Archive page.")}</div>
+      )}
 
       <div className="admin-panel">
         <table className="admin-table">
           <thead>
             <tr>
-              <th>დასახელება</th>
-              <th>ტიპი</th>
-              <th>ნაგულისხმევი</th>
-              <th>წესები</th>
-              <th>მიბმული</th>
-              <th>სტატუსი</th>
+              <th>{t("Name")}</th>
+              <th>{t("Type")}</th>
+              <th>{t("Default")}</th>
+              <th>{t("Rules")}</th>
+              <th>{t("Assigned")}</th>
+              <th>{t("Status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -58,9 +64,9 @@ export default async function DiscountsPage({
               <tr key={d.id}>
                 <td>
                   <Link href={`/admin/discounts/${d.id}`}>{i18nText(d.name)}</Link>
-                  {d.requiresVerification && <div className="hint">ვერიფიკაცია სავალდებულოა</div>}
+                  {d.requiresVerification && <div className="hint">{t("Verification required")}</div>}
                 </td>
-                <td>{TYPE_LABEL[d.type] ?? d.type}</td>
+                <td>{t(TYPE_LABEL[d.type] ?? d.type)}</td>
                 <td>
                   −{num(d.defaultValue)}
                   {d.defaultMode === "percent" ? "%" : "₾"}
@@ -69,7 +75,7 @@ export default async function DiscountsPage({
                 <td>{d._count.users}</td>
                 <td>
                   <span className={d.active ? "badge badge-on" : "badge badge-off"}>
-                    {d.active ? "აქტიური" : "გამორთული"}
+                    {d.active ? t("Active") : t("Disabled")}
                   </span>
                 </td>
               </tr>
@@ -79,11 +85,14 @@ export default async function DiscountsPage({
       </div>
 
       <div className="admin-panel">
-        <h2>როგორ ითვლება</h2>
+        <h2>{t("How it's worked out")}</h2>
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.8, color: "var(--a-muted)" }}>
-          <li>თითოეულ პოზიციაზე იძებნება ყველაზე კონკრეტული წესი: <b>პროდუქტი → ქვე-კატეგორია → კატეგორია → ნაგულისხმევი</b>.</li>
-          <li>კომბოზე და აქციურ პროდუქტზე არ ვრცელდება — ეს „პარამეტრებში“ იმართება.</li>
-          <li>პროდუქტს, რომელსაც „ფასდაკლება ვრცელდება“ მოხსნილი აქვს, არცერთი ფასდაკლება არ ეხება.</li>
+          <li>
+            {t("For each line we look for the most specific rule:")}{" "}
+            <b>{t("product → subcategory → category → default")}</b>.
+          </li>
+          <li>{t("Combos and items already on special are excluded — that is set in Settings.")}</li>
+          <li>{t("A product with “Discountable” unticked is never discounted.")}</li>
         </ul>
       </div>
     </>

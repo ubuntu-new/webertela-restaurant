@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { i18nOf, i18nText, money, num } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 import { updateProductFull, archiveProduct } from "../actions";
 import ImageField from "../../_components/ImageField";
 import ArchiveButton from "../../_components/ArchiveButton";
@@ -9,11 +10,11 @@ import ArchiveButton from "../../_components/ArchiveButton";
 export const dynamic = "force-dynamic";
 
 const TYPES = [
-  { v: "pizza", l: "პიცა (ზომებით)" },
-  { v: "item", l: "ჩვეულებრივი" },
-  { v: "sticks", l: "ჯოხები / კონსტრუქტორი" },
-  { v: "drink", l: "სასმელი" },
-  { v: "merch", l: "მერჩი" },
+  { v: "pizza", l: "Pizza (with sizes)" },
+  { v: "item", l: "Regular" },
+  { v: "sticks", l: "Sticks / builder" },
+  { v: "drink", l: "Drink" },
+  { v: "merch", l: "Merch" },
 ];
 
 function nutritionOf(v: unknown) {
@@ -29,6 +30,7 @@ function nutritionOf(v: unknown) {
 
 export default async function ProductEdit({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const t = await tr();
 
   const [p, categories, toppings, branches, orderCount, comboSlots] = await Promise.all([
     db.product.findUnique({
@@ -69,13 +71,13 @@ export default async function ProductEdit({ params }: { params: Promise<{ id: st
   );
 
   const consequences = [
-    "მენიუდან და ადმინის სიებიდან გაქრება — ვიზიტორი ვეღარ შეუკვეთავს.",
+    t("It disappears from the menu and from the admin lists — customers can no longer order it."),
     orderCount > 0
-      ? `${orderCount} შეკვეთაში ფიგურირებს — ის შეკვეთები ხელუხლებელი რჩება (მათში პროდუქტის ასლია შენახული).`
-      : "არცერთ შეკვეთაში არ ფიგურირებს.",
+      ? `${orderCount} ${t("orders include it — those orders stay untouched (each one keeps its own copy of the product).")}`
+      : t("No order includes it."),
     combosUsing.length > 0
-      ? `შედის კომბოებში: ${combosUsing.join(", ")} — იქიდანაც გაქრება, კომბო კი დარჩება.`
-      : "არცერთ კომბოში არ შედის.",
+      ? `${t("Part of these combos:")} ${combosUsing.join(", ")} — ${t("it drops out of them too, but the combos stay.")}`
+      : t("Not part of any combo."),
   ];
 
   return (
@@ -88,40 +90,40 @@ export default async function ProductEdit({ params }: { params: Promise<{ id: st
           </p>
         </div>
         <Link className="btn btn-ghost" href="/admin/products">
-          ← სია
+          {t("Back to list")}
         </Link>
       </div>
 
       <form className="admin-form" action={save} style={{ maxWidth: 900 }}>
         {/* ── ძირითადი ── */}
         <div className="admin-panel">
-          <h2>ძირითადი</h2>
+          <h2>{t("Basics")}</h2>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="name_en">დასახელება (EN)</label>
+              <label htmlFor="name_en">{t("Name")} (EN)</label>
               <input id="name_en" name="name_en" type="text" defaultValue={name.en} required />
             </div>
             <div className="field">
-              <label htmlFor="name_ka">დასახელება (KA)</label>
+              <label htmlFor="name_ka">{t("Name")} (KA)</label>
               <input id="name_ka" name="name_ka" type="text" defaultValue={name.ka} />
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="desc_en">აღწერა (EN)</label>
+              <label htmlFor="desc_en">{t("Description")} (EN)</label>
               <textarea id="desc_en" name="desc_en" defaultValue={desc.en} />
             </div>
             <div className="field">
-              <label htmlFor="desc_ka">აღწერა (KA)</label>
+              <label htmlFor="desc_ka">{t("Description")} (KA)</label>
               <textarea id="desc_ka" name="desc_ka" defaultValue={desc.ka} />
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="categoryId">კატეგორია</label>
+              <label htmlFor="categoryId">{t("Category")}</label>
               <select id="categoryId" name="categoryId" defaultValue={p.categoryId}>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -131,7 +133,7 @@ export default async function ProductEdit({ params }: { params: Promise<{ id: st
               </select>
             </div>
             <div className="field">
-              <label htmlFor="subcategoryId">ქვე-კატეგორია</label>
+              <label htmlFor="subcategoryId">{t("Subcategory")}</label>
               <select id="subcategoryId" name="subcategoryId" defaultValue={p.subcategoryId ?? ""}>
                 <option value="">—</option>
                 {categories.flatMap((c) =>
@@ -147,45 +149,45 @@ export default async function ProductEdit({ params }: { params: Promise<{ id: st
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="type">ტიპი</label>
+              <label htmlFor="type">{t("Type")}</label>
               <select id="type" name="type" defaultValue={p.type}>
-                {TYPES.map((t) => (
-                  <option key={t.v} value={t.v}>
-                    {t.l}
+                {TYPES.map((ty) => (
+                  <option key={ty.v} value={ty.v}>
+                    {t(ty.l)}
                   </option>
                 ))}
               </select>
             </div>
             <div className="field">
-              <label htmlFor="tier">კლასი (tier)</label>
+              <label htmlFor="tier">{t("Tier")}</label>
               <input id="tier" name="tier" type="text" defaultValue={p.tier ?? ""} placeholder="standard / house" />
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="emoji">ემოჯი</label>
+              <label htmlFor="emoji">{t("Emoji")}</label>
               <input id="emoji" name="emoji" type="text" defaultValue={p.emoji ?? ""} placeholder="🍕" />
-              <span className="hint">ჩანს მაშინ, როცა ფოტო ვერ ჩაიტვირთა.</span>
+              <span className="hint">{t("Shown when the photo fails to load.")}</span>
             </div>
             <div className="field">
-              <label htmlFor="builder">კონსტრუქტორი</label>
+              <label htmlFor="builder">{t("Builder")}</label>
               <select id="builder" name="builder" defaultValue={p.builder ?? ""}>
                 <option value="">—</option>
-                <option value="sticks">ჯოხები</option>
-                <option value="cinsticks">დარიჩინის ჯოხები</option>
+                <option value="sticks">{t("Sticks")}</option>
+                <option value="cinsticks">{t("Cinnamon sticks")}</option>
               </select>
-              <span className="hint">რომელი ფანჯარა გაიხსნას „არჩევა“-ზე.</span>
+              <span className="hint">{t("Which picker opens on “Choose”.")}</span>
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="badge_en">ბეიჯი (EN)</label>
+              <label htmlFor="badge_en">{t("Badge")} (EN)</label>
               <input id="badge_en" name="badge_en" type="text" defaultValue={badge.en} />
             </div>
             <div className="field">
-              <label htmlFor="badge_ka">ბეიჯი (KA)</label>
+              <label htmlFor="badge_ka">{t("Badge")} (KA)</label>
               <input id="badge_ka" name="badge_ka" type="text" defaultValue={badge.ka} />
             </div>
           </div>
@@ -193,27 +195,27 @@ export default async function ProductEdit({ params }: { params: Promise<{ id: st
 
         {/* ── ფოტო ── */}
         <div className="admin-panel">
-          <h2>ფოტო</h2>
-          <ImageField name="photo" label="მთავარი ფოტო" defaultValue={p.photo} />
+          <h2>{t("Photo")}</h2>
+          <ImageField name="photo" label={t("Main photo")} defaultValue={p.photo} />
           <div className="field">
-            <label htmlFor="gallery">გალერეა (თითო ბმული ახალ ხაზზე)</label>
+            <label htmlFor="gallery">{t("Gallery (one link per line)")}</label>
             <textarea id="gallery" name="gallery" defaultValue={p.gallery.join("\n")} style={{ minHeight: 90 }} />
           </div>
         </div>
 
         {/* ── ფასი ── */}
         <div className="admin-panel">
-          <h2>ფასი</h2>
+          <h2>{t("Price")}</h2>
 
           {p.sizes.length > 0 && (
             <table className="admin-table" style={{ marginBottom: 16 }}>
               <thead>
                 <tr>
-                  <th style={{ width: 90 }}>ზომა</th>
-                  <th style={{ width: 90 }}>სმ</th>
-                  <th style={{ width: 110 }}>ფასი (₾)</th>
-                  <th style={{ width: 90 }}>რიგი</th>
-                  <th style={{ width: 70 }}>წაშლა</th>
+                  <th style={{ width: 90 }}>{t("Size")}</th>
+                  <th style={{ width: 90 }}>{t("cm")}</th>
+                  <th style={{ width: 110 }}>{t("Price")} (₾)</th>
+                  <th style={{ width: 90 }}>{t("Sort")}</th>
+                  <th style={{ width: 70 }}>{t("Delete")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -241,32 +243,34 @@ export default async function ProductEdit({ params }: { params: Promise<{ id: st
           )}
 
           <div className="field">
-            <label>ახალი ზომის დამატება</label>
+            <label>{t("Add a size")}</label>
             <div className="field-row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
-              <input name="newsize_key" type="text" placeholder="ზომა (მაგ. XXL)" />
-              <input name="newsize_cm" type="number" placeholder="სმ" />
-              <input name="newsize_price" type="number" step="0.01" min="0" placeholder="ფასი" />
+              <input name="newsize_key" type="text" placeholder={t("Size (e.g. XXL)")} />
+              <input name="newsize_cm" type="number" placeholder={t("cm")} />
+              <input name="newsize_price" type="number" step="0.01" min="0" placeholder={t("Price")} />
             </div>
           </div>
 
           <div className="field">
-            <label htmlFor="price">ერთიანი ფასი (₾)</label>
+            <label htmlFor="price">{t("Single price")} (₾)</label>
             <input id="price" name="price" type="number" step="0.01" min="0" defaultValue={p.price ? money(p.price) : ""} />
-            <span className="hint">გამოიყენე მაშინ, როცა ზომები არ აქვს. ცარიელი = ზომებით იყიდება.</span>
+            <span className="hint">{t("Use this when the product has no sizes. Empty = it sells by size.")}</span>
           </div>
         </div>
 
         {/* ── ინგრედიენტები ── */}
         <div className="admin-panel">
-          <h2>ნაგულისხმევი ინგრედიენტები ({chosenIngs.size})</h2>
+          <h2>
+            {t("Default ingredients")} ({chosenIngs.size})
+          </h2>
           <input type="hidden" name="ings_present" value="1" />
           <div style={grid}>
-            {toppings.map((t) => (
-              <label key={t.id} style={cell}>
-                <input type="checkbox" name="ing" value={t.id} defaultChecked={chosenIngs.has(t.id)} />
+            {toppings.map((tp) => (
+              <label key={tp.id} style={cell}>
+                <input type="checkbox" name="ing" value={tp.id} defaultChecked={chosenIngs.has(tp.id)} />
                 <span>
-                  {i18nText(t.name)}
-                  {t.recipeOnly && <span className="hint"> · რეცეპტი</span>}
+                  {i18nText(tp.name)}
+                  {tp.recipeOnly && <span className="hint"> · {t("Recipe")}</span>}
                 </span>
               </label>
             ))}
@@ -275,27 +279,27 @@ export default async function ProductEdit({ params }: { params: Promise<{ id: st
 
         {/* ── აქცია ── */}
         <div className="admin-panel">
-          <h2>აქცია</h2>
+          <h2>{t("Promo")}</h2>
           <div className="field-check">
             <input id="promo_active" name="promo_active" type="checkbox" defaultChecked={!!p.promo?.active} />
-            <label htmlFor="promo_active">აქცია ჩართულია</label>
+            <label htmlFor="promo_active">{t("Promo is on")}</label>
           </div>
           <div className="field-row">
             <div className="field">
-              <label htmlFor="promo_mode">ტიპი</label>
+              <label htmlFor="promo_mode">{t("Type")}</label>
               <select id="promo_mode" name="promo_mode" defaultValue={p.promo?.mode ?? "percent"}>
-                <option value="percent">პროცენტი (%)</option>
-                <option value="fixed">ფიქსირებული (₾)</option>
+                <option value="percent">{t("Percent")} (%)</option>
+                <option value="fixed">{t("Fixed")} (₾)</option>
               </select>
             </div>
             <div className="field">
-              <label htmlFor="promo_value">ოდენობა</label>
+              <label htmlFor="promo_value">{t("Amount")}</label>
               <input id="promo_value" name="promo_value" type="number" step="0.01" min="0" defaultValue={p.promo ? num(p.promo.value) : ""} />
             </div>
           </div>
           {p.sizes.length > 0 && (
             <div className="field">
-              <label>რომელ ზომებზე</label>
+              <label>{t("Which sizes")}</label>
               <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
                 {p.sizes.map((s) => (
                   <label key={s.id} style={cell}>
@@ -304,23 +308,23 @@ export default async function ProductEdit({ params }: { params: Promise<{ id: st
                   </label>
                 ))}
               </div>
-              <span className="hint">არცერთი მონიშნული = ყველა ზომაზე.</span>
+              <span className="hint">{t("None ticked = every size.")}</span>
             </div>
           )}
         </div>
 
         {/* ── ხელმისაწვდომობა ── */}
         <div className="admin-panel">
-          <h2>ხელმისაწვდომობა ფილიალებში</h2>
+          <h2>{t("Availability by branch")}</h2>
           <input type="hidden" name="branches_present" value="1" />
           {goneEverywhere && (
             <div className="alert alert-error">
-              <b>არცერთ ფილიალში არ იყიდება</b> — ეს პროდუქტი საიტზე საერთოდ არ ჩანს.
+              <b>{t("Not sold at any branch")}</b> — {t("this product does not show on the site at all.")}
             </div>
           )}
           {!goneEverywhere && disabled.size > 0 && (
             <div className="alert" style={{ background: "#fdf3d6", color: "#8a6a12" }}>
-              გამორთულია {disabled.size} ფილიალში:{" "}
+              {t("Turned off at")} {disabled.size} {t("branches:")}{" "}
               {branches.filter((b) => disabled.has(b.id)).map((b) => i18nText(b.name)).join(", ")}
             </div>
           )}
@@ -335,57 +339,57 @@ export default async function ProductEdit({ params }: { params: Promise<{ id: st
             ))}
           </div>
           <span className="hint">
-            მოხსნილი = ამ ფილიალში დროებით არ იყიდება. სამუდამოდ მოსაშორებლად „ჩართული“ გადამრთველია.
+            {t("Unticked = not sold at that branch for now. To pull it for good, use the “Enabled” switch.")}
           </span>
         </div>
 
         {/* ── კვებითი ღირებულება ── */}
         <div className="admin-panel">
-          <h2>კვებითი ღირებულება</h2>
+          <h2>{t("Nutrition")}</h2>
           <div className="field-row" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
             <div className="field">
-              <label htmlFor="calories">კალორია</label>
+              <label htmlFor="calories">{t("Calories")}</label>
               <input id="calories" name="calories" type="number" step="0.1" defaultValue={String(nut.calories)} />
             </div>
             <div className="field">
-              <label htmlFor="protein">ცილა (გ)</label>
+              <label htmlFor="protein">{t("Protein (g)")}</label>
               <input id="protein" name="protein" type="number" step="0.1" defaultValue={String(nut.protein)} />
             </div>
             <div className="field">
-              <label htmlFor="carbs">ნახშირწყალი (გ)</label>
+              <label htmlFor="carbs">{t("Carbs (g)")}</label>
               <input id="carbs" name="carbs" type="number" step="0.1" defaultValue={String(nut.carbs)} />
             </div>
             <div className="field">
-              <label htmlFor="fat">ცხიმი (გ)</label>
+              <label htmlFor="fat">{t("Fat (g)")}</label>
               <input id="fat" name="fat" type="number" step="0.1" defaultValue={String(nut.fat)} />
             </div>
           </div>
           <div className="field">
-            <label htmlFor="allergens">ალერგენები (მძიმით)</label>
+            <label htmlFor="allergens">{t("Allergens (comma separated)")}</label>
             <input id="allergens" name="allergens" type="text" defaultValue={nut.allergens} placeholder="gluten, dairy" />
           </div>
         </div>
 
         {/* ── სტატუსი ── */}
         <div className="admin-panel">
-          <h2>სტატუსი</h2>
+          <h2>{t("Status")}</h2>
           <div className="field-row">
             <div className="field">
-              <label htmlFor="sortOrder">რიგითობა</label>
+              <label htmlFor="sortOrder">{t("Order")}</label>
               <input id="sortOrder" name="sortOrder" type="number" defaultValue={p.sortOrder} />
             </div>
             <div className="field" style={{ alignContent: "end" }}>
               <div className="field-check">
                 <input id="active" name="active" type="checkbox" defaultChecked={p.active} />
-                <label htmlFor="active">ჩართული (ჩანს მენიუში)</label>
+                <label htmlFor="active">{t("Enabled (visible on the menu)")}</label>
               </div>
               <div className="field-check">
                 <input id="discountable" name="discountable" type="checkbox" defaultChecked={p.discountable} />
-                <label htmlFor="discountable">ფასდაკლება ვრცელდება</label>
+                <label htmlFor="discountable">{t("Discounts apply")}</label>
               </div>
               <div className="field-check">
                 <input id="isBYO" name="isBYO" type="checkbox" defaultChecked={p.isBYO} />
-                <label htmlFor="isBYO">„ჩემი პიცა“ — ნულიდან აწყობა</label>
+                <label htmlFor="isBYO">{t("“Build your own” — from scratch")}</label>
               </div>
             </div>
           </div>
@@ -393,19 +397,19 @@ export default async function ProductEdit({ params }: { params: Promise<{ id: st
 
         <div className="form-actions">
           <button className="btn" type="submit">
-            შენახვა
+            {t("Save")}
           </button>
           <Link className="btn btn-ghost" href="/admin/products">
-            გაუქმება
+            {t("Cancel")}
           </Link>
         </div>
       </form>
 
       <div className="admin-panel" style={{ maxWidth: 900, marginTop: 20 }}>
-        <h2>არქივი</h2>
+        <h2>{t("Archive")}</h2>
         <p className="hint" style={{ marginBottom: 12 }}>
-          დროებით მენიუდან მოსაშორებლად ჯობია უბრალოდ <b>გამორთო</b> (ზემოთ, „ჩართული“).
-          არქივი მაშინაა საჭირო, როცა პროდუქტი აღარ გამოიყენება.
+          <b>{t("To take it off the menu for a while, better to just turn it off above (“Enabled”).")}</b>{" "}
+          {t("The archive is for products you no longer use.")}
         </p>
         <ArchiveButton action={archive} subject={name.ka || name.en} consequences={consequences} />
       </div>

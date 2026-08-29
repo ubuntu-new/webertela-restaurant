@@ -10,6 +10,7 @@ import { priceOrder, type CartLineIn } from "@/lib/order-pricing";
 import { computeConsumption, locationForBranch } from "@/lib/consumption";
 import { applyOutgoingCost } from "@/lib/costing";
 import { logAction } from "@/lib/audit";
+import { tr } from "@/lib/admin-i18n";
 
 const FLOW = ["new", "confirmed", "preparing", "ready", "delivering", "completed", "cancelled"] as const;
 type Status = (typeof FLOW)[number];
@@ -19,13 +20,14 @@ export async function setOrderStatus(id: string, status: string) {
   const perm = status === "cancelled" ? "can_void" : "can_view_reports";
   await requirePermission(perm);
   const session = await getSession();
+  const t = await tr();
 
-  if (!(FLOW as readonly string[]).includes(status)) throw new Error("უცნობი სტატუსი");
+  if (!(FLOW as readonly string[]).includes(status)) throw new Error(t("Unknown status"));
 
   const order = await db.order.findUnique({ where: { id }, select: { statusHistory: true, status: true } });
-  if (!order) throw new Error("შეკვეთა ვერ მოიძებნა");
+  if (!order) throw new Error(t("Order not found"));
   if (order.status === "completed" || order.status === "cancelled") {
-    throw new Error("დასრულებული ან გაუქმებული შეკვეთის სტატუსი აღარ იცვლება");
+    throw new Error(t("A finished or cancelled order cannot change status"));
   }
 
   const history = Array.isArray(order.statusHistory) ? (order.statusHistory as unknown[]) : [];
@@ -57,7 +59,7 @@ export async function setOrderStatus(id: string, status: string) {
           qty: Number(m.qty) * -1,
           refType: "Order",
           refId: id,
-          note: "შეკვეთის გაუქმება — მარაგი დაბრუნდა",
+          note: t("Order cancelled — stock returned"),
           employeeId: session?.sub ?? null,
         })),
       );

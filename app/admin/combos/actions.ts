@@ -5,11 +5,13 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 export async function createCombo(fd: FormData) {
   const session = await requirePermission("can_edit_menu");
+  const t = await tr();
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
+  if (!nameEn) throw new Error(t("The English name is required"));
 
   const c = await db.combo.create({
     data: {
@@ -47,16 +49,17 @@ export async function createCombo(fd: FormData) {
 
 export async function updateCombo(id: string, fd: FormData) {
   const session = await requirePermission("can_edit_menu");
+  const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
+  if (!nameEn) throw new Error(t("The English name is required"));
 
   const mode = fdStr(fd, "pricingMode") === "discount" ? "discount" : "fixed";
   const price = fdNum(fd, "price");
   const percent = fdNum(fd, "percent");
 
-  if (mode === "fixed" && price === null) throw new Error("ფიქსირებული ფასი შეავსე");
-  if (mode === "discount" && percent === null) throw new Error("ფასდაკლების პროცენტი შეავსე");
+  if (mode === "fixed" && price === null) throw new Error(t("Enter the fixed price"));
+  if (mode === "discount" && percent === null) throw new Error(t("Enter the discount percent"));
 
   const badgeEn = fdStr(fd, "badge_en");
   const validFrom = fdStr(fd, "validFrom");

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 const TYPES = ["student", "diplomatic", "employee", "loyalty", "promo", "custom"] as const;
 type DType = (typeof TYPES)[number];
@@ -15,9 +16,10 @@ function typeOf(v: string): DType {
 
 export async function createDiscount(fd: FormData) {
   const session = await requirePermission("can_discount");
+  const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
+  if (!nameEn) throw new Error(t("The English name is required"));
 
   const d = await db.discount.create({
     data: {
@@ -40,9 +42,10 @@ export async function createDiscount(fd: FormData) {
 
 export async function updateDiscount(id: string, fd: FormData) {
   const session = await requirePermission("can_discount");
+  const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
+  if (!nameEn) throw new Error(t("The English name is required"));
 
   const validFrom = fdStr(fd, "validFrom");
   const validTo = fdStr(fd, "validTo");

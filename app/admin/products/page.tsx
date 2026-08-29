@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText, money } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export default async function ProductsPage({
   searchParams: Promise<{ saved?: string; archived?: string; cat?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const categories = await db.category.findMany({ where: { deletedAt: null }, orderBy: { sortOrder: "asc" } });
   const branchCount = await db.branch.count({ where: { deletedAt: null } });
@@ -29,21 +31,27 @@ export default async function ProductsPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>პროდუქტები</h1>
-          <p>{products.length} ჩანაწერი</p>
+          <h1>{t("Products")}</h1>
+          <p>
+            {products.length} {t("records")}
+          </p>
         </div>
         <Link className="btn" href="/admin/products/new">
-          + ახალი პროდუქტი
+          + {t("New product")}
         </Link>
       </div>
 
-      {sp.saved && <div className="alert alert-ok">შენახულია.</div>}
-      {sp.archived && <div className="alert alert-ok">არქივში გადავიდა. დაბრუნება — „არქივი“ გვერდიდან.</div>}
+      {sp.saved && <div className="alert alert-ok">{t("Saved.")}</div>}
+      {sp.archived && (
+        <div className="alert alert-ok">
+          {t("Moved to the archive.")} {t("You can restore it from the Archive page.")}
+        </div>
+      )}
 
       <div className="admin-panel">
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link className={sp.cat ? "btn btn-ghost" : "btn"} href="/admin/products">
-            ყველა
+            {t("All")}
           </Link>
           {categories.map((c) => (
             <Link
@@ -62,11 +70,11 @@ export default async function ProductsPage({
           <thead>
             <tr>
               <th style={{ width: 50 }}></th>
-              <th>დასახელება</th>
-              <th>კატეგორია</th>
-              <th>ფასი</th>
-              <th>აქცია</th>
-              <th>სტატუსი</th>
+              <th>{t("Name")}</th>
+              <th>{t("Category")}</th>
+              <th>{t("Price")}</th>
+              <th>{t("Promo")}</th>
+              <th>{t("Status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -102,7 +110,7 @@ export default async function ProductsPage({
                 </td>
                 <td>
                   <span className={p.active ? "badge badge-on" : "badge badge-off"}>
-                    {p.active ? "ჩართული" : "გამორთული"}
+                    {p.active ? t("Enabled") : t("Disabled")}
                   </span>
                   {(() => {
                     const off = p.branchProducts.filter((bp) => !bp.available).length;
@@ -118,7 +126,7 @@ export default async function ProductsPage({
                               : { background: "#fdf3d6", color: "#8a6a12" }
                           }
                         >
-                          {gone ? "არსად არ იყიდება" : `${off} ფილიალში გამორთული`}
+                          {gone ? t("Not sold anywhere") : `${off} ${t("branches have it off")}`}
                         </span>
                       </div>
                     );

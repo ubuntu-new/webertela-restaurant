@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 import {
   restoreProduct,
   restoreTopping,
@@ -17,17 +18,19 @@ function when(d: Date | null) {
   return d ? new Date(d).toLocaleString("ka-GE") : "—";
 }
 
-function RestoreButton({ action }: { action: () => Promise<void> }) {
+function RestoreButton({ action, label }: { action: () => Promise<void>; label: string }) {
   return (
     <form action={action}>
       <button className="btn btn-ghost" type="submit">
-        დაბრუნება
+        {label}
       </button>
     </form>
   );
 }
 
 export default async function ArchivePage() {
+  const t = await tr();
+
   const [products, toppings, combos, branches, categories, subcategories, employees, discounts] =
     await Promise.all([
     db.product.findMany({
@@ -60,7 +63,7 @@ export default async function ArchivePage() {
 
   const sections = [
     {
-      title: "პროდუქტები",
+      title: t("Products"),
       rows: products.map((p) => ({
         id: p.id,
         name: i18nText(p.name),
@@ -71,29 +74,29 @@ export default async function ArchivePage() {
       })),
     },
     {
-      title: "ტოპინგები",
-      rows: toppings.map((t) => ({
-        id: t.id,
-        name: i18nText(t.name),
-        note: t.category ?? "—",
-        at: t.deletedAt,
-        active: t.active,
-        action: restoreTopping.bind(null, t.id),
+      title: t("Toppings"),
+      rows: toppings.map((tp) => ({
+        id: tp.id,
+        name: i18nText(tp.name),
+        note: tp.category ?? "—",
+        at: tp.deletedAt,
+        active: tp.active,
+        action: restoreTopping.bind(null, tp.id),
       })),
     },
     {
-      title: "კომბოები",
+      title: t("Combos"),
       rows: combos.map((c) => ({
         id: c.id,
         name: i18nText(c.name),
-        note: c.pricingMode === "fixed" ? "ფიქსირებული ფასი" : "ფასდაკლება",
+        note: c.pricingMode === "fixed" ? t("Fixed price") : t("Discount"),
         at: c.deletedAt,
         active: c.active,
         action: restoreCombo.bind(null, c.id),
       })),
     },
     {
-      title: "კატეგორიები",
+      title: t("Categories"),
       rows: categories.map((c) => ({
         id: c.id,
         name: i18nText(c.name),
@@ -104,7 +107,7 @@ export default async function ArchivePage() {
       })),
     },
     {
-      title: "ქვე-კატეგორიები",
+      title: t("Subcategories"),
       rows: subcategories.map((s) => ({
         id: s.id,
         name: i18nText(s.name),
@@ -115,7 +118,7 @@ export default async function ArchivePage() {
       })),
     },
     {
-      title: "ფილიალები",
+      title: t("Branches"),
       rows: branches.map((b) => ({
         id: b.id,
         name: i18nText(b.name),
@@ -126,7 +129,7 @@ export default async function ArchivePage() {
       })),
     },
     {
-      title: "თანამშრომლები",
+      title: t("Staff"),
       rows: employees.map((e) => ({
         id: e.id,
         name: e.name,
@@ -137,7 +140,7 @@ export default async function ArchivePage() {
       })),
     },
     {
-      title: "ფასდაკლებები",
+      title: t("Discounts"),
       rows: discounts.map((d) => ({
         id: d.id,
         name: i18nText(d.name),
@@ -153,24 +156,26 @@ export default async function ArchivePage() {
     <>
       <div className="admin-head">
         <div>
-          <h1>არქივი</h1>
-          <p>{total} ჩანაწერი</p>
+          <h1>{t("Archive")}</h1>
+          <p>
+            {total} {t("records")}
+          </p>
         </div>
       </div>
 
       <div className="admin-panel">
-        <h2>როგორ მუშაობს</h2>
+        <h2>{t("How it works")}</h2>
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.8, color: "var(--a-muted)" }}>
-          <li>ბაზიდან არაფერი იშლება — არქივში გადატანილი ჩანაწერი უბრალოდ იმალება სიებიდან.</li>
-          <li>დაბრუნებისას ჩართულობის სტატუსი უცვლელი რჩება: თუ არქივამდე ჩართული იყო, ჩართული დაბრუნდება.</li>
-          <li>შეკვეთების ისტორია არასდროს ზარალდება — მასში პროდუქტების ასლებია შენახული.</li>
+          <li>{t("Nothing is deleted from the database — an archived record is simply hidden from the lists.")}</li>
+          <li>{t("Restoring keeps the on/off status: if it was on before it went to the archive, it comes back on.")}</li>
+          <li>{t("Order history is never touched — it keeps its own copies of the products.")}</li>
         </ul>
       </div>
 
       {total === 0 && (
         <div className="admin-panel">
           <p className="hint" style={{ margin: 0 }}>
-            არქივი ცარიელია.
+            {t("The archive is empty.")}
           </p>
         </div>
       )}
@@ -183,10 +188,10 @@ export default async function ArchivePage() {
           <table className="admin-table">
             <thead>
               <tr>
-                <th>დასახელება</th>
+                <th>{t("Name")}</th>
                 <th></th>
-                <th>დაბრუნებისას</th>
-                <th>არქივში</th>
+                <th>{t("After restore")}</th>
+                <th>{t("Archived")}</th>
                 <th style={{ width: 130 }}></th>
               </tr>
             </thead>
@@ -199,14 +204,14 @@ export default async function ArchivePage() {
                   </td>
                   <td>
                     <span className={r.active ? "badge badge-on" : "badge badge-off"}>
-                      {r.active ? "ჩაირთვება" : "გამორთული დარჩება"}
+                      {r.active ? t("Comes back on") : t("Stays off")}
                     </span>
                   </td>
                   <td>
                     <span className="hint">{when(r.at)}</span>
                   </td>
                   <td>
-                    <RestoreButton action={r.action} />
+                    <RestoreButton action={r.action} label={t("Restore")} />
                   </td>
                 </tr>
               ))}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export default async function BranchesPage({
   searchParams: Promise<{ saved?: string; archived?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const branches = await db.branch.findMany({
     where: { deletedAt: null },
@@ -21,30 +23,32 @@ export default async function BranchesPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>ფილიალები</h1>
+          <h1>{t("Branches")}</h1>
           <p>
-            {branches.length} ფილიალი ·{" "}
-            {branches.reduce((n, b) => n + b.terminals.length, 0)} POS ტერმინალი
+            {branches.length} {t("branches")} ·{" "}
+            {branches.reduce((n, b) => n + b.terminals.length, 0)} {t("POS terminals")}
           </p>
         </div>
         <Link className="btn" href="/admin/branches/new">
-          + ახალი ფილიალი
+          + {t("New branch")}
         </Link>
       </div>
 
-      {sp.saved && <div className="alert alert-ok">შენახულია.</div>}
-      {sp.archived && <div className="alert alert-ok">არქივში გადავიდა. დაბრუნება — „არქივი“ გვერდიდან.</div>}
+      {sp.saved && <div className="alert alert-ok">{t("Saved.")}</div>}
+      {sp.archived && (
+        <div className="alert alert-ok">{t("Moved to the archive. Restore it from the Archive page.")}</div>
+      )}
 
       <div className="admin-panel">
         <table className="admin-table">
           <thead>
             <tr>
-              <th>კოდი</th>
-              <th>დასახელება</th>
-              <th>მისამართი</th>
-              <th>ტელეფონი</th>
+              <th>{t("Code")}</th>
+              <th>{t("Name")}</th>
+              <th>{t("Address")}</th>
+              <th>{t("Phone")}</th>
               <th>POS</th>
-              <th>სტატუსი</th>
+              <th>{t("Status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -61,11 +65,11 @@ export default async function BranchesPage({
                 </td>
                 <td>{b.phone ?? "—"}</td>
                 <td>
-                  {b.terminals.filter((t) => t.active).length}/{b.terminals.length}
+                  {b.terminals.filter((term) => term.active).length}/{b.terminals.length}
                 </td>
                 <td>
                   <span className={b.active ? "badge badge-on" : "badge badge-off"}>
-                    {b.active ? "ღიაა" : "დახურული"}
+                    {b.active ? t("Open") : t("Closed")}
                   </span>
                 </td>
               </tr>

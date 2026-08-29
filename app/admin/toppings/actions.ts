@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 /** სიის გვერდიდან — ყველა ტოპინგის ფასი/სტატუსი ერთი შენახვით. */
 export async function saveToppingPrices(fd: FormData) {
@@ -35,11 +36,12 @@ export async function saveToppingPrices(fd: FormData) {
 /** ახალი ტოპინგი — სამი ზომის ფასით. */
 export async function createTopping(fd: FormData) {
   const session = await requirePermission("can_edit_menu");
+  const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
+  if (!nameEn) throw new Error(t("The English name is required"));
 
-  const t = await db.topping.create({
+  const topping = await db.topping.create({
     data: {
       name: { en: nameEn, ka: fdStr(fd, "name_ka") || nameEn },
       category: fdStr(fd, "category") || null,
@@ -51,26 +53,27 @@ export async function createTopping(fd: FormData) {
 
   await db.toppingPrice.createMany({
     data: ["S", "M", "XL"].map((sizeKey) => ({
-      toppingId: t.id,
+      toppingId: topping.id,
       sizeKey,
       price: fdNum(fd, `price_${sizeKey}`) ?? 0,
     })),
   });
 
   await db.auditLog.create({
-    data: { action: "topping.create", entityType: "Topping", entityId: t.id, employeeId: session.sub },
+    data: { action: "topping.create", entityType: "Topping", entityId: topping.id, employeeId: session.sub },
   });
 
   revalidatePath("/admin/toppings");
-  redirect(`/admin/toppings/${t.id}`);
+  redirect(`/admin/toppings/${topping.id}`);
 }
 
 /** ერთი ტოპინგის სრული რედაქტირება. */
 export async function updateTopping(id: string, fd: FormData) {
   const session = await requirePermission("can_edit_menu");
+  const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
+  if (!nameEn) throw new Error(t("The English name is required"));
 
   await db.topping.update({
     where: { id },

@@ -12,15 +12,16 @@ import {
 } from "../actions";
 import ArchiveButton from "../../_components/ArchiveButton";
 import { PERMISSIONS } from "@/lib/permissions";
+import { tr } from "@/lib/admin-i18n";
 
 export const dynamic = "force-dynamic";
 
 const ROLES = [
-  { v: "super_admin", l: "სუპერ ადმინი — ყველა უფლება" },
-  { v: "branch_manager", l: "ფილიალის მენეჯერი" },
-  { v: "cashier", l: "მოლარე" },
-  { v: "kitchen", l: "სამზარეულო" },
-  { v: "driver", l: "კურიერი" },
+  { v: "super_admin", l: "Super admin — every permission" },
+  { v: "branch_manager", l: "Branch manager" },
+  { v: "cashier", l: "Cashier" },
+  { v: "kitchen", l: "Kitchen" },
+  { v: "driver", l: "Driver" },
 ];
 
 const cell: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, fontSize: 14 };
@@ -34,6 +35,7 @@ export default async function EmployeeEdit({
 }) {
   const { id } = await params;
   const sp = await searchParams;
+  const t = await tr();
 
   const [e, branches, session] = await Promise.all([
     db.employee.findUnique({
@@ -56,14 +58,14 @@ export default async function EmployeeEdit({
   const archive = archiveEmployee.bind(null, id);
 
   const consequences = [
-    "ადმინ-პანელსა და POS-ში შესვლას ვეღარ შეძლებს.",
-    "POS PIN გაუქმდება — იმავე PIN-ის სხვისთვის მიცემა შესაძლებელი გახდება.",
+    t("They will no longer be able to sign in to the admin panel or the POS."),
+    t("The POS PIN is cleared — that PIN becomes free for someone else."),
     e._count.orders > 0
-      ? `${e._count.orders} შეკვეთა, სადაც ის ფიგურირებს, ხელუხლებელი რჩება.`
-      : "შეკვეთები არ აქვს.",
+      ? `${e._count.orders} ${t("orders they appear on stay untouched.")}`
+      : t("No orders."),
     e._count.shifts > 0
-      ? `${e._count.shifts} ცვლის ჩანაწერი რჩება — ხელფასის ისტორია არ ზარალდება.`
-      : "ცვლების ჩანაწერი არ აქვს.",
+      ? `${e._count.shifts} ${t("shift records stay — payroll history is not affected.")}`
+      : t("No shift records."),
   ];
 
   return (
@@ -73,56 +75,56 @@ export default async function EmployeeEdit({
           <h1>{e.name}</h1>
           <p>
             {e.title ?? e.role}
-            {isSelf && " · ეს შენ ხარ"}
+            {isSelf && ` · ${t("this is you")}`}
           </p>
         </div>
         <Link className="btn btn-ghost" href="/admin/employees">
-          ← სია
+          {t("Back to list")}
         </Link>
       </div>
 
-      {sp.pw && <div className="alert alert-ok">პაროლი შეიცვალა.</div>}
-      {sp.pin && <div className="alert alert-ok">PIN შეიცვალა.</div>}
+      {sp.pw && <div className="alert alert-ok">{t("Password changed.")}</div>}
+      {sp.pin && <div className="alert alert-ok">{t("PIN changed.")}</div>}
 
       <form className="admin-form" action={save} style={{ maxWidth: 880 }}>
         <div className="admin-panel">
-          <h2>ძირითადი</h2>
+          <h2>{t("Basics")}</h2>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="name">სახელი</label>
+              <label htmlFor="name">{t("Full name")}</label>
               <input id="name" name="name" type="text" defaultValue={e.name} required />
             </div>
             <div className="field">
-              <label htmlFor="title">თანამდებობა</label>
+              <label htmlFor="title">{t("Job title")}</label>
               <input id="title" name="title" type="text" defaultValue={e.title ?? ""} />
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="email">ელფოსტა (ადმინში შესასვლელად)</label>
+              <label htmlFor="email">{t("Email (for admin sign-in)")}</label>
               <input id="email" name="email" type="text" defaultValue={e.email ?? ""} />
             </div>
             <div className="field">
-              <label htmlFor="phone">ტელეფონი</label>
+              <label htmlFor="phone">{t("Phone")}</label>
               <input id="phone" name="phone" type="text" defaultValue={e.phone ?? ""} />
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="role">როლი</label>
+              <label htmlFor="role">{t("Role")}</label>
               <select id="role" name="role" defaultValue={e.role}>
                 {ROLES.map((r) => (
                   <option key={r.v} value={r.v}>
-                    {r.l}
+                    {t(r.l)}
                   </option>
                 ))}
               </select>
             </div>
             <div className="field">
-              <label htmlFor="hourlyRate">საათობრივი განაკვეთი (₾)</label>
+              <label htmlFor="hourlyRate">{t("Hourly rate")} (₾)</label>
               <input
                 id="hourlyRate"
                 name="hourlyRate"
@@ -136,9 +138,9 @@ export default async function EmployeeEdit({
         </div>
 
         <div className="admin-panel">
-          <h2>უფლებები</h2>
+          <h2>{t("Permissions")}</h2>
           <p className="hint" style={{ marginTop: -8, marginBottom: 12 }}>
-            <b>super_admin</b>-ს ეს მონიშვნები არ სჭირდება — მას ყველა უფლება ავტომატურად აქვს.
+            {t("super_admin does not need these boxes ticked — it already has every permission.")}
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8 }}>
             {PERMISSIONS.map((p) => (
@@ -151,10 +153,10 @@ export default async function EmployeeEdit({
         </div>
 
         <div className="admin-panel">
-          <h2>ფილიალები</h2>
+          <h2>{t("Branches")}</h2>
           <input type="hidden" name="branches_present" value="1" />
           <div className="field">
-            <label htmlFor="homeBranchId">ძირითადი ფილიალი</label>
+            <label htmlFor="homeBranchId">{t("Home branch")}</label>
             <select id="homeBranchId" name="homeBranchId" defaultValue={e.homeBranchId ?? ""}>
               <option value="">—</option>
               {branches.map((b) => (
@@ -165,7 +167,7 @@ export default async function EmployeeEdit({
             </select>
           </div>
           <div className="field">
-            <label>სად შეუძლია მუშაობა</label>
+            <label>{t("Can work at")}</label>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
               {branches.map((b) => (
                 <label key={b.id} style={cell}>
@@ -180,40 +182,42 @@ export default async function EmployeeEdit({
         </div>
 
         <div className="admin-panel">
-          <h2>სტატუსი</h2>
+          <h2>{t("Status")}</h2>
           <div className="field-check">
             <input id="active" name="active" type="checkbox" defaultChecked={e.active} />
-            <label htmlFor="active">აქტიური (შეუძლია შესვლა)</label>
+            <label htmlFor="active">{t("Active (can sign in)")}</label>
           </div>
           <p className="hint" style={{ marginTop: 8 }}>
-            {e._count.shifts} ცვლა · {e._count.orders} შეკვეთა
+            {e._count.shifts} {t("shifts")} · {e._count.orders} {t("orders")}
           </p>
         </div>
 
         <div className="form-actions">
           <button className="btn" type="submit">
-            შენახვა
+            {t("Save")}
           </button>
           <Link className="btn btn-ghost" href="/admin/employees">
-            გაუქმება
+            {t("Cancel")}
           </Link>
         </div>
       </form>
 
       {/* ── პაროლი ── */}
       <form className="admin-panel admin-form" action={savePw} style={{ maxWidth: 880, marginTop: 20 }}>
-        <h2>ადმინ-პანელის პაროლი</h2>
+        <h2>{t("Admin password")}</h2>
         <p className="hint" style={{ marginTop: -8 }}>
-          {e.passwordHash ? "დაყენებულია. ახლის შეყვანა ჩაანაცვლებს." : "ჯერ არ არის დაყენებული — შესვლა შეუძლებელია."}
+          {e.passwordHash
+            ? t("Set. Entering a new one replaces it.")
+            : t("Not set yet — they cannot sign in.")}
         </p>
         <div className="field">
-          <label htmlFor="newPassword">ახალი პაროლი</label>
-          <input id="newPassword" name="newPassword" type="text" placeholder="მინიმუმ 10 სიმბოლო" />
-          <span className="hint">ჩაწერე და გადაეცი თანამშრომელს — შენახვის შემდეგ ვეღარ ნახავ.</span>
+          <label htmlFor="newPassword">{t("New password")}</label>
+          <input id="newPassword" name="newPassword" type="text" placeholder={t("at least 10 characters")} />
+          <span className="hint">{t("Write it down and hand it over — you will not see it again after saving.")}</span>
         </div>
         <div className="form-actions">
           <button className="btn btn-ghost" type="submit">
-            პაროლის დაყენება
+            {t("Set password")}
           </button>
         </div>
       </form>
@@ -222,16 +226,16 @@ export default async function EmployeeEdit({
       <form className="admin-panel admin-form" action={savePin} style={{ maxWidth: 880 }}>
         <h2>POS PIN</h2>
         <p className="hint" style={{ marginTop: -8 }}>
-          {e.posPinHash ? "დაყენებულია." : "ჯერ არ არის — POS-ში შესვლა შეუძლებელია."}
+          {e.posPinHash ? t("Set.") : t("Not set yet — they cannot sign in to the POS.")}
         </p>
         <div className="field">
-          <label htmlFor="newPin">ახალი PIN</label>
-          <input id="newPin" name="newPin" type="text" inputMode="numeric" placeholder="4–8 ციფრი" />
-          <span className="hint">უნიკალური უნდა იყოს — გამეორებაზე შეცდომას მოგცემს.</span>
+          <label htmlFor="newPin">{t("New PIN")}</label>
+          <input id="newPin" name="newPin" type="text" inputMode="numeric" placeholder={t("4–8 digits")} />
+          <span className="hint">{t("It must be unique — a repeat will be rejected.")}</span>
         </div>
         <div className="form-actions">
           <button className="btn btn-ghost" type="submit">
-            PIN-ის დაყენება
+            {t("Set PIN")}
           </button>
         </div>
       </form>
@@ -239,7 +243,7 @@ export default async function EmployeeEdit({
       {e.posPinHash && (
         <form action={dropPin} style={{ maxWidth: 880, marginTop: -8 }}>
           <button className="btn btn-ghost" type="submit">
-            PIN-ის მოხსნა
+            {t("Clear PIN")}
           </button>
         </form>
       )}
@@ -247,9 +251,9 @@ export default async function EmployeeEdit({
       {/* ── არქივი ── */}
       {!isSelf && (
         <div className="admin-panel" style={{ maxWidth: 880, marginTop: 20 }}>
-          <h2>არქივი</h2>
+          <h2>{t("Archive")}</h2>
           <p className="hint" style={{ marginBottom: 12 }}>
-            დროებით შვებულებისთვის ჯობია <b>„აქტიური“</b> გადამრთველი. არქივი — როცა თანამშრომელი წავიდა.
+            {t("For time off, the “Active” toggle is better. Archive is for when someone has left.")}
           </p>
           <ArchiveButton action={archive} subject={e.name} consequences={consequences} />
         </div>

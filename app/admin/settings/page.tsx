@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/admin-auth";
+import { tr } from "@/lib/admin-i18n";
 import {
   saveOrderSettings,
   saveLoyaltySettings,
@@ -33,6 +34,7 @@ export default async function SettingsPage({
   searchParams: Promise<{ saved?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const session = await getSession();
   const rows = await db.setting.findMany();
@@ -54,12 +56,16 @@ export default async function SettingsPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>პარამეტრები</h1>
-          <p>ყველა მნიშვნელობა აქედან იმართება</p>
+          <h1>{t("Settings")}</h1>
+          <p>{t("Every value is managed from here")}</p>
         </div>
       </div>
 
-      {sp.saved && <div className="alert alert-ok">შენახულია: {sp.saved}</div>}
+      {sp.saved && (
+        <div className="alert alert-ok">
+          {t("Saved")}: {sp.saved}
+        </div>
+      )}
 
       {/* language */}
       <form className="admin-panel admin-form" action={saveAdminLanguage} style={{ maxWidth: "none" }}>
@@ -74,7 +80,7 @@ export default async function SettingsPage({
               <label htmlFor="lang">Language</label>
               <select id="lang" name="lang" defaultValue={String(lang.lang ?? "en")}>
                 <option value="en">English</option>
-                <option value="ka">ქართული</option>
+                <option value="ka">{t("Georgian")}</option>
               </select>
             </div>
             <div className="form-actions">
@@ -83,7 +89,7 @@ export default async function SettingsPage({
           </>
         ) : (
           <p className="hint" style={{ margin: 0 }}>
-            Current: <b>{String(lang.lang ?? "en") === "ka" ? "ქართული" : "English"}</b> — only a
+            Current: <b>{String(lang.lang ?? "en") === "ka" ? t("Georgian") : "English"}</b> — only a
             super admin can change this.
           </p>
         )}
@@ -91,220 +97,226 @@ export default async function SettingsPage({
 
       {/* ── შეკვეთა ── */}
       <form className="admin-panel admin-form" action={saveOrderSettings} style={{ maxWidth: "none" }}>
-        <h2>შეკვეთა და მიწოდება</h2>
+        <h2>{t("Orders and delivery")}</h2>
         <div className="field-row">
           <div className="field">
-            <label htmlFor="minOrder">მინიმალური შეკვეთა (₾)</label>
+            <label htmlFor="minOrder">{t("Minimum order")} (₾)</label>
             <input id="minOrder" name="minOrder" type="number" step="0.01" min="0" defaultValue={n(order.minOrder, 25)} />
           </div>
           <div className="field">
-            <label htmlFor="deliveryFee">მიწოდების საფასური (₾)</label>
+            <label htmlFor="deliveryFee">{t("Delivery fee")} (₾)</label>
             <input id="deliveryFee" name="deliveryFee" type="number" step="0.01" min="0" defaultValue={n(order.deliveryFee, 5.5)} />
           </div>
         </div>
         <div className="field-row">
           <div className="field">
-            <label htmlFor="freeDeliveryThreshold">უფასო მიწოდება ზღვარი (₾)</label>
+            <label htmlFor="freeDeliveryThreshold">{t("Free delivery over")} (₾)</label>
             <input id="freeDeliveryThreshold" name="freeDeliveryThreshold" type="number" step="0.01" min="0" defaultValue={n(order.freeDeliveryThreshold, 60)} />
           </div>
           <div className="field">
-            <label htmlFor="maxToppings">მაქს. ტოპინგი პიცაზე</label>
+            <label htmlFor="maxToppings">{t("Max toppings per pizza")}</label>
             <input id="maxToppings" name="maxToppings" type="number" min="1" defaultValue={n(order.maxToppings, 6)} />
           </div>
         </div>
         <div className="field">
-          <label htmlFor="currency">ვალუტა</label>
+          <label htmlFor="currency">{t("Currency")}</label>
           <input id="currency" name="currency" type="text" defaultValue={String(order.currency ?? "GEL")} />
         </div>
         <div className="form-actions">
-          <button className="btn" type="submit">შენახვა</button>
+          <button className="btn" type="submit">{t("Save")}</button>
         </div>
       </form>
 
       {/* ── ლოიალობა ── */}
       <form className="admin-panel admin-form" action={saveLoyaltySettings} style={{ maxWidth: "none" }}>
-        <h2>ლოიალობის ქულები</h2>
+        <h2>{t("Loyalty points")}</h2>
         <div className="field-check">
           <input id="l_enabled" name="enabled" type="checkbox" defaultChecked={b(loyalty.enabled, true)} />
-          <label htmlFor="l_enabled">ჩართულია</label>
+          <label htmlFor="l_enabled">{t("Enabled")}</label>
         </div>
         <div className="field-row">
           <div className="field">
-            <label htmlFor="pointsPerGel">ქულა 1 ₾-ზე</label>
+            <label htmlFor="pointsPerGel">{t("Points per")} 1 ₾</label>
             <input id="pointsPerGel" name="pointsPerGel" type="number" step="0.01" min="0" defaultValue={n(loyalty.pointsPerGel, 1)} />
           </div>
           <div className="field">
-            <label htmlFor="redeemRate">1 ქულის ღირებულება (₾)</label>
+            <label htmlFor="redeemRate">{t("Value of 1 point")} (₾)</label>
             <input id="redeemRate" name="redeemRate" type="number" step="0.01" min="0" defaultValue={n(loyalty.redeemRate, 0.1)} />
           </div>
         </div>
         <div className="field">
-          <label htmlFor="minRedeem">მინიმალური განაღდება (ქულა)</label>
+          <label htmlFor="minRedeem">{t("Minimum redemption (points)")}</label>
           <input id="minRedeem" name="minRedeem" type="number" min="0" defaultValue={n(loyalty.minRedeem, 100)} />
-          <span className="hint">ამჟამად: 100 ქულა = {(n(loyalty.minRedeem, 100) * n(loyalty.redeemRate, 0.1)).toFixed(2)} ₾</span>
+          <span className="hint">
+            {t("Right now 100 points are worth")}{" "}
+            {(n(loyalty.minRedeem, 100) * n(loyalty.redeemRate, 0.1)).toFixed(2)} ₾
+          </span>
         </div>
         <div className="form-actions">
-          <button className="btn" type="submit">შენახვა</button>
+          <button className="btn" type="submit">{t("Save")}</button>
         </div>
       </form>
 
       {/* ── თანამშრომლის ფასდაკლება ── */}
       <form className="admin-panel admin-form" action={saveEmployeeDiscount} style={{ maxWidth: "none" }}>
-        <h2>თანამშრომლის ფასდაკლება</h2>
+        <h2>{t("Staff discount")}</h2>
         <div className="field-check">
           <input id="e_enabled" name="enabled" type="checkbox" defaultChecked={b(emp.enabled, true)} />
-          <label htmlFor="e_enabled">ჩართულია</label>
+          <label htmlFor="e_enabled">{t("Enabled")}</label>
         </div>
         <div className="field-row">
           <div className="field">
-            <label htmlFor="e_value">ოდენობა</label>
+            <label htmlFor="e_value">{t("Amount")}</label>
             <input id="e_value" name="value" type="number" step="0.01" min="0" defaultValue={n(emp.value, 30)} />
           </div>
           <div className="field">
-            <label htmlFor="e_mode">ტიპი</label>
+            <label htmlFor="e_mode">{t("Type")}</label>
             <select id="e_mode" name="mode" defaultValue={String(emp.mode ?? "percent")}>
-              <option value="percent">პროცენტი (%)</option>
-              <option value="fixed">ფიქსირებული (₾)</option>
+              <option value="percent">{t("Percent")} (%)</option>
+              <option value="fixed">{t("Fixed")} (₾)</option>
             </select>
           </div>
         </div>
         <div className="field-check">
           <input id="appliesEverywhere" name="appliesEverywhere" type="checkbox" defaultChecked={b(emp.appliesEverywhere, true)} />
-          <label htmlFor="appliesEverywhere">ყველა ფილიალში მოქმედებს</label>
+          <label htmlFor="appliesEverywhere">{t("Applies at every branch")}</label>
         </div>
         <div className="form-actions">
-          <button className="btn" type="submit">შენახვა</button>
+          <button className="btn" type="submit">{t("Save")}</button>
         </div>
       </form>
 
       {/* ── ფასდაკლების წესები ── */}
       <form className="admin-panel admin-form" action={saveDiscountRules} style={{ maxWidth: "none" }}>
-        <h2>ფასდაკლების წესები</h2>
+        <h2>{t("Discount rules")}</h2>
         <div className="field-check">
           <input id="stackable" name="stackable" type="checkbox" defaultChecked={b(rules.stackable, false)} />
-          <label htmlFor="stackable">ფასდაკლებები ჯამდება</label>
+          <label htmlFor="stackable">{t("Discounts stack")}</label>
         </div>
         <div className="field-check">
           <input id="excludeCombos" name="excludeCombos" type="checkbox" defaultChecked={b(rules.excludeCombos, true)} />
-          <label htmlFor="excludeCombos">კომბოზე არ ვრცელდება</label>
+          <label htmlFor="excludeCombos">{t("Never applies to a combo")}</label>
         </div>
         <div className="field-check">
           <input id="excludePromoProducts" name="excludePromoProducts" type="checkbox" defaultChecked={b(rules.excludePromoProducts, true)} />
-          <label htmlFor="excludePromoProducts">აქციურ პროდუქტზე არ ვრცელდება</label>
+          <label htmlFor="excludePromoProducts">{t("Never applies to a promo product")}</label>
         </div>
         <div className="field">
-          <label htmlFor="verification">ვერიფიკაცია (სტუდენტი/დიპლომატი)</label>
+          <label htmlFor="verification">{t("Verification (student/diplomat)")}</label>
           <select id="verification" name="verification" defaultValue={String(verif.mode ?? "manual")}>
-            <option value="manual">ხელით დადასტურება</option>
-            <option value="upload">დოკუმენტის ატვირთვა</option>
+            <option value="manual">{t("Confirmed by hand")}</option>
+            <option value="upload">{t("Document upload")}</option>
           </select>
-          <span className="hint">„ატვირთვა" ფაილების საცავს მოითხოვს — ჯერ არ გვაქვს.</span>
+          <span className="hint">{t("“Upload” needs file storage — we don't have it yet.")}</span>
         </div>
         <div className="form-actions">
-          <button className="btn" type="submit">შენახვა</button>
+          <button className="btn" type="submit">{t("Save")}</button>
         </div>
       </form>
 
       {/* fixed costs */}
       <form className="admin-panel admin-form" action={saveFixedCosts} style={{ maxWidth: "none" }}>
-        <h2>ფიქსირებული ხარჯები (თვეში)</h2>
+        <h2>
+          {t("Fixed costs")} ({t("per month")})
+        </h2>
         <p className="hint" style={{ marginTop: -8 }}>
-          ამის გარეშე დაფა სუფთა მოგებას არ აჩვენებს. შრომა ცვლებიდან ითვლება.
+          {t("Without these the dashboard cannot show net profit. Labour comes from the shifts.")}
         </p>
         <div className="field-row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
           <div className="field">
-            <label htmlFor="rent">ქირა (₾)</label>
+            <label htmlFor="rent">{t("Rent")} (₾)</label>
             <input id="rent" name="rent" type="number" step="0.01" min="0" defaultValue={n(fc.rent, 0)} />
           </div>
           <div className="field">
-            <label htmlFor="utilities">კომუნალური (₾)</label>
+            <label htmlFor="utilities">{t("Utilities")} (₾)</label>
             <input id="utilities" name="utilities" type="number" step="0.01" min="0" defaultValue={n(fc.utilities, 0)} />
           </div>
           <div className="field">
-            <label htmlFor="other">სხვა (₾)</label>
+            <label htmlFor="other">{t("Other")} (₾)</label>
             <input id="other" name="other" type="number" step="0.01" min="0" defaultValue={n(fc.other, 0)} />
           </div>
         </div>
         <div className="form-actions">
-          <button className="btn" type="submit">შენახვა</button>
+          <button className="btn" type="submit">{t("Save")}</button>
         </div>
       </form>
 
       {/* ── გადასახადი ── */}
       <form className="admin-panel admin-form" action={saveTax} style={{ maxWidth: "none" }}>
-        <h2>გადასახადი</h2>
+        <h2>{t("Tax")}</h2>
         <div className="field-row">
           <div className="field">
-            <label htmlFor="rate">განაკვეთი (%)</label>
+            <label htmlFor="rate">{t("Rate")} (%)</label>
             <input id="rate" name="rate" type="number" step="0.01" min="0" defaultValue={n(tax.rate, 0)} />
           </div>
           <div className="field" style={{ alignContent: "end" }}>
             <div className="field-check">
               <input id="inclusive" name="inclusive" type="checkbox" defaultChecked={b(tax.inclusive, true)} />
-              <label htmlFor="inclusive">ფასში ჩართულია</label>
+              <label htmlFor="inclusive">{t("Included in the price")}</label>
             </div>
           </div>
         </div>
         <div className="form-actions">
-          <button className="btn" type="submit">შენახვა</button>
+          <button className="btn" type="submit">{t("Save")}</button>
         </div>
       </form>
 
       {/* ── Telegram ── */}
       <form className="admin-panel admin-form" action={saveTelegram} style={{ maxWidth: "none" }}>
-        <h2>Telegram შეტყობინებები</h2>
+        <h2>Telegram {t("notifications")}</h2>
         <p className="hint" style={{ marginTop: -8 }}>
-          ბოტის ტოკენი <code>.env</code>-შია (<code>TELEGRAM_BOT_TOKEN</code>) — აქ არ ჩანს.
+          {t("The bot token lives in")} <code>.env</code> (<code>TELEGRAM_BOT_TOKEN</code>) —{" "}
+          {t("it is not shown here.")}
         </p>
 
         <div className="field-check">
           <input id="tg_enabled" name="enabled" type="checkbox" defaultChecked={b(tg.enabled, false)} />
-          <label htmlFor="tg_enabled">ჩართულია</label>
+          <label htmlFor="tg_enabled">{t("Enabled")}</label>
         </div>
 
         <div className="field">
           <label htmlFor="chatId">Chat ID</label>
           <input id="chatId" name="chatId" type="text" defaultValue={String(tg.chatId ?? "")} placeholder="-1001234567890" />
-          <span className="hint">ჯგუფის id მინუსით იწყება, პირადი ჩატისა — არა.</span>
+          <span className="hint">{t("A group id starts with a minus, a private chat id does not.")}</span>
         </div>
 
         <div className="field">
-          <label>რაზე მოვიდეს</label>
+          <label>{t("What to send")}</label>
           <div className="field-check">
             <input id="ev_order" name="ev_order" type="checkbox" defaultChecked={b(tgEvents.order, true)} />
-            <label htmlFor="ev_order">🍕 ახალი შეკვეთა</label>
+            <label htmlFor="ev_order">🍕 {t("New order")}</label>
           </div>
           <div className="field-check">
             <input id="ev_transferRequest" name="ev_transferRequest" type="checkbox" defaultChecked={b(tgEvents.transferRequest, true)} />
-            <label htmlFor="ev_transferRequest">📦 შევსების მოთხოვნა (დასამტკიცებელი)</label>
+            <label htmlFor="ev_transferRequest">📦 {t("Top-up request (to approve)")}</label>
           </div>
           <div className="field-check">
             <input id="ev_transferSent" name="ev_transferSent" type="checkbox" defaultChecked={b(tgEvents.transferSent, true)} />
-            <label htmlFor="ev_transferSent">🚚 გზავნილი გამოვიდა</label>
+            <label htmlFor="ev_transferSent">🚚 {t("A shipment has left")}</label>
           </div>
           <div className="field-check">
             <input id="ev_lowStock" name="ev_lowStock" type="checkbox" defaultChecked={b(tgEvents.lowStock, true)} />
-            <label htmlFor="ev_lowStock">⚠️ მარაგი ზღვარზე (დღიური შეჯამება)</label>
+            <label htmlFor="ev_lowStock">⚠️ {t("Stock at the minimum (daily digest)")}</label>
           </div>
           <span className="hint">
-            გამორთე ის, რაც ხმაურია — ცოტა და საჭირო შეტყობინება ჯობია ბევრს და უგულებელყოფილს.
+            {t("Turn off the noise — a few alerts people read beat a pile they ignore.")}
           </span>
         </div>
 
         <div className="form-actions">
-          <button className="btn" type="submit">შენახვა</button>
+          <button className="btn" type="submit">{t("Save")}</button>
         </div>
       </form>
 
       {/* ── სოც. ქსელები ── */}
       <form className="admin-panel admin-form" action={saveSocial} style={{ maxWidth: "none" }}>
-        <h2>სოციალური ქსელები (ფუტერი)</h2>
+        <h2>{t("Social links (footer)")}</h2>
         <table className="admin-table">
           <thead>
             <tr>
-              <th style={{ width: 120 }}>ქსელი</th>
-              <th>ბმული</th>
-              <th style={{ width: 90 }}>ჩანს</th>
+              <th style={{ width: 120 }}>{t("Network")}</th>
+              <th>{t("Link")}</th>
+              <th style={{ width: 90 }}>{t("Visible")}</th>
             </tr>
           </thead>
           <tbody>
@@ -331,7 +343,7 @@ export default async function SettingsPage({
           </tbody>
         </table>
         <div className="form-actions" style={{ marginTop: 14 }}>
-          <button className="btn" type="submit">შენახვა</button>
+          <button className="btn" type="submit">{t("Save")}</button>
         </div>
       </form>
     </>

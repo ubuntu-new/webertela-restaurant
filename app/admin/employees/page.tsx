@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 export const dynamic = "force-dynamic";
 
 const ROLE_LABEL: Record<string, string> = {
-  super_admin: "სუპერ ადმინი",
-  branch_manager: "ფილიალის მენეჯერი",
-  cashier: "მოლარე",
-  kitchen: "სამზარეულო",
-  driver: "კურიერი",
+  super_admin: "Super admin",
+  branch_manager: "Branch manager",
+  cashier: "Cashier",
+  kitchen: "Kitchen",
+  driver: "Driver",
 };
 
 export default async function EmployeesPage({
@@ -18,6 +19,7 @@ export default async function EmployeesPage({
   searchParams: Promise<{ saved?: string; archived?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const employees = await db.employee.findMany({
     where: { deletedAt: null },
@@ -29,27 +31,31 @@ export default async function EmployeesPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>თანამშრომლები</h1>
-          <p>{employees.length} ჩანაწერი</p>
+          <h1>{t("Staff")}</h1>
+          <p>
+            {employees.length} {t("records")}
+          </p>
         </div>
         <Link className="btn" href="/admin/employees/new">
-          + ახალი თანამშრომელი
+          + {t("New employee")}
         </Link>
       </div>
 
-      {sp.saved && <div className="alert alert-ok">შენახულია.</div>}
-      {sp.archived && <div className="alert alert-ok">არქივში გადავიდა. დაბრუნება — „არქივი“ გვერდიდან.</div>}
+      {sp.saved && <div className="alert alert-ok">{t("Saved.")}</div>}
+      {sp.archived && (
+        <div className="alert alert-ok">{t("Moved to the archive. Restore it from the Archive page.")}</div>
+      )}
 
       <div className="admin-panel">
         <table className="admin-table">
           <thead>
             <tr>
-              <th>სახელი</th>
-              <th>როლი</th>
-              <th>ფილიალები</th>
-              <th>შესვლა</th>
+              <th>{t("Full name")}</th>
+              <th>{t("Role")}</th>
+              <th>{t("Branches")}</th>
+              <th>{t("Login")}</th>
               <th>POS PIN</th>
-              <th>სტატუსი</th>
+              <th>{t("Status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -59,7 +65,7 @@ export default async function EmployeesPage({
                   <Link href={`/admin/employees/${e.id}`}>{e.name}</Link>
                   {e.title && <div className="hint">{e.title}</div>}
                 </td>
-                <td>{ROLE_LABEL[e.role] ?? e.role}</td>
+                <td>{t(ROLE_LABEL[e.role] ?? e.role)}</td>
                 <td>
                   <span className="hint">
                     {e.branches.length
@@ -76,12 +82,12 @@ export default async function EmployeesPage({
                 </td>
                 <td>
                   <span className={e.posPinHash ? "badge badge-on" : "badge badge-off"}>
-                    {e.posPinHash ? "დაყენებული" : "არ აქვს"}
+                    {e.posPinHash ? t("Set") : t("Not set")}
                   </span>
                 </td>
                 <td>
                   <span className={e.active ? "badge badge-on" : "badge badge-off"}>
-                    {e.active ? "აქტიური" : "გამორთული"}
+                    {e.active ? t("Active") : t("Disabled")}
                   </span>
                 </td>
               </tr>
@@ -91,12 +97,18 @@ export default async function EmployeesPage({
       </div>
 
       <div className="admin-panel">
-        <h2>როგორ მუშაობს წვდომა</h2>
+        <h2>{t("How access works")}</h2>
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.8, color: "var(--a-muted)" }}>
-          <li><b>ადმინ-პანელი</b> — ელფოსტა + პაროლი. პაროლის გარეშე შესვლა შეუძლებელია.</li>
-          <li><b>POS</b> — 4–8 ციფრიანი PIN. თითოეული უნიკალურია.</li>
-          <li><b>super_admin</b> ყველა უფლებას ავტომატურად ატარებს — მონიშვნა არ სჭირდება.</li>
-          <li>ბოლო აქტიური super_admin-ის გამორთვა დაბლოკილია.</li>
+          <li>
+            <b>{t("Admin panel")}</b> — {t("email + password. Without a password they cannot sign in.")}
+          </li>
+          <li>
+            <b>POS</b> — {t("a 4–8 digit PIN. Every one is unique.")}
+          </li>
+          <li>
+            <b>super_admin</b> {t("has every permission automatically — nothing to tick.")}
+          </li>
+          <li>{t("Turning off the last active super_admin is blocked.")}</li>
         </ul>
       </div>
     </>

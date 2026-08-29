@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText, money, num } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export default async function CombosPage({
   searchParams: Promise<{ saved?: string; archived?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
   const branchCount = await db.branch.count({ where: { deletedAt: null } });
 
   const combos = await db.combo.findMany({
@@ -22,26 +24,32 @@ export default async function CombosPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>კომბოები</h1>
-          <p>{combos.length} ჩანაწერი</p>
+          <h1>{t("Combos")}</h1>
+          <p>
+            {combos.length} {t("records")}
+          </p>
         </div>
         <Link className="btn" href="/admin/combos/new">
-          + ახალი კომბო
+          + {t("New combo")}
         </Link>
       </div>
 
-      {sp.saved && <div className="alert alert-ok">შენახულია.</div>}
-      {sp.archived && <div className="alert alert-ok">არქივში გადავიდა. დაბრუნება — „არქივი“ გვერდიდან.</div>}
+      {sp.saved && <div className="alert alert-ok">{t("Saved.")}</div>}
+      {sp.archived && (
+        <div className="alert alert-ok">
+          {t("Moved to the archive.")} {t("Bring it back from the Archive page.")}
+        </div>
+      )}
 
       <div className="admin-panel">
         <table className="admin-table">
           <thead>
             <tr>
               <th style={{ width: 50 }}></th>
-              <th>დასახელება</th>
-              <th>ფასდადება</th>
-              <th>სლოტები</th>
-              <th>სტატუსი</th>
+              <th>{t("Name")}</th>
+              <th>{t("Pricing")}</th>
+              <th>{t("Slots")}</th>
+              <th>{t("Status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -69,13 +77,14 @@ export default async function CombosPage({
                 <td>
                   {c.slots.map((s) => (
                     <div key={s.id} className="hint">
-                      {i18nText(s.label)} · {s.mode === "fixed" ? "ფიქსირებული" : `${s.options.length} ვარიანტი`}
+                      {i18nText(s.label)} ·{" "}
+                      {s.mode === "fixed" ? t("Fixed") : `${s.options.length} ${t("options")}`}
                     </div>
                   ))}
                 </td>
                 <td>
                   <span className={c.active ? "badge badge-on" : "badge badge-off"}>
-                    {c.active ? "ჩართული" : "გამორთული"}
+                    {c.active ? t("Enabled") : t("Disabled")}
                   </span>
                   {(() => {
                     const off = c.branchCombos.filter((bc) => !bc.available).length;
@@ -91,7 +100,9 @@ export default async function CombosPage({
                               : { background: "#fdf3d6", color: "#8a6a12" }
                           }
                         >
-                          {gone ? "არსად არ იყიდება" : `${off} ფილიალში გამორთული`}
+                          {gone
+                            ? t("Not sold at any branch")
+                            : `${t("Turned off at")} ${off} ${t("branches")}`}
                         </span>
                       </div>
                     );
@@ -104,9 +115,9 @@ export default async function CombosPage({
       </div>
 
       <div className="admin-panel">
-        <h2>შენიშვნა</h2>
+        <h2>{t("Note")}</h2>
         <p className="hint">
-          კომბოზე მომხმარებლის ფასდაკლება არასდროს ვრცელდება — ეს დამტკიცებული წესია.
+          {t("A customer discount never applies to a combo — that rule is settled.")}
         </p>
       </div>
     </>

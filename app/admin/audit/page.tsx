@@ -1,45 +1,46 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 export const dynamic = "force-dynamic";
 
 /** მოქმედების პრეფიქსი → ქართული ჯგუფი */
 const GROUP: Record<string, string> = {
-  product: "პროდუქტები",
-  topping: "ტოპინგები",
-  toppings: "ტოპინგები",
-  combo: "კომბოები",
-  category: "კატეგორიები",
-  categories: "კატეგორიები",
-  branch: "ფილიალები",
-  employee: "თანამშრომლები",
-  discount: "ფასდაკლებები",
-  setting: "პარამეტრები",
-  order: "შეკვეთები",
-  availability: "ხელმისაწვდომობა",
-  stockItem: "საწყობის ერთეულები",
-  consumption: "ხარჯვის წესები",
-  transfer: "გადატანები",
+  product: "Products",
+  topping: "Toppings",
+  toppings: "Toppings",
+  combo: "Combos",
+  category: "Categories",
+  categories: "Categories",
+  branch: "Branches",
+  employee: "Staff",
+  discount: "Discounts",
+  setting: "Settings",
+  order: "Orders",
+  availability: "Availability",
+  stockItem: "Stock items",
+  consumption: "Consumption rules",
+  transfer: "Transfers",
 };
 
 const VERB: Record<string, string> = {
-  create: "შექმნა",
-  update: "შეცვლა",
-  archive: "არქივში",
-  restore: "დაბრუნება",
-  delete: "წაშლა",
-  bulkUpdate: "ჯგუფური შეცვლა",
-  upsert: "ჩაწერა",
-  setPassword: "პაროლის შეცვლა",
-  setPin: "PIN-ის შეცვლა",
-  new: "ახალი",
-  confirmed: "დადასტურება",
-  preparing: "მზადება",
-  ready: "მზადაა",
-  delivering: "მიტანა",
-  completed: "დასრულება",
-  cancelled: "გაუქმება",
+  create: "Create",
+  update: "Update",
+  archive: "Archived",
+  restore: "Restore",
+  delete: "Delete",
+  bulkUpdate: "Bulk update",
+  upsert: "Record",
+  setPassword: "Change password",
+  setPin: "Change PIN",
+  new: "New",
+  confirmed: "Confirmed",
+  preparing: "Preparing",
+  ready: "Ready",
+  delivering: "Delivering",
+  completed: "Completed",
+  cancelled: "Cancelled",
 };
 
 function label(action: string) {
@@ -67,6 +68,7 @@ export default async function AuditPage({
   searchParams: Promise<{ group?: string; who?: string; days?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const days = Math.min(90, Math.max(1, Number(sp.days) || 7));
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -105,16 +107,16 @@ export default async function AuditPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>ჟურნალი</h1>
+          <h1>{t("Activity log")}</h1>
           <p>
-            ბოლო {days} დღე · {logs.length} ნაჩვენები
-            {totalInPeriod > logs.length && ` (სულ ${totalInPeriod})`}
+            {t("Last")} {days} {t("days")} · {logs.length} {t("shown")}
+            {totalInPeriod > logs.length && ` (${t("Total")}: ${totalInPeriod})`}
           </p>
         </div>
       </div>
 
       <div className="admin-panel">
-        <h2>პერიოდი</h2>
+        <h2>{t("Period")}</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
           {[1, 7, 30, 90].map((d) => (
             <Link
@@ -122,18 +124,18 @@ export default async function AuditPage({
               className={days === d ? "btn" : "btn btn-ghost"}
               href={`/admin/audit?days=${d}${sp.group ? `&group=${sp.group}` : ""}${sp.who ? `&who=${sp.who}` : ""}`}
             >
-              {d === 1 ? "დღეს" : `${d} დღე`}
+              {d === 1 ? t("Today") : `${d} ${t("days")}`}
             </Link>
           ))}
         </div>
 
-        <h2>რაზე</h2>
+        <h2>{t("What")}</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
           <Link
             className={sp.group ? "btn btn-ghost" : "btn"}
             href={`/admin/audit?days=${days}${sp.who ? `&who=${sp.who}` : ""}`}
           >
-            ყველა
+            {t("All")}
           </Link>
           {prefixes.map((p) => (
             <Link
@@ -141,18 +143,18 @@ export default async function AuditPage({
               className={sp.group === p ? "btn" : "btn btn-ghost"}
               href={`/admin/audit?days=${days}&group=${p}${sp.who ? `&who=${sp.who}` : ""}`}
             >
-              {GROUP[p] ?? p}
+              {t(GROUP[p] ?? p)}
             </Link>
           ))}
         </div>
 
-        <h2>ვინ</h2>
+        <h2>{t("Who")}</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link
             className={sp.who ? "btn btn-ghost" : "btn"}
             href={`/admin/audit?days=${days}${sp.group ? `&group=${sp.group}` : ""}`}
           >
-            ყველა
+            {t("All")}
           </Link>
           {employees.map((e) => (
             <Link
@@ -169,17 +171,17 @@ export default async function AuditPage({
       <div className="admin-panel">
         {logs.length === 0 ? (
           <p className="hint" style={{ margin: 0 }}>
-            ამ პერიოდში ჩანაწერი არ არის.
+            {t("Nothing in this period.")}
           </p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
-                <th style={{ width: 150 }}>დრო</th>
-                <th style={{ width: 160 }}>ვინ</th>
-                <th style={{ width: 140 }}>რაზე</th>
-                <th style={{ width: 130 }}>მოქმედება</th>
-                <th>დეტალები</th>
+                <th style={{ width: 150 }}>{t("Time")}</th>
+                <th style={{ width: 160 }}>{t("Who")}</th>
+                <th style={{ width: 140 }}>{t("What")}</th>
+                <th style={{ width: 130 }}>{t("Action")}</th>
+                <th>{t("Details")}</th>
               </tr>
             </thead>
             <tbody>
@@ -193,10 +195,10 @@ export default async function AuditPage({
                     <td>
                       <span className="hint">{new Date(l.at).toLocaleString("ka-GE")}</span>
                     </td>
-                    <td>{l.employee?.name ?? <span className="hint">სისტემა</span>}</td>
-                    <td>{group}</td>
+                    <td>{l.employee?.name ?? <span className="hint">{t("System")}</span>}</td>
+                    <td>{t(group)}</td>
                     <td>
-                      <span className="hint">{verb || l.action}</span>
+                      <span className="hint">{verb ? t(verb) : l.action}</span>
                     </td>
                     <td>
                       <span className="hint">{l.entityId ?? ""}</span>
@@ -220,15 +222,15 @@ export default async function AuditPage({
       </div>
 
       <div className="admin-panel">
-        <h2>რას ნიშნავს</h2>
+        <h2>{t("What this means")}</h2>
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.8, color: "var(--a-muted)" }}>
-          <li>ჩანაწერი <b>მხოლოდ ემატება</b> — არასდროს იშლება და არ იცვლება.</li>
+          <li>{t("Entries are")} <b>{t("only ever added")}</b> — {t("never deleted, never edited.")}</li>
           <li>
-            <span style={{ color: "var(--a-danger)" }}>−</span> ძველი მნიშვნელობა,{" "}
-            <span style={{ color: "var(--a-ok)" }}>+</span> ახალი. მხოლოდ შეცვლილი ველები.
+            <span style={{ color: "var(--a-danger)" }}>−</span> {t("old value,")}{" "}
+            <span style={{ color: "var(--a-ok)" }}>+</span> {t("new. Only the fields that changed.")}
           </li>
-          <li>„სისტემა" ნიშნავს, რომ მოქმედება ავტომატურია (მაგ. საიტიდან შემოსული შეკვეთა).</li>
-          <li>ზემოთა საძიებო ველი ამ ცხრილშიც მუშაობს — ჩაწერე id, სახელი ან რიცხვი.</li>
+          <li>{t("“System” means the action was automatic — an order that came in from the website, for example.")}</li>
+          <li>{t("The search box at the top works on this table too — type an id, a name or a number.")}</li>
         </ul>
       </div>
     </>

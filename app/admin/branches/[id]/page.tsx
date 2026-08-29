@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { i18nOf } from "@/lib/admin-utils";
 import { updateBranch, addTerminal, archiveBranch } from "../actions";
 import ArchiveButton from "../../_components/ArchiveButton";
+import { tr } from "@/lib/admin-i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ function hoursOf(v: unknown): { en: string; ka: string } {
 
 export default async function BranchEdit({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const t = await tr();
 
   const b = await db.branch.findUnique({
     where: { id },
@@ -40,12 +42,12 @@ export default async function BranchEdit({ params }: { params: Promise<{ id: str
   const archive = archiveBranch.bind(null, id);
 
   const consequences = [
-    "საიტის ფილიალების სიიდან და შეკვეთის ფორმიდან გაქრება.",
+    t("It disappears from the branch list on the site and from the order form."),
     b._count.orders > 0
-      ? `${b._count.orders} შეკვეთა რჩება ბაზაში და რეპორტებში — ისტორია არ ზარალდება.`
-      : "შეკვეთები არ აქვს.",
-    `${b.terminals.length} POS ტერმინალი შენარჩუნდება — POS ID-ები ისტორიისთვის საჭიროა.`,
-    "თანამშრომლების მიბმა და ცვლების ჩანაწერები რჩება.",
+      ? `${b._count.orders} ${t("orders stay in the database and in reports — history is not affected.")}`
+      : t("No orders."),
+    `${b.terminals.length} ${t("POS terminals are kept — the POS IDs are needed for history.")}`,
+    t("Staff assignments and shift records stay."),
   ];
 
   return (
@@ -54,124 +56,124 @@ export default async function BranchEdit({ params }: { params: Promise<{ id: str
         <div>
           <h1>{name.ka || name.en}</h1>
           <p>
-            <code>{b.code}</code> · {b.terminals.length} POS · {b._count.orders} შეკვეთა
+            <code>{b.code}</code> · {b.terminals.length} POS · {b._count.orders} {t("orders")}
           </p>
         </div>
         <Link className="btn btn-ghost" href="/admin/branches">
-          ← სია
+          {t("Back to list")}
         </Link>
       </div>
 
       <form className="admin-form" action={save} style={{ maxWidth: 900 }}>
         <div className="admin-panel">
-          <h2>ძირითადი</h2>
+          <h2>{t("Basics")}</h2>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="code">ფილიალის კოდი</label>
+              <label htmlFor="code">{t("Branch code")}</label>
               <input id="code" name="code" type="text" defaultValue={b.code} required />
-              <span className="hint">უნიკალური. მაგ. TBS-01</span>
+              <span className="hint">{t("Must be unique. E.g. TBS-01")}</span>
             </div>
             <div className="field">
-              <label htmlFor="sortOrder">რიგითობა</label>
+              <label htmlFor="sortOrder">{t("Order")}</label>
               <input id="sortOrder" name="sortOrder" type="number" defaultValue={b.sortOrder} />
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="name_en">დასახელება (EN)</label>
+              <label htmlFor="name_en">{t("Name (EN)")}</label>
               <input id="name_en" name="name_en" type="text" defaultValue={name.en} required />
             </div>
             <div className="field">
-              <label htmlFor="name_ka">დასახელება (KA)</label>
+              <label htmlFor="name_ka">{t("Name (KA)")}</label>
               <input id="name_ka" name="name_ka" type="text" defaultValue={name.ka} />
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="address_en">მისამართი (EN)</label>
+              <label htmlFor="address_en">{t("Address (EN)")}</label>
               <input id="address_en" name="address_en" type="text" defaultValue={address.en} />
             </div>
             <div className="field">
-              <label htmlFor="address_ka">მისამართი (KA)</label>
+              <label htmlFor="address_ka">{t("Address (KA)")}</label>
               <input id="address_ka" name="address_ka" type="text" defaultValue={address.ka} />
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="hours">სამუშაო საათები (EN)</label>
+              <label htmlFor="hours">{t("Opening hours (EN)")}</label>
               <input id="hours" name="hours" type="text" defaultValue={hours.en} />
             </div>
             <div className="field">
-              <label htmlFor="hours_ka">სამუშაო საათები (KA)</label>
+              <label htmlFor="hours_ka">{t("Opening hours (KA)")}</label>
               <input id="hours_ka" name="hours_ka" type="text" defaultValue={hours.ka} />
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="phone">ტელეფონი</label>
+              <label htmlFor="phone">{t("Phone")}</label>
               <input id="phone" name="phone" type="text" defaultValue={b.phone ?? ""} />
             </div>
             <div className="field" style={{ alignContent: "end" }}>
               <div className="field-check">
                 <input id="active" name="active" type="checkbox" defaultChecked={b.active} />
-                <label htmlFor="active">ღიაა (იღებს შეკვეთებს)</label>
+                <label htmlFor="active">{t("Open (taking orders)")}</label>
               </div>
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="lat">გრძედი (lat)</label>
+              <label htmlFor="lat">{t("Latitude (lat)")}</label>
               <input id="lat" name="lat" type="number" step="0.0000001" defaultValue={b.lat ?? ""} />
             </div>
             <div className="field">
-              <label htmlFor="lng">განედი (lng)</label>
+              <label htmlFor="lng">{t("Longitude (lng)")}</label>
               <input id="lng" name="lng" type="number" step="0.0000001" defaultValue={b.lng ?? ""} />
             </div>
           </div>
         </div>
 
         <div className="admin-panel">
-          <h2>POS ტერმინალები</h2>
+          <h2>{t("POS terminals")}</h2>
           <table className="admin-table">
             <thead>
               <tr>
                 <th>POS ID</th>
-                <th>ლეიბლი (EN)</th>
-                <th>ლეიბლი (KA)</th>
-                <th style={{ width: 80 }}>აქტიური</th>
-                <th style={{ width: 80 }}>ბარათი</th>
-                <th style={{ width: 70 }}>წაშლა</th>
+                <th>{t("Label (EN)")}</th>
+                <th>{t("Label (KA)")}</th>
+                <th style={{ width: 80 }}>{t("Active")}</th>
+                <th style={{ width: 80 }}>{t("Card")}</th>
+                <th style={{ width: 70 }}>{t("Delete")}</th>
               </tr>
             </thead>
             <tbody>
-              {b.terminals.map((t) => {
-                const l = i18nOf(t.label);
+              {b.terminals.map((term) => {
+                const l = i18nOf(term.label);
                 return (
-                  <tr key={t.id}>
+                  <tr key={term.id}>
                     <td>
-                      <code>{t.posId}</code>
-                      <input type="hidden" name={`term_${t.id}_present`} value="1" />
+                      <code>{term.posId}</code>
+                      <input type="hidden" name={`term_${term.id}_present`} value="1" />
                     </td>
                     <td>
-                      <input name={`term_${t.id}_label_en`} type="text" defaultValue={l.en} style={inp} />
+                      <input name={`term_${term.id}_label_en`} type="text" defaultValue={l.en} style={inp} />
                     </td>
                     <td>
-                      <input name={`term_${t.id}_label_ka`} type="text" defaultValue={l.ka} style={inp} />
+                      <input name={`term_${term.id}_label_ka`} type="text" defaultValue={l.ka} style={inp} />
                     </td>
                     <td>
-                      <input type="checkbox" name={`term_${t.id}_active`} defaultChecked={t.active} />
+                      <input type="checkbox" name={`term_${term.id}_active`} defaultChecked={term.active} />
                     </td>
                     <td>
-                      <input type="checkbox" name={`term_${t.id}_card`} defaultChecked={t.hasCardTerminal} />
+                      <input type="checkbox" name={`term_${term.id}_card`} defaultChecked={term.hasCardTerminal} />
                     </td>
                     <td>
-                      <input type="checkbox" name={`term_${t.id}_del`} />
+                      <input type="checkbox" name={`term_${term.id}_del`} />
                     </td>
                   </tr>
                 );
@@ -179,32 +181,34 @@ export default async function BranchEdit({ params }: { params: Promise<{ id: str
             </tbody>
           </table>
           <p className="hint" style={{ marginTop: 12 }}>
-            POS ID ფილიალის კოდიდან იქმნება და აღარ იცვლება — ის შეკვეთებში ინახება.
-            ტერმინალის „წაშლა“ მას მხოლოდ დეაქტივირებს — POS ID ისტორიისთვის რჩება.
+            {t(
+              "POS IDs are built from the branch code and never change — they are stored on every order. Deleting a terminal only deactivates it; the POS ID stays for history.",
+            )}
           </p>
         </div>
 
         <div className="form-actions">
           <button className="btn" type="submit">
-            შენახვა
+            {t("Save")}
           </button>
           <Link className="btn btn-ghost" href="/admin/branches">
-            გაუქმება
+            {t("Cancel")}
           </Link>
         </div>
       </form>
 
       <form action={addPos} style={{ marginTop: 16 }}>
         <button className="btn btn-ghost" type="submit">
-          + POS ტერმინალის დამატება
+          + {t("Add POS terminal")}
         </button>
       </form>
 
       <div className="admin-panel" style={{ maxWidth: 900, marginTop: 20 }}>
-        <h2>არქივი</h2>
+        <h2>{t("Archive")}</h2>
         <p className="hint" style={{ marginBottom: 12 }}>
-          დროებით დახურვისთვის (რემონტი, დასვენება) გამოიყენე <b>„ღიაა“</b> გადამრთველი.
-          არქივი — როცა ფილიალი აღარ მუშაობს.
+          {t(
+            "For a temporary closure (repairs, a holiday) use the “Open” toggle. Archive is for when a branch shuts for good.",
+          )}
         </p>
         <ArchiveButton action={archive} subject={name.ka || name.en} consequences={consequences} />
       </div>

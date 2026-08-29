@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { i18nOf, i18nText, num } from "@/lib/admin-utils";
 import { updateDiscount, archiveDiscount } from "../actions";
 import ArchiveButton from "../../_components/ArchiveButton";
+import { tr } from "@/lib/admin-i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ function dateVal(d: Date | null) {
 
 export default async function DiscountEdit({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const t = await tr();
 
   const [d, categories, products] = await Promise.all([
     db.discount.findUnique({
@@ -50,19 +52,19 @@ export default async function DiscountEdit({ params }: { params: Promise<{ id: s
   const archive = archiveDiscount.bind(null, id);
 
   const ruleTarget = (r: (typeof d.rules)[number]) => {
-    if (r.targetProduct) return `პროდუქტი · ${i18nText(r.targetProduct.name)}`;
-    if (r.targetSubcat) return `ქვე-კატეგორია · ${i18nText(r.targetSubcat.name)}`;
-    if (r.targetCategory) return `კატეგორია · ${i18nText(r.targetCategory.name)}`;
+    if (r.targetProduct) return `${t("Product")} · ${i18nText(r.targetProduct.name)}`;
+    if (r.targetSubcat) return `${t("Subcategory")} · ${i18nText(r.targetSubcat.name)}`;
+    if (r.targetCategory) return `${t("Category")} · ${i18nText(r.targetCategory.name)}`;
     return "—";
   };
 
   const consequences = [
-    "ახალ შეკვეთებზე აღარ გამოიყენება.",
+    t("It stops applying to new orders."),
     d._count.users > 0
-      ? `${d._count.users} მომხმარებელს აქვს მიბმული — კავშირი რჩება, მაგრამ ფასდაკლება აღარ ჩაითვლება.`
-      : "მომხმარებლებზე მიბმული არ არის.",
-    `${d.rules.length} წესი შენარჩუნდება — დაბრუნებისას ისევე იმუშავებს.`,
-    "უკვე გაცემული ფასდაკლებები ძველ შეკვეთებში უცვლელი რჩება.",
+      ? `${d._count.users} ${t("customers have it assigned — the link stays, but the discount stops counting.")}`
+      : t("It is not assigned to any customer."),
+    `${d.rules.length} ${t("rules are kept — they work the same if you restore it.")}`,
+    t("Discounts already given on past orders stay as they are."),
   ];
 
   return (
@@ -71,57 +73,59 @@ export default async function DiscountEdit({ params }: { params: Promise<{ id: s
         <div>
           <h1>{name.ka || name.en}</h1>
           <p>
-            {d.type} · {d.rules.length} წესი
+            {d.type} · {d.rules.length} {t("rules")}
           </p>
         </div>
         <Link className="btn btn-ghost" href="/admin/discounts">
-          ← სია
+          {t("Back to list")}
         </Link>
       </div>
 
       <form className="admin-form" action={save} style={{ maxWidth: 900 }}>
         <div className="admin-panel">
-          <h2>ძირითადი</h2>
+          <h2>{t("Basics")}</h2>
           <div className="field-row">
             <div className="field">
-              <label htmlFor="name_en">დასახელება (EN)</label>
+              <label htmlFor="name_en">{t("Name (EN)")}</label>
               <input id="name_en" name="name_en" type="text" defaultValue={name.en} required />
             </div>
             <div className="field">
-              <label htmlFor="name_ka">დასახელება (KA)</label>
+              <label htmlFor="name_ka">{t("Name (KA)")}</label>
               <input id="name_ka" name="name_ka" type="text" defaultValue={name.ka} />
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="type">ტიპი</label>
+              <label htmlFor="type">{t("Type")}</label>
               <select id="type" name="type" defaultValue={d.type}>
-                <option value="student">სტუდენტი</option>
-                <option value="diplomatic">დიპლომატიური</option>
-                <option value="employee">თანამშრომელი</option>
-                <option value="loyalty">ლოიალობა</option>
-                <option value="promo">პრომო</option>
-                <option value="custom">სხვა</option>
+                <option value="student">{t("Student")}</option>
+                <option value="diplomatic">{t("Diplomatic")}</option>
+                <option value="employee">{t("Employee")}</option>
+                <option value="loyalty">{t("Loyalty")}</option>
+                <option value="promo">{t("Promo")}</option>
+                <option value="custom">{t("Other")}</option>
               </select>
             </div>
             <div className="field">
-              <label htmlFor="usageLimit">გამოყენების ლიმიტი</label>
+              <label htmlFor="usageLimit">{t("Usage limit")}</label>
               <input id="usageLimit" name="usageLimit" type="number" min="0" defaultValue={d.usageLimit ?? ""} />
-              <span className="hint">ცარიელი = შეუზღუდავი. გამოყენებულია: {d.usedCount}</span>
+              <span className="hint">
+                {t("Blank = unlimited. Used:")} {d.usedCount}
+              </span>
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="defaultMode">ნაგულისხმევი ტიპი</label>
+              <label htmlFor="defaultMode">{t("Default type")}</label>
               <select id="defaultMode" name="defaultMode" defaultValue={d.defaultMode}>
-                <option value="percent">პროცენტი (%)</option>
-                <option value="fixed">ფიქსირებული (₾)</option>
+                <option value="percent">{t("Percent (%)")}</option>
+                <option value="fixed">{t("Fixed")} (₾)</option>
               </select>
             </div>
             <div className="field">
-              <label htmlFor="defaultValue">ნაგულისხმევი ოდენობა</label>
+              <label htmlFor="defaultValue">{t("Default amount")}</label>
               <input
                 id="defaultValue"
                 name="defaultValue"
@@ -130,26 +134,26 @@ export default async function DiscountEdit({ params }: { params: Promise<{ id: s
                 min="0"
                 defaultValue={num(d.defaultValue)}
               />
-              <span className="hint">გამოიყენება, როცა პოზიციას კონკრეტული წესი არ მოერგო.</span>
+              <span className="hint">{t("Used when no specific rule matches the line.")}</span>
             </div>
           </div>
         </div>
 
         {/* ── წესები ── */}
         <div className="admin-panel">
-          <h2>წესები</h2>
+          <h2>{t("Rules")}</h2>
           <p className="hint" style={{ marginTop: -8, marginBottom: 14 }}>
-            პრიორიტეტი: <b>პროდუქტი → ქვე-კატეგორია → კატეგორია → ნაგულისხმევი</b>.
+            {t("Priority:")} <b>{t("product → subcategory → category → default")}</b>.
           </p>
 
           {d.rules.length > 0 && (
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>რაზე ვრცელდება</th>
-                  <th style={{ width: 150 }}>ტიპი</th>
-                  <th style={{ width: 110 }}>ოდენობა</th>
-                  <th style={{ width: 70 }}>წაშლა</th>
+                  <th>{t("Applies to")}</th>
+                  <th style={{ width: 150 }}>{t("Type")}</th>
+                  <th style={{ width: 110 }}>{t("Amount")}</th>
+                  <th style={{ width: 70 }}>{t("Delete")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,18 +186,18 @@ export default async function DiscountEdit({ params }: { params: Promise<{ id: s
           )}
 
           <div className="field" style={{ marginTop: 16 }}>
-            <label>ახალი წესი</label>
+            <label>{t("New rule")}</label>
             <div className="field-row" style={{ gridTemplateColumns: "2fr 1fr 1fr" }}>
               <select name="newrule_target" defaultValue="">
-                <option value="">— აირჩიე —</option>
-                <optgroup label="კატეგორია">
+                <option value="">{t("— select —")}</option>
+                <optgroup label={t("Category")}>
                   {categories.map((c) => (
                     <option key={c.id} value={`cat:${c.id}`}>
                       {i18nText(c.name)}
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="ქვე-კატეგორია">
+                <optgroup label={t("Subcategory")}>
                   {categories.flatMap((c) =>
                     c.subcategories.map((s) => (
                       <option key={s.id} value={`sub:${s.id}`}>
@@ -202,7 +206,7 @@ export default async function DiscountEdit({ params }: { params: Promise<{ id: s
                     )),
                   )}
                 </optgroup>
-                <optgroup label="პროდუქტი">
+                <optgroup label={t("Product")}>
                   {products.map((p) => (
                     <option key={p.id} value={`prod:${p.id}`}>
                       {i18nText(p.name)} · {i18nText(p.category.name)}
@@ -211,23 +215,23 @@ export default async function DiscountEdit({ params }: { params: Promise<{ id: s
                 </optgroup>
               </select>
               <select name="newrule_mode" defaultValue="percent">
-                <option value="percent">პროცენტი (%)</option>
-                <option value="fixed">ფიქსირებული (₾)</option>
+                <option value="percent">{t("Percent (%)")}</option>
+                <option value="fixed">{t("Fixed")} (₾)</option>
               </select>
-              <input name="newrule_value" type="number" step="0.01" min="0" placeholder="ოდენობა" />
+              <input name="newrule_value" type="number" step="0.01" min="0" placeholder={t("Amount")} />
             </div>
           </div>
         </div>
 
         <div className="admin-panel">
-          <h2>ვადა და სტატუსი</h2>
+          <h2>{t("Dates and status")}</h2>
           <div className="field-row">
             <div className="field">
-              <label htmlFor="validFrom">მოქმედებს დან</label>
+              <label htmlFor="validFrom">{t("Valid from")}</label>
               <input id="validFrom" name="validFrom" type="date" defaultValue={dateVal(d.validFrom)} />
             </div>
             <div className="field">
-              <label htmlFor="validTo">მოქმედებს მდე</label>
+              <label htmlFor="validTo">{t("Valid to")}</label>
               <input id="validTo" name="validTo" type="date" defaultValue={dateVal(d.validTo)} />
             </div>
           </div>
@@ -238,28 +242,28 @@ export default async function DiscountEdit({ params }: { params: Promise<{ id: s
               type="checkbox"
               defaultChecked={d.requiresVerification}
             />
-            <label htmlFor="requiresVerification">ვერიფიკაცია სავალდებულოა</label>
+            <label htmlFor="requiresVerification">{t("Verification required")}</label>
           </div>
           <div className="field-check">
             <input id="active" name="active" type="checkbox" defaultChecked={d.active} />
-            <label htmlFor="active">აქტიური</label>
+            <label htmlFor="active">{t("Active")}</label>
           </div>
         </div>
 
         <div className="form-actions">
           <button className="btn" type="submit">
-            შენახვა
+            {t("Save")}
           </button>
           <Link className="btn btn-ghost" href="/admin/discounts">
-            გაუქმება
+            {t("Cancel")}
           </Link>
         </div>
       </form>
 
       <div className="admin-panel" style={{ maxWidth: 900, marginTop: 20 }}>
-        <h2>არქივი</h2>
+        <h2>{t("Archive")}</h2>
         <p className="hint" style={{ marginBottom: 12 }}>
-          სეზონურისთვის ჯობია <b>ვადის</b> მითითება ან <b>გამორთვა</b>.
+          {t("For a seasonal discount, set an end date or just turn it off.")}
         </p>
         <ArchiveButton action={archive} subject={name.ka || name.en} consequences={consequences} />
       </div>

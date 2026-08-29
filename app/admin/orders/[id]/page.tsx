@@ -4,17 +4,18 @@ import { db } from "@/lib/db";
 import { i18nText, money } from "@/lib/admin-utils";
 import { setOrderStatus } from "../actions";
 import { detailLines, lineColor } from "@/lib/item-detail";
+import { tr } from "@/lib/admin-i18n";
 
 export const dynamic = "force-dynamic";
 
 const LABEL: Record<string, string> = {
-  new: "ახალი",
-  confirmed: "დადასტურებული",
-  preparing: "მზადდება",
-  ready: "მზადაა",
-  delivering: "მიაქვთ",
-  completed: "დასრულებული",
-  cancelled: "გაუქმებული",
+  new: "New",
+  confirmed: "Confirmed",
+  preparing: "Preparing",
+  ready: "Ready",
+  delivering: "Out for delivery",
+  completed: "Done",
+  cancelled: "Cancelled",
 };
 
 /** რა შეიძლება მოხდეს მიმდინარე სტატუსიდან. */
@@ -29,15 +30,16 @@ const NEXT: Record<string, string[]> = {
 };
 
 const KIND: Record<string, string> = {
-  pizza: "პიცა",
-  half_and_half: "ნახევარ-ნახევარი",
-  combo: "კომბო",
-  sticks: "ჯოხები",
-  product: "პროდუქტი",
+  pizza: "Pizza",
+  half_and_half: "Half and half",
+  combo: "Combo",
+  sticks: "Sticks",
+  product: "Product",
 };
 
 export default async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const t = await tr();
 
   const o = await db.order.findUnique({
     where: { id },
@@ -81,19 +83,24 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
     <>
       <div className="admin-head">
         <div>
-          <h1>შეკვეთა #{o.orderNo}</h1>
+          <h1>
+            {t("Order #")}
+            {o.orderNo}
+          </h1>
           <p>
-            {i18nText(o.branch.name)} · {o.fulfillmentType === "pickup" ? "წაღება" : "მიწოდება"} ·{" "}
-            {new Date(o.createdAt).toLocaleString("ka-GE")}
+            {i18nText(o.branch.name)} · {o.fulfillmentType === "pickup" ? t("Pickup") : t("Delivery")}{" "}
+            · {new Date(o.createdAt).toLocaleString("ka-GE")}
           </p>
         </div>
         <Link className="btn btn-ghost" href="/admin/orders">
-          ← სია
+          {t("Back to list")}
         </Link>
       </div>
 
       <div className="admin-panel">
-        <h2>სტატუსი — {LABEL[o.status] ?? o.status}</h2>
+        <h2>
+          {t("Status")} — {LABEL[o.status] ? t(LABEL[o.status]) : o.status}
+        </h2>
         {NEXT[o.status]?.length ? (
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {NEXT[o.status].map((s) => {
@@ -105,7 +112,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                     type="submit"
                     style={s === "cancelled" ? { color: "var(--a-danger)", borderColor: "#f3d5d2" } : undefined}
                   >
-                    {LABEL[s]}
+                    {t(LABEL[s])}
                   </button>
                 </form>
               );
@@ -113,55 +120,55 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           </div>
         ) : (
           <p className="hint" style={{ margin: 0 }}>
-            შეკვეთა დახურულია — სტატუსი აღარ იცვლება.
+            {t("This order is closed — the status cannot change.")}
           </p>
         )}
       </div>
 
       <div className="admin-panel">
-        <h2>კლიენტი</h2>
+        <h2>{t("Customer")}</h2>
         <table className="admin-table">
           <tbody>
             {(o.createdBy || o.posId) && (
               <tr>
-                <td style={{ width: 160 }}>ვინ მიიღო</td>
+                <td style={{ width: 160 }}>{t("Taken by")}</td>
                 <td>
-                  {o.createdBy?.name ?? (o.source === "web" ? "საიტიდან" : o.source)}
+                  {o.createdBy?.name ?? (o.source === "web" ? t("Website") : o.source)}
                   {o.posId && <span className="hint"> · {o.posId}</span>}
                 </td>
               </tr>
             )}
             {o.driver && (
               <tr>
-                <td>ვინ წაიღო</td>
+                <td>{t("Driver")}</td>
                 <td>
                   🛵 {o.driver.name}
                   {o.deliveredAt && (
                     <span className="hint">
                       {" "}
-                      · მიიტანა {new Date(o.deliveredAt).toLocaleString("ka-GE")}
+                      · {t("delivered")} {new Date(o.deliveredAt).toLocaleString("ka-GE")}
                     </span>
                   )}
                 </td>
               </tr>
             )}
             <tr>
-              <td style={{ width: 160 }}>სახელი</td>
+              <td style={{ width: 160 }}>{t("Name")}</td>
               <td>{o.customerName ?? "—"}</td>
             </tr>
             <tr>
-              <td>ტელეფონი</td>
+              <td>{t("Phone")}</td>
               <td>{o.customerPhone ?? "—"}</td>
             </tr>
             {addr && (
               <tr>
-                <td>მისამართი</td>
+                <td>{t("Address")}</td>
                 <td>{addr}</td>
               </tr>
             )}
             {o.notes && (
               <tr>
-                <td>შენიშვნა</td>
+                <td>{t("Note")}</td>
                 <td>{o.notes}</td>
               </tr>
             )}
@@ -170,15 +177,15 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="admin-panel">
-        <h2>პოზიციები</h2>
+        <h2>{t("Lines")}</h2>
         <table className="admin-table">
           <thead>
             <tr>
-              <th>დასახელება</th>
-              <th style={{ width: 130 }}>ტიპი</th>
-              <th style={{ width: 70 }}>რაოდ.</th>
-              <th style={{ width: 110 }}>ერთეული</th>
-              <th style={{ width: 110 }}>ჯამი</th>
+              <th>{t("Name")}</th>
+              <th style={{ width: 130 }}>{t("Type")}</th>
+              <th style={{ width: 70 }}>{t("Qty")}</th>
+              <th style={{ width: 110 }}>{t("Price")}</th>
+              <th style={{ width: 110 }}>{t("Total")}</th>
             </tr>
           </thead>
           <tbody>
@@ -202,7 +209,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                   })()}
                 </td>
                 <td>
-                  <span className="hint">{KIND[it.kind] ?? it.kind}</span>
+                  <span className="hint">{KIND[it.kind] ? t(KIND[it.kind]) : it.kind}</span>
                 </td>
                 <td>{it.qty}</td>
                 <td>{money(it.unitPrice)} ₾</td>
@@ -217,18 +224,18 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
         <table className="admin-table" style={{ marginTop: 16, maxWidth: 340, marginLeft: "auto" }}>
           <tbody>
             <tr>
-              <td>ჯამი</td>
+              <td>{t("Subtotal")}</td>
               <td style={{ textAlign: "right" }}>{money(o.subtotal)} ₾</td>
             </tr>
             <tr>
-              <td>მიწოდება</td>
+              <td>{t("Delivery")}</td>
               <td style={{ textAlign: "right" }}>
-                {Number(o.deliveryFee) > 0 ? `${money(o.deliveryFee)} ₾` : "უფასო"}
+                {Number(o.deliveryFee) > 0 ? `${money(o.deliveryFee)} ₾` : t("Free")}
               </td>
             </tr>
             <tr>
               <td>
-                <b>სულ</b>
+                <b>{t("Total")}</b>
               </td>
               <td style={{ textAlign: "right" }}>
                 <b>{money(o.total)} ₾</b>
@@ -237,18 +244,20 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           </tbody>
         </table>
         <p className="hint" style={{ textAlign: "right", marginTop: 6 }}>
-          ფასი სერვერზეა გამოთვლილი — კლიენტის მონაცემი არ გამოიყენება.
+          {t("The price is worked out on the server — nothing from the client is trusted.")}
         </p>
       </div>
 
       {history.length > 0 && (
         <div className="admin-panel">
-          <h2>ისტორია</h2>
+          <h2>{t("History")}</h2>
           <table className="admin-table">
             <tbody>
               {history.map((h, i) => (
                 <tr key={i}>
-                  <td style={{ width: 180 }}>{LABEL[h.status ?? ""] ?? h.status}</td>
+                  <td style={{ width: 180 }}>
+                    {LABEL[h.status ?? ""] ? t(LABEL[h.status ?? ""]) : h.status}
+                  </td>
                   <td>
                     <span className="hint">{h.at ? new Date(h.at).toLocaleString("ka-GE") : ""}</span>
                   </td>

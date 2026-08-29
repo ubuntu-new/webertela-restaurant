@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 const TYPES = ["pizza", "item", "sticks", "drink", "merch"] as const;
 type ProductType = (typeof TYPES)[number];
@@ -16,11 +17,12 @@ function typeOf(v: string): ProductType {
 /** ახალი პროდუქტი — მინიმალური ველებით, მერე რედაქტირებაზე გადადის. */
 export async function createProduct(fd: FormData) {
   const session = await requirePermission("can_edit_menu");
+  const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
   const categoryId = fdStr(fd, "categoryId");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
-  if (!categoryId) throw new Error("კატეგორია აირჩიე");
+  if (!nameEn) throw new Error(t("The English name is required"));
+  if (!categoryId) throw new Error(t("Pick a category"));
 
   const type = typeOf(fdStr(fd, "type"));
 
@@ -60,9 +62,10 @@ export async function createProduct(fd: FormData) {
 /** სრული რედაქტირება. */
 export async function updateProductFull(id: string, fd: FormData) {
   const session = await requirePermission("can_edit_menu");
+  const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
+  if (!nameEn) throw new Error(t("The English name is required"));
 
   const badgeEn = fdStr(fd, "badge_en");
   const subcategoryId = fdStr(fd, "subcategoryId");

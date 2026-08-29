@@ -8,6 +8,7 @@ import { requirePermission, getSession } from "@/lib/admin-auth";
 import { hashPin, isValidPin } from "@/lib/pin";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
 import { PERMISSIONS } from "@/lib/permissions";
+import { tr } from "@/lib/admin-i18n";
 void PERMISSIONS;
 
 const ROLES = ["super_admin", "branch_manager", "cashier", "kitchen", "driver"] as const;
@@ -20,17 +21,19 @@ function roleOf(v: string): Role {
 
 /** super_admin-ს მხოლოდ super_admin ქმნის/ცვლის. */
 async function guardRole(target: Role) {
+  const t = await tr();
   const s = await getSession();
   if (target === "super_admin" && s?.role !== "super_admin") {
-    throw new Error("super_admin-ის მინიჭება მხოლოდ super_admin-ს შეუძლია");
+    throw new Error(t("Only a super_admin can assign the super_admin role"));
   }
 }
 
 export async function createEmployee(fd: FormData) {
   const session = await requirePermission("can_manage_staff");
+  const t = await tr();
 
   const name = fdStr(fd, "name");
-  if (!name) throw new Error("სახელი სავალდებულოა");
+  if (!name) throw new Error(t("A name is required"));
 
   const role = roleOf(fdStr(fd, "role"));
   await guardRole(role);
@@ -38,7 +41,7 @@ export async function createEmployee(fd: FormData) {
   const email = fdStr(fd, "email").toLowerCase() || null;
   const password = fdStr(fd, "password");
   if (email && password && password.length < 10) {
-    throw new Error("პაროლი მინიმუმ 10 სიმბოლო უნდა იყოს");
+    throw new Error(t("The password must be at least 10 characters"));
   }
 
   const emp = await db.employee.create({
@@ -71,15 +74,16 @@ export async function createEmployee(fd: FormData) {
 
 export async function updateEmployee(id: string, fd: FormData) {
   const session = await requirePermission("can_manage_staff");
+  const t = await tr();
 
   const name = fdStr(fd, "name");
-  if (!name) throw new Error("სახელი სავალდებულოა");
+  if (!name) throw new Error(t("A name is required"));
 
   const role = roleOf(fdStr(fd, "role"));
   await guardRole(role);
 
   const current = await db.employee.findUnique({ where: { id } });
-  if (!current) throw new Error("თანამშრომელი ვერ მოიძებნა");
+  if (!current) throw new Error(t("Employee not found"));
   if (current.role === "super_admin") await guardRole("super_admin");
 
   const email = fdStr(fd, "email").toLowerCase() || null;
@@ -90,7 +94,7 @@ export async function updateEmployee(id: string, fd: FormData) {
     const others = await db.employee.count({
       where: { role: "super_admin", active: true, deletedAt: null, NOT: { id } },
     });
-    if (others === 0) throw new Error("ეს ერთადერთი აქტიური super_admin-ია — ჯერ სხვა დანიშნე");
+    if (others === 0) throw new Error(t("This is the only active super_admin — appoint another one first"));
   }
 
   await db.employee.update({
@@ -133,12 +137,13 @@ export async function updateEmployee(id: string, fd: FormData) {
 /** ადმინ-პანელის პაროლის დაყენება/შეცვლა. */
 export async function setPassword(id: string, fd: FormData) {
   const session = await requirePermission("can_manage_staff");
+  const t = await tr();
 
   const password = fdStr(fd, "newPassword");
-  if (password.length < 10) throw new Error("პაროლი მინიმუმ 10 სიმბოლო უნდა იყოს");
+  if (password.length < 10) throw new Error(t("The password must be at least 10 characters"));
 
   const emp = await db.employee.findUnique({ where: { id } });
-  if (!emp?.email) throw new Error("ჯერ ელფოსტა მიუთითე — მის გარეშე შესვლა შეუძლებელია");
+  if (!emp?.email) throw new Error(t("Add an email first — without one they cannot sign in"));
 
   await db.employee.update({ where: { id }, data: { passwordHash: await bcrypt.hash(password, 12) } });
 
@@ -153,13 +158,14 @@ export async function setPassword(id: string, fd: FormData) {
 /** POS PIN. */
 export async function setPin(id: string, fd: FormData) {
   const session = await requirePermission("can_manage_staff");
+  const t = await tr();
 
   const pin = fdStr(fd, "newPin");
-  if (!isValidPin(pin)) throw new Error("PIN უნდა იყოს 4–8 ციფრი");
+  if (!isValidPin(pin)) throw new Error(t("The PIN must be 4–8 digits"));
 
   const hash = hashPin(pin);
   const clash = await db.employee.findFirst({ where: { posPinHash: hash, NOT: { id } } });
-  if (clash) throw new Error("ეს PIN სხვა თანამშრომელს უკვე აქვს — აირჩიე სხვა");
+  if (clash) throw new Error(t("Another employee already has this PIN — pick a different one"));
 
   await db.employee.update({ where: { id }, data: { posPinHash: hash } });
 
@@ -179,15 +185,16 @@ export async function clearPin(id: string) {
 
 export async function archiveEmployee(id: string) {
   const session = await requirePermission("can_manage_staff");
+  const t = await tr();
 
   const emp = await db.employee.findUnique({ where: { id } });
   if (emp?.role === "super_admin") {
     const others = await db.employee.count({
       where: { role: "super_admin", active: true, deletedAt: null, NOT: { id } },
     });
-    if (others === 0) throw new Error("ეს ერთადერთი აქტიური super_admin-ია — არქივში ვერ გადავა");
+    if (others === 0) throw new Error(t("This is the only active super_admin — it cannot be archived"));
   }
-  if (session.sub === id) throw new Error("საკუთარ თავს ვერ გადაიტან არქივში");
+  if (session.sub === id) throw new Error(t("You cannot archive yourself"));
 
   await db.employee.update({ where: { id }, data: { deletedAt: new Date(), posPinHash: null } });
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText, money } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 import { saveToppingPrices } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export default async function ToppingsPage({
   searchParams: Promise<{ saved?: string; archived?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const toppings = await db.topping.findMany({
     where: { deletedAt: null },
@@ -19,73 +21,79 @@ export default async function ToppingsPage({
   });
 
   const sizeKeys = Array.from(
-    new Set(toppings.flatMap((t) => t.prices.map((p) => p.sizeKey))),
+    new Set(toppings.flatMap((tp) => tp.prices.map((p) => p.sizeKey))),
   ).sort();
 
   return (
     <>
       <div className="admin-head">
         <div>
-          <h1>ტოპინგები</h1>
-          <p>{toppings.length} ჩანაწერი · ფასები ზომების მიხედვით</p>
+          <h1>{t("Toppings")}</h1>
+          <p>
+            {toppings.length} {t("records")} · {t("Prices by size")}
+          </p>
         </div>
         <Link className="btn" href="/admin/toppings/new">
-          + ახალი ტოპინგი
+          + {t("New topping")}
         </Link>
       </div>
 
-      {sp.saved && <div className="alert alert-ok">შენახულია.</div>}
-      {sp.archived && <div className="alert alert-ok">არქივში გადავიდა. დაბრუნება — „არქივი“ გვერდიდან.</div>}
+      {sp.saved && <div className="alert alert-ok">{t("Saved.")}</div>}
+      {sp.archived && (
+        <div className="alert alert-ok">
+          {t("Moved to the archive.")} {t("You can restore it from the Archive page.")}
+        </div>
+      )}
 
       <form action={saveToppingPrices}>
         <div className="admin-panel">
-          <h2>ფასები და სტატუსი</h2>
+          <h2>{t("Prices and status")}</h2>
           <p className="hint" style={{ marginTop: -8, marginBottom: 14 }}>
-            ცვლილებები ერთდროულად ინახება. ფოტოსა და სახელის შესაცვლელად დააჭირე დასახელებას.
+            {t("Everything saves at once. To change a photo or a name, click the name.")}
           </p>
 
           <table className="admin-table">
             <thead>
               <tr>
                 <th style={{ width: 46 }}></th>
-                <th>დასახელება</th>
-                <th>ჯგუფი</th>
+                <th>{t("Name")}</th>
+                <th>{t("Group")}</th>
                 {sizeKeys.map((k) => (
                   <th key={k} style={{ width: 90 }}>
                     {k} (₾)
                   </th>
                 ))}
-                <th style={{ width: 90 }}>ჩართული</th>
+                <th style={{ width: 90 }}>{t("Enabled")}</th>
               </tr>
             </thead>
             <tbody>
-              {toppings.map((t) => (
-                <tr key={t.id}>
+              {toppings.map((tp) => (
+                <tr key={tp.id}>
                   <td>
-                    {t.photo ? (
+                    {tp.photo ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img className="admin-thumb" src={t.photo} alt="" />
+                      <img className="admin-thumb" src={tp.photo} alt="" />
                     ) : (
                       <div className="admin-thumb" />
                     )}
                   </td>
                   <td>
-                    <Link href={`/admin/toppings/${t.id}`}>{i18nText(t.name)}</Link>
+                    <Link href={`/admin/toppings/${tp.id}`}>{i18nText(tp.name)}</Link>
                     <div className="hint">
-                      {i18nText(t.name, "en")}
-                      {t.recipeOnly ? " · მხოლოდ რეცეპტში" : ""}
+                      {i18nText(tp.name, "en")}
+                      {tp.recipeOnly ? ` · ${t("recipe only")}` : ""}
                     </div>
                   </td>
                   <td>
-                    <span className="hint">{t.category ?? "—"}</span>
+                    <span className="hint">{tp.category ?? "—"}</span>
                   </td>
                   {sizeKeys.map((k) => {
-                    const p = t.prices.find((x) => x.sizeKey === k);
+                    const p = tp.prices.find((x) => x.sizeKey === k);
                     return (
                       <td key={k}>
                         {p ? (
                           <input
-                            name={`price_${t.id}_${k}`}
+                            name={`price_${tp.id}_${k}`}
                             type="number"
                             step="0.01"
                             min="0"
@@ -105,8 +113,8 @@ export default async function ToppingsPage({
                     );
                   })}
                   <td>
-                    <input type="hidden" name={`present_${t.id}`} value="1" />
-                    <input type="checkbox" name={`active_${t.id}`} defaultChecked={t.active} />
+                    <input type="hidden" name={`present_${tp.id}`} value="1" />
+                    <input type="checkbox" name={`active_${tp.id}`} defaultChecked={tp.active} />
                   </td>
                 </tr>
               ))}
@@ -115,7 +123,7 @@ export default async function ToppingsPage({
 
           <div className="form-actions" style={{ marginTop: 18 }}>
             <button className="btn" type="submit">
-              ყველას შენახვა
+              {t("Save all")}
             </button>
           </div>
         </div>

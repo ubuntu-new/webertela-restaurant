@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 import { saveAvailability, enableEverywhere } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export default async function AvailabilityPage({
   searchParams: Promise<{ saved?: string; cat?: string; only?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const [branches, categories, products] = await Promise.all([
     db.branch.findMany({ where: { deletedAt: null }, orderBy: { sortOrder: "asc" } }),
@@ -35,30 +37,30 @@ export default async function AvailabilityPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>ხელმისაწვდომობა</h1>
+          <h1>{t("Availability")}</h1>
           <p>
-            {products.length} პროდუქტი × {branches.length} ფილიალი
-            {totalOff > 0 && ` · ${totalOff} სადმე გამორთული`}
+            {products.length} {t("products")} × {branches.length} {t("branches")}
+            {totalOff > 0 && ` · ${totalOff} ${t("off somewhere")}`}
           </p>
         </div>
       </div>
 
       {sp.saved && (
         <div className="alert alert-ok">
-          {sp.saved === "0" ? "ცვლილება არ იყო." : `შენახულია — ${sp.saved} ცვლილება.`}
+          {sp.saved === "0" ? t("No changes.") : `${t("Saved")} — ${sp.saved} ${t("changes")}.`}
         </div>
       )}
 
       {totalGone > 0 && (
         <div className="alert alert-error">
-          <b>{totalGone} პროდუქტი არცერთ ფილიალში არ იყიდება</b> — ისინი საიტზე საერთოდ არ ჩანს.
+          <b>{totalGone} {t("products are not sold at any branch")}</b> — {t("they do not show on the website at all.")}
         </div>
       )}
 
       <div className="admin-panel">
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link className={sp.cat || sp.only ? "btn btn-ghost" : "btn"} href="/admin/availability">
-            ყველა
+            {t("All")}
           </Link>
           {categories.map((c) => (
             <Link
@@ -73,7 +75,7 @@ export default async function AvailabilityPage({
             className={sp.only === "off" ? "btn" : "btn btn-ghost"}
             href="/admin/availability?only=off"
           >
-            მხოლოდ გამორთული
+            {t("Off only")}
           </Link>
         </div>
       </div>
@@ -81,14 +83,14 @@ export default async function AvailabilityPage({
       <form action={saveAvailability}>
         <div className="admin-panel">
           <p className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
-            მონიშნული = ამ ფილიალში იყიდება. მოხსნილი = „დღეს გათავდა“. ცვლილებები ერთდროულად ინახება.
+            {t("Checked = we sell it at that branch. Unchecked = we ran out today. Everything saves in one go.")}
           </p>
 
           <div style={{ overflowX: "auto" }}>
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th style={{ minWidth: 220 }}>პროდუქტი</th>
+                  <th style={{ minWidth: 220 }}>{t("Product")}</th>
                   {branches.map((b) => (
                     <th key={b.id} style={{ width: 110, textAlign: "center" }}>
                       {i18nText(b.name)}
@@ -114,8 +116,8 @@ export default async function AvailabilityPage({
                         <Link href={`/admin/products/${p.id}`}>{i18nText(p.name)}</Link>
                         <div className="hint">
                           {i18nText(p.category.name)}
-                          {!p.active && " · გამორთული"}
-                          {gone && " · საიტზე არ ჩანს"}
+                          {!p.active && ` · ${t("Disabled")}`}
+                          {gone && ` · ${t("not on the website")}`}
                         </div>
                       </td>
 
@@ -140,7 +142,7 @@ export default async function AvailabilityPage({
                                 : { background: "#fdf3d6", color: "#8a6a12" }
                             }
                           >
-                            {gone ? "არსად" : `${off.size} გამორთული`}
+                            {gone ? t("Nowhere") : `${off.size} ${t("off")}`}
                           </span>
                         )}
                       </td>
@@ -153,7 +155,7 @@ export default async function AvailabilityPage({
 
           <div className="form-actions" style={{ marginTop: 18 }}>
             <button className="btn" type="submit">
-              შენახვა
+              {t("Save")}
             </button>
           </div>
         </div>
@@ -161,7 +163,7 @@ export default async function AvailabilityPage({
 
       {totalOff > 0 && (
         <div className="admin-panel">
-          <h2>სწრაფად ჩართვა ყველგან</h2>
+          <h2>{t("Turn on everywhere")}</h2>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {products
               .filter((p) => offCount(p) > 0)
@@ -180,17 +182,17 @@ export default async function AvailabilityPage({
       )}
 
       <div className="admin-panel">
-        <h2>შენიშვნა</h2>
+        <h2>{t("Note")}</h2>
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.8, color: "var(--a-muted)" }}>
           <li>
-            ეს ცხრილი <b>დროებით</b> გათავებას აღწერს, არა სამუდამო მოხსნას — მისთვის პროდუქტის
-            „ჩართული“ გადამრთველია.
+            {t("This table is about")} <b>{t("running out today")}</b>{" "}
+            {t("and not about taking an item off the menu for good — for that, use the product’s “Enabled” switch.")}
           </li>
           <li>
-            საიტზე პროდუქტი მაშინ ქრება, როცა <b>ყველა</b> ფილიალშია გამორთული. ფილიალის მიხედვით
-            ფილტრაცია მაშინ ჩაირთვება, როცა საიტს ფილიალის არჩევა დაემატება.
+            {t("A product disappears from the website only once it is off at")} <b>{t("every")}</b>{" "}
+            {t("branch. Filtering by branch kicks in once the website lets the customer pick one.")}
           </li>
-          <li>რაოდენობა და ავტომატური შევსება ამავე ცხრილზე დაშენდება — გადაკეთება არ დაგვჭირდება.</li>
+          <li>{t("Quantities and auto-replenishment will build on this same table — no rework needed.")}</li>
         </ul>
       </div>
     </>
