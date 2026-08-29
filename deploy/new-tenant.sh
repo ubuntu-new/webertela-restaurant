@@ -64,6 +64,9 @@ while [ $# -gt 0 ]; do
 done
 
 [ -n "$DOMAIN" ] && [ -n "$PORT" ] || usage
+# "en-US" -> "en". The storefront speaks languages, not locales.
+LOCALE_LANG="${LOCALE%%-*}"
+
 [[ "$SLUG" =~ ^[a-z][a-z0-9-]{1,30}$ ]] || { echo "!! slug must be lowercase letters, digits and dashes"; exit 1; }
 
 APP_DIR="$SRV_ROOT/$SLUG"
@@ -90,6 +93,7 @@ echo "   slug      $SLUG"
 echo "   domain    $DOMAIN"
 echo "   port      $PORT"
 echo "   money     $CURRENCY · $LOCALE · $TZ_NAME"
+echo "   language  /$LOCALE_LANG"
 [ "$DEMO" -eq 1 ] && echo "   mode      DEMO (writes refused)"
 
 if [ "$DRY" -eq 1 ]; then
@@ -138,6 +142,9 @@ echo "   $DB owned by $DB_USER"
 say "checkout"
 git clone --quiet "$REPO" "$APP_DIR"
 CREATED+=(dir)
+# root cloned it, the service user owns it — git calls that "dubious ownership"
+# and refuses to read the repo until told otherwise.
+git config --global --add safe.directory "$APP_DIR"
 mkdir -p "$UPLOAD_DIR"
 chown -R "$DB_USER:$DB_USER" "$APP_DIR" "$UPLOAD_ROOT/$SLUG"
 echo "   $APP_DIR  ($(cd "$APP_DIR" && git rev-parse --short HEAD))"
@@ -150,6 +157,9 @@ DATABASE_URL="postgresql://$DB_USER:$DB_PASS@127.0.0.1:5432/$DB?schema=public"
 AUTH_SECRET=$(openssl rand -hex 32)
 ORDER_STRICT=1
 UPLOAD_DIR=$UPLOAD_DIR
+# Middleware runs before the database is reachable, so the landing language
+# comes from here rather than from Setting: org.
+NEXT_PUBLIC_DEFAULT_LOCALE=$LOCALE_LANG
 EOF
 # Telegram is optional and per-restaurant. Left empty rather than absent so the
 # key is visible when someone comes to fill it in.
@@ -258,8 +268,9 @@ echo "   $DOMAIN → 127.0.0.1:$PORT"
 if [ -n "$ADMIN_EMAIL" ] && [ -f "$APP_DIR/scripts/create-admin.mjs" ]; then
   say "admin account"
   ADMIN_PASS=$(openssl rand -base64 18 | tr -d '/+=' | head -c 16)
+  # The script takes name, email, password — in that order.
   runuser -u "$DB_USER" -- env -u NODE_ENV node "$APP_DIR/scripts/create-admin.mjs" \
-    "$ADMIN_EMAIL" "$ADMIN_PASS" >/dev/null 2>&1 \
+    "Owner" "$ADMIN_EMAIL" "$ADMIN_PASS" >/dev/null 2>&1 \
     && echo "   $ADMIN_EMAIL / $ADMIN_PASS   ← write this down now" \
     || echo "   !! create-admin.mjs failed — make the account by hand"
 fi
@@ -268,12 +279,26 @@ fi
 say "does it actually serve"
 trap - ERR   # past the point where rolling back is the right answer
 
-LOCAL=$(curl -sL -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT" || echo 000)
-PUBLIC=$(curl -sL -o /dev/null -w '%{http_code}' "https://$DOMAIN" || echo 000)
+# No -L on the local check: `/` answers 307 and sends the browser to the public
+# URL, so following it turned a healthy app into "307000" — two codes glued
+# together, the second one a certificate that had not been issued yet.
+LOCAL=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT" || echo 000)
+
+# Let's Encrypt takes a few seconds. Waiting is the difference between a
+# frightening red line and the truth.
+PUBLIC=000
+for _ in 1 2 3 4 5 6; do
+  PUBLIC=$(curl -sL -o /dev/null -w '%{http_code}' "https://$DOMAIN" || echo 000)
+  [ "$PUBLIC" = "200" ] && break
+  sleep 5
+done
 ERRS=$(journalctl -u "$SLUG" --since "2 minutes ago" --no-pager 2>/dev/null | grep -ciE 'prisma:error|PrismaClient' || true)
 
 printf '   local     %s\n   public    %s\n   db errors %s\n' "$LOCAL" "$PUBLIC" "$ERRS"
-[ "$LOCAL" = "200" ] || echo "   !! the app is not answering locally — check journalctl -u $SLUG"
+case "$LOCAL" in
+  200|307|308) ;;   # 307 is the locale redirect, and it means the app is alive
+  *) echo "   !! the app is not answering locally — check journalctl -u $SLUG" ;;
+esac
 [ "$PUBLIC" = "200" ] || echo "   !! not reachable at https://$DOMAIN yet — DNS, or the certificate is still being issued"
 
 say "$SLUG is up"
