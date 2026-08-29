@@ -324,20 +324,36 @@ export default async function Dashboard({
                         <span className="hint">{f.money(fixed!.monthly)}/month, pro-rated</span>
                       </td>
                     </tr>
-                    <tr style={{ borderTop: "2px solid var(--a-line)" }}>
-                      <td>
-                        <b>Net profit</b>
-                      </td>
-                      <td>
-                        <b style={{ color: netProfit! >= 0 ? "var(--a-ok)" : "var(--a-danger)" }}>
-                          {netProfit! >= 0 ? "" : "−"}
-                          {f.money(Math.abs(netProfit!))}
-                        </b>
-                      </td>
-                      <td>
-                        <span className="hint">{pct(netProfit!, core.revenue)}% of revenue</span>
-                      </td>
-                    </tr>
+                    {/* Net profit needs BOTH halves of prime cost. Without them
+                        `netProfit` is null — and `Math.abs(null)` is 0, so the
+                        old non-null assertions printed a confident "0.00" and
+                        called it breaking even. A missing answer must look
+                        missing. */}
+                    {netProfit !== null ? (
+                      <tr style={{ borderTop: "2px solid var(--a-line)" }}>
+                        <td>
+                          <b>Net profit</b>
+                        </td>
+                        <td>
+                          <b style={{ color: netProfit >= 0 ? "var(--a-ok)" : "var(--a-danger)" }}>
+                            {netProfit >= 0 ? "" : "−"}
+                            {f.money(Math.abs(netProfit))}
+                          </b>
+                        </td>
+                        <td>
+                          <span className="hint">{pct(netProfit, core.revenue)}% of revenue</span>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr>
+                        <td colSpan={3}>
+                          <span className="hint">
+                            Net profit needs ingredient cost and labour as well as fixed
+                            costs — two of the three are still missing.
+                          </span>
+                        </td>
+                      </tr>
+                    )}
                   </>
                 ) : (
                   <tr>
