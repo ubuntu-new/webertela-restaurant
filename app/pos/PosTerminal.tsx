@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { detailLines, lineColor } from "@/lib/item-detail";
+import { makeFmt } from "@/lib/format-shared";
+import type { OrgFormat } from "@/lib/format-shared";
 
 /**
  * POS terminal.
@@ -85,13 +87,12 @@ const uuid = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-const money = (n: number) => n.toFixed(2);
-
 export default function PosTerminal({
   session,
   menu,
   branches,
   terminals,
+  org,
   unavailable = [],
   unavailableItems = [],
 }: {
@@ -99,9 +100,12 @@ export default function PosTerminal({
   menu: Menu | null;
   branches: { id: string; name: string; code: string }[];
   terminals: { posId: string; branchId: string; label: string }[];
+  org: OrgFormat;
   unavailable?: number[];
   unavailableItems?: string[];
 }) {
+  const f = useMemo(() => makeFmt(org), [org]);
+
   const [branchId, setBranchId] = useState("");
   const [posId, setPosId] = useState("");
   const [pin, setPin] = useState("");
@@ -496,7 +500,7 @@ export default function PosTerminal({
   // Without this they either rush or lose the ticket.
   const park = () => {
     if (lines.length === 0) return;
-    const label = customer.name.trim() || `${money(subtotal)} ₾ · ${count} items`;
+    const label = customer.name.trim() || `${f.money(subtotal)} · ${count} items`;
     persistHeld([...held, { id: uuid(), label, lines, at: Date.now() }]);
     clearTicket();
   };
@@ -722,7 +726,7 @@ export default function PosTerminal({
                 </span>
                 <b>{t.name}</b>
                 <span className="pos-tile-price">
-                  {t.from && "from "}{money(t.price)} ₾
+                  {t.from && "from "}{f.money(t.price)}
                 </span>
               </button>
             ))}
@@ -835,7 +839,7 @@ export default function PosTerminal({
                 <div className="pos-line" key={l.key}>
                   <div className="pos-line-top">
                     <b>{l.name}</b>
-                    <span>{money(l.price * l.qty)} ₾</span>
+                    <span>{f.money(l.price * l.qty)}</span>
                   </div>
 
                   {detail.length > 0 && (
@@ -886,7 +890,7 @@ export default function PosTerminal({
                 onClick={() => setUsePoints((v) => !v)}
               >
                 {usePoints ? "✓ " : ""}Use {known.points} points
-                <em>−{money(Math.min(known.points * 0.1, subtotal))} ₾</em>
+                <em>−{f.money(Math.min(known.points * 0.1, subtotal))}</em>
               </button>
             )}
 
@@ -894,9 +898,8 @@ export default function PosTerminal({
               <span>{count} items</span>
               <b>
                 {usePoints && known
-                  ? money(Math.max(0, subtotal - Math.min(known.points * 0.1, subtotal)))
-                  : money(subtotal)}{" "}
-                ₾
+                  ? f.money(Math.max(0, subtotal - Math.min(known.points * 0.1, subtotal)))
+                  : f.money(subtotal)}
               </b>
             </div>
             {error && <p className="pos-err">{error}</p>}
@@ -905,7 +908,7 @@ export default function PosTerminal({
               <button type="button" className="pos-ghost" onClick={clearTicket} disabled={lines.length === 0}>Clear</button>
             </div>
             <button className="pos-primary" type="button" onClick={() => setPaying(true)} disabled={lines.length === 0}>
-              Charge {money(subtotal)} ₾
+              Charge {f.money(subtotal)}
             </button>
           </div>
         </aside>
@@ -965,7 +968,7 @@ export default function PosTerminal({
                       setEditing({ ...editing, toppings: next });
                     }}>
                     {t.name}{cur > 1 && ` ×${cur}`}
-                    <em>+{money(t.ps[editing.sizeIdx ?? 1])}</em>
+                    <em>+{f.money(t.ps[editing.sizeIdx ?? 1])}</em>
                   </button>
                 );
               })}
@@ -974,7 +977,7 @@ export default function PosTerminal({
             <div className="pos-sheet-foot">
               <button type="button" onClick={() => setEditing(null)}>Cancel</button>
               <button className="pos-primary" type="button" onClick={commitPizza}>
-                Add · {money(priceOf(editing))} ₾
+                Add · {f.money(priceOf(editing))}
               </button>
             </div>
           </div>
@@ -986,7 +989,7 @@ export default function PosTerminal({
         <div className="pos-modal" onClick={(e) => e.target === e.currentTarget && setPaying(false)}>
           <div className="pos-sheet pos-pay">
             <h2>Cash</h2>
-            <p className="pos-pay-due">Due <b>{money(subtotal)} ₾</b></p>
+            <p className="pos-pay-due">Due <b>{f.money(subtotal)}</b></p>
 
             <input
               className="pos-pay-input"
@@ -997,14 +1000,15 @@ export default function PosTerminal({
             />
 
             <div className="pos-choice wrap">
-              <button type="button" onClick={() => setTendered(money(subtotal))}>Exact</button>
+              {/* the tendered field is parsed with Number() — it must stay a raw numeric string, never formatted money */}
+              <button type="button" onClick={() => setTendered(subtotal.toFixed(2))}>Exact</button>
               {QUICK_CASH.filter((c) => c >= subtotal).slice(0, 4).map((c) => (
-                <button key={c} type="button" onClick={() => setTendered(String(c))}>{c} ₾</button>
+                <button key={c} type="button" onClick={() => setTendered(String(c))}>{f.money(c)}</button>
               ))}
             </div>
 
             <p className={`pos-change${change === null ? " dim" : ""}`}>
-              Change <b>{change === null ? "—" : `${money(change)} ₾`}</b>
+              Change <b>{change === null ? "—" : f.money(change)}</b>
             </p>
 
             <div className="pos-sheet-foot">
@@ -1031,7 +1035,7 @@ export default function PosTerminal({
               <div className="pos-held" key={h.id}>
                 <div>
                   <b>{h.label}</b>
-                  <span>{new Date(h.at).toLocaleTimeString("ka-GE")}</span>
+                  <span>{f.time(new Date(h.at))}</span>
                 </div>
                 <div className="pos-line-tools">
                   <button type="button" onClick={() => recall(h)}>Recall</button>
@@ -1057,8 +1061,8 @@ export default function PosTerminal({
               <div className="pos-recent" key={o.id}>
                 <div className="pos-recent-top">
                   <b>#{o.no}</b>
-                  <span>{new Date(o.at).toLocaleTimeString("ka-GE")}</span>
-                  <b className="pos-recent-total">{money(o.total)} ₾</b>
+                  <span>{f.time(o.at)}</span>
+                  <b className="pos-recent-total">{f.money(o.total)}</b>
                 </div>
                 <div className="pos-recent-items">
                   {o.items.map((it, i) => (
@@ -1092,7 +1096,7 @@ export default function PosTerminal({
         <div className="pos-modal" onClick={(e) => e.target === e.currentTarget && setVoiding(null)}>
           <div className="pos-sheet pos-pay">
             <h2>Void order #{voiding.no}</h2>
-            <p className="pos-pay-due">Amount <b>{money(voiding.total)} ₾</b></p>
+            <p className="pos-pay-due">Amount <b>{f.money(voiding.total)}</b></p>
 
             <label>Reason</label>
             <input
@@ -1166,9 +1170,9 @@ export default function PosTerminal({
         <div className="pos-modal" onClick={() => setDone(null)}>
           <div className="pos-sheet pos-done">
             <h2>Order #{done.no}</h2>
-            <p className="pos-done-total">{money(done.total)} ₾</p>
+            <p className="pos-done-total">{f.money(done.total)}</p>
             {done.change !== null && (
-              <p className="pos-done-change">Change <b>{money(done.change)} ₾</b></p>
+              <p className="pos-done-change">Change <b>{f.money(done.change)}</b></p>
             )}
             <button className="pos-primary" type="button" onClick={() => setDone(null)}>Next order</button>
           </div>

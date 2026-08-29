@@ -2,9 +2,11 @@
 
 import {
   createContext,
+  useMemo,
   useContext,
   type ReactNode,
 } from "react";
+import { makeFmt, FALLBACK, type Fmt, type OrgFormat } from "@/lib/format-shared";
 import { usePathname, useRouter } from "next/navigation";
 import type { Lang } from "./data";
 
@@ -71,9 +73,9 @@ export const I18N: Record<Lang, Record<string, string>> = {
     cart_empty: `Your cart is empty.`,
     pick_pizza_start: `Pick a pizza to get started.`,
     cart_no_items: `Pick a pizza to start`,
-    cart_min_hint: `Minimum order is 25 ₾.`,
+    cart_min_hint: `Minimum order is {amount}.`,
     away_from_delivery: `{n} away from delivery`,
-    good_to_go_fee: `Good to go · 5.50 ₾ delivery`,
+    good_to_go_fee: `Good to go · {amount} delivery`,
     add_more_free_delivery: `Add {n} more and delivery is on us`,
     free_delivery_earned: `Free delivery. You earned it.`,
     no_charge_this_order: `No delivery charge on this order.`,
@@ -208,9 +210,9 @@ export const I18N: Record<Lang, Record<string, string>> = {
     cart_empty: `კალათა ცარიელია.`,
     pick_pizza_start: `აირჩიე პიცა დასაწყებად.`,
     cart_no_items: `აირჩიე პიცა`,
-    cart_min_hint: `მინიმალური შეკვეთა 25 ₾.`,
+    cart_min_hint: `მინიმალური შეკვეთა {amount}.`,
     away_from_delivery: `მიწოდებამდე დარჩა {n}`,
-    good_to_go_fee: `მზადაა · 5.50 ₾ მიწოდება`,
+    good_to_go_fee: `მზადაა · {amount} მიწოდება`,
     add_more_free_delivery: `დაამატე კიდევ {n} და მიწოდება უფასოა`,
     free_delivery_earned: `უფასო მიწოდება. დამსახურებული.`,
     no_charge_this_order: `მიწოდების საფასური არ ერიცხება.`,
@@ -293,13 +295,30 @@ interface LangCtx {
   lang: Lang;
   setLang: (l: Lang) => void;
   t: (key: string) => string;
+  /**
+   * Money and dates in the organisation's own format.
+   *
+   * The storefront runs in the browser, so it cannot ask the database what
+   * currency this restaurant uses. The server layout reads it once and hands
+   * it down here — the same trick as the admin's language.
+   */
+  f: Fmt;
 }
 
 const Ctx = createContext<LangCtx | null>(null);
 
 // Locale now comes from the URL (/en, /ka). Switching language navigates
 // to the sibling locale path instead of writing to localStorage.
-export function LangProvider({ initialLang, children }: { initialLang: Lang; children: ReactNode }) {
+export function LangProvider({
+  initialLang,
+  org,
+  children,
+}: {
+  initialLang: Lang;
+  /** From `orgFormat()` in the server layout. Falls back to en-US / USD. */
+  org?: OrgFormat;
+  children: ReactNode;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const lang = initialLang;
@@ -314,7 +333,10 @@ export function LangProvider({ initialLang, children }: { initialLang: Lang; chi
 
   const t = (key: string) => I18N[lang][key] ?? I18N.en[key] ?? key;
 
-  return <Ctx.Provider value={{ lang, setLang, t }}>{children}</Ctx.Provider>;
+  // Rebuilt only when the organisation changes, which is never within a session.
+  const f = useMemo(() => makeFmt(org ?? FALLBACK), [org]);
+
+  return <Ctx.Provider value={{ lang, setLang, t, f }}>{children}</Ctx.Provider>;
 }
 
 export function useLang(): LangCtx {

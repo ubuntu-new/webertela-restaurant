@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { makeFmt } from "@/lib/format-shared";
+import type { OrgFormat } from "@/lib/format-shared";
 
 /**
  * Driver screen — a phone, not a desk.
@@ -25,14 +27,20 @@ interface DriverOrder {
   items: { name: string; qty: number }[];
 }
 
-const money = (n: number) => n.toFixed(2);
-
 function minutesSince(iso: string | null) {
   if (!iso) return null;
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
 }
 
-export default function DriverApp({ session }: { session: { name: string } | null }) {
+export default function DriverApp({
+  session,
+  org,
+}: {
+  session: { name: string } | null;
+  org: OrgFormat;
+}) {
+  const f = useMemo(() => makeFmt(org), [org]);
+
   const [signedIn, setSignedIn] = useState(!!session);
   const [who, setWho] = useState(session?.name ?? "");
   const [pin, setPin] = useState("");
@@ -172,7 +180,7 @@ export default function DriverApp({ session }: { session: { name: string } | nul
               {o.note && <p className="drv-note">📝 {o.note}</p>}
 
               <p className="drv-total">
-                {money(o.total)} ₾
+                {f.money(o.total)}
                 <span className={o.paymentStatus === "paid" ? "drv-paid" : "drv-unpaid"}>
                   {o.paymentStatus === "paid" ? "Paid" : "Collect cash"}
                 </span>
@@ -209,7 +217,7 @@ export default function DriverApp({ session }: { session: { name: string } | nul
             <p>
               {confirming.paymentStatus === "paid"
                 ? "Already paid — nothing to collect."
-                : `Collect ${money(confirming.total)} ₾ in cash.`}
+                : `Collect ${f.money(confirming.total)} in cash.`}
             </p>
             <button className="drv-primary" type="button" onClick={() => markDelivered(confirming)}>
               Confirm delivered

@@ -22,7 +22,6 @@ import {
   CRUST_KEYS,
   SAUCE_KEYS,
   SAUCE_FWD,
-  fmt,
   plainExtra,
   plainSlots,
 } from "@/lib/pricing";
@@ -45,7 +44,7 @@ const Slice = () => <span className="t-emoji" dangerouslySetInnerHTML={{ __html:
 
 export default function HalfHalf() {
   const { hhOpen, hhInit, editingHHIdx, lines, commitHH, closeHH, showToast } = useCart();
-  const { lang, t } = useLang();
+  const { lang, t, f } = useLang();
 
   const [leftId, setLeftId] = useState<number | null>(null);
   const [rightId, setRightId] = useState<number | null>(null);
@@ -186,7 +185,7 @@ export default function HalfHalf() {
               <span>{t(SIZE_KEYS[i])}</span>
               <span className="s-sub">{SIZE_CM[i]}</span>
               {both && (
-                <span className="s-price">{fmt(Math.round((left!.sizes[i] / 2 + right!.sizes[i] / 2) * 100) / 100)}</span>
+                <span className="s-price">{f.money(Math.round((left!.sizes[i] / 2 + right!.sizes[i] / 2) * 100) / 100)}</span>
               )}
             </button>
           ))}
@@ -345,7 +344,7 @@ export default function HalfHalf() {
             </div>
             <div className="t-name">{tDisp(tp, lang)}</div>
             <div className="t-price-row">
-              <span className="t-price">+{tprice.toFixed(2)} ₾{isHalf ? " (½)" : ""}</span>
+              <span className="t-price">+{f.money(tprice)}{isHalf ? " (½)" : ""}</span>
             </div>
           </div>
         );
@@ -361,7 +360,7 @@ export default function HalfHalf() {
       style={!both ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
     >
       <span>{t("add_to_order")}</span>
-      {both && <span className="cta-price">{fmt(price)}</span>}
+      {both && <span className="cta-price">{f.money(price)}</span>}
     </button>
   );
 
@@ -457,7 +456,7 @@ export default function HalfHalf() {
                       <div className="hh-pick-item-name">{pName(p, lang)}</div>
                       <div className="hh-pick-item-ings">{p.ings.map((n) => ingLabel(n, lang)).join(", ")}</div>
                     </div>
-                    <div className="hh-pick-item-price">{fmt(p.sizes[sizeIdx] / 2)}</div>
+                    <div className="hh-pick-item-price">{f.money(p.sizes[sizeIdx] / 2)}</div>
                   </button>
                 );
               })}

@@ -103,10 +103,6 @@ export function seedToppings(pizza: Pizza): ToppingsState {
   return st;
 }
 
-export function fmt(v: number): string {
-  return v.toFixed(2) + " ₾";
-}
-
 // ── Half & Half per-side toppings (user-added, half price each) ──
 export type HHToppings = { left: Record<string, number>; right: Record<string, number> };
 

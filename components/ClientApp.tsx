@@ -3,6 +3,7 @@ import { useState } from "react";
 import { LangProvider } from "@/lib/i18n";
 import { CartProvider } from "@/lib/cart";
 import { applyMenu, type Lang, type MenuPayload } from "@/lib/data";
+import type { OrgFormat } from "@/lib/format-shared";
 import AppViewport from "@/components/AppViewport";
 import Header from "@/components/Header";
 import TrustBar from "@/components/TrustBar";
@@ -17,7 +18,16 @@ import CartDrawer from "@/components/CartDrawer";
 import Checkout from "@/components/Checkout";
 import Toast from "@/components/Toast";
 
-export default function ClientApp({ lang, menu }: { lang: Lang; menu?: MenuPayload | null }) {
+export default function ClientApp({
+  lang,
+  menu,
+  org,
+}: {
+  lang: Lang;
+  menu?: MenuPayload | null;
+  /** The restaurant's currency and date format, read on the server. */
+  org?: OrgFormat;
+}) {
   // ბრაუზერშიც უნდა შეივსოს — და შვილების რენდერამდე, სინქრონულად.
   // useState-ის initializer ზუსტად ერთხელ გაეშვება, პირველი რენდერის დროს.
   useState(() => {
@@ -26,7 +36,7 @@ export default function ClientApp({ lang, menu }: { lang: Lang; menu?: MenuPaylo
   });
 
   return (
-    <LangProvider initialLang={lang}>
+    <LangProvider initialLang={lang} org={org}>
       <CartProvider>
         <AppViewport>
           <Header />

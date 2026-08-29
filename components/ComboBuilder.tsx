@@ -4,11 +4,10 @@ import { useEffect, useState } from "react";
 import { useCart } from "@/lib/cart";
 import { useLang } from "@/lib/i18n";
 import { resolveRef, comboName, comboDesc } from "@/lib/data";
-import { fmt } from "@/lib/pricing";
 
 export default function ComboBuilder() {
   const { comboItem, closeCombo, addConfigured, showToast } = useCart();
-  const { lang, t } = useLang();
+  const { lang, t, f } = useLang();
 
   const [choices, setChoices] = useState<string[]>([]);
 
@@ -95,7 +94,7 @@ export default function ComboBuilder() {
                       const r = resolveRef(ref, lang);
                       return (
                         <option key={ref} value={ref}>
-                          {r ? `${r.name} — ${fmt(r.price)}` : ref}
+                          {r ? `${r.name} — ${f.money(r.price)}` : ref}
                         </option>
                       );
                     })}
@@ -106,10 +105,10 @@ export default function ComboBuilder() {
 
             {saved > 0 && (
               <div className="combo-note">
-                <span className="co-was">{fmt(baseSum)}</span>
-                <span className="co-now">{fmt(price)}</span>
+                <span className="co-was">{f.money(baseSum)}</span>
+                <span className="co-now">{f.money(price)}</span>
                 {" · "}
-                {t("combo_you_save").replace("{n}", fmt(saved))}
+                {t("combo_you_save").replace("{n}", f.money(saved))}
               </div>
             )}
           </div>
@@ -117,7 +116,7 @@ export default function ComboBuilder() {
           <div className="modal-footer">
             <button className="cta-primary" onClick={commit}>
               <span>{t("add_to_order")}</span>
-              <span className="cta-price">{fmt(price)}</span>
+              <span className="cta-price">{f.money(price)}</span>
             </button>
           </div>
         </div>

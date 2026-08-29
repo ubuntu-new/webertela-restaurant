@@ -35,7 +35,7 @@ function imgError(e: React.SyntheticEvent<HTMLImageElement>) {
 const slice = { __html: SLICE_SVG };
 
 export default function MenuBody() {
-  const { lang, t } = useLang();
+  const { lang, t, f } = useLang();
   const { openCustomizer, openHH, openCombo } = useCart();
 
   const menuPizzas = PIZZAS.filter((p) => !p.isBYO);
@@ -73,7 +73,7 @@ export default function MenuBody() {
                     <div className="combo-foot">
                       <span className="combo-price">
                         {c.pricing.mode === "fixed" ? (
-                          <>{c.pricing.price?.toFixed(2)} ₾</>
+                          <>{f.money(c.pricing.price)}</>
                         ) : (
                           <>−{c.pricing.percent}%</>
                         )}
@@ -113,7 +113,7 @@ export default function MenuBody() {
             <div className="pizza-ings">{byoSub}</div>
             <div className="pizza-footer">
               <div className="pizza-price">
-                <span className="from">{t("from_price")} </span>9.50 ₾
+                <span className="from">{t("from_price")} </span>{f.money(9.5)}
               </div>
               <div className="add-btn">+</div>
             </div>
@@ -136,7 +136,7 @@ export default function MenuBody() {
           // პრესეტის პიცა შეიძლება აღარ იყოს მენიუში (გამორთული / არქივში /
           // ამ ფილიალში მიუწვდომელი) — მაშინ ბარათს საერთოდ არ ვხატავთ.
           if (!L || !R) return null;
-          const price = (L.sizes[1] / 2 + R.sizes[1] / 2).toFixed(2);
+          const price = L.sizes[1] / 2 + R.sizes[1] / 2;
           const lIngs = L.ings.slice(0, 6).map((n) => ingLabel(n, lang)).join(", ");
           const rIngs = R.ings.slice(0, 6).map((n) => ingLabel(n, lang)).join(", ");
           return (
@@ -160,7 +160,7 @@ export default function MenuBody() {
                 </div>
               </div>
               <div className="pizza-footer hh-footer">
-                <span className="pizza-price">{price} ₾</span>
+                <span className="pizza-price">{f.money(price)}</span>
                 <div className="add-btn">+</div>
               </div>
             </div>
@@ -227,7 +227,7 @@ export default function MenuBody() {
 }
 
 function PizzaCard({ p }: { p: Pizza }) {
-  const { lang, t } = useLang();
+  const { lang, t, f } = useLang();
   const { openCustomizer } = useCart();
   const badge = pBadge(p, lang);
   const isVeg = p.badge === "Vegetarian" || p.badge === "Vegan";
@@ -246,7 +246,7 @@ function PizzaCard({ p }: { p: Pizza }) {
         <div className="pizza-footer">
           <div className="pizza-price">
             <span className="from">{t("from_price")} </span>
-            {p.sizes[0].toFixed(2)} ₾
+            {f.money(p.sizes[0])}
           </div>
           <div className="add-btn">+</div>
         </div>
@@ -256,7 +256,7 @@ function PizzaCard({ p }: { p: Pizza }) {
 }
 
 function ItemRow({ items }: { items: Item[] }) {
-  const { lang, t } = useLang();
+  const { lang, t, f } = useLang();
   const { addSimple, showToast, openStick } = useCart();
   const add = (it: Item) => {
     if (it.builder) {
@@ -280,7 +280,7 @@ function ItemRow({ items }: { items: Item[] }) {
             <div className="pizza-name">{itemName(it, lang)}</div>
             <div className="pizza-ings">{itemDesc(it, lang)}</div>
             <div className="pizza-footer">
-              <div className="pizza-price">{it.price.toFixed(2)} ₾</div>
+              <div className="pizza-price">{f.money(it.price)}</div>
               <div className="add-btn">+</div>
             </div>
           </div>

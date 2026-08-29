@@ -4,14 +4,13 @@ import { useEffect, useState } from "react";
 import { useCart } from "@/lib/cart";
 import { useLang } from "@/lib/i18n";
 import { SAUCES, itemName, itemDesc } from "@/lib/data";
-import { fmt } from "@/lib/pricing";
 
 const DIP_IDS = ["ranch", "marinara", "spicy"];
 const EXTRA_MOZZ_PRICE = 2.0; // add-on price (not defined in v12 data — adjust if needed)
 
 export default function StickBuilder() {
   const { stickItem, closeStick, addConfigured, showToast } = useCart();
-  const { lang, t } = useLang();
+  const { lang, t, f } = useLang();
 
   const [dips, setDips] = useState<string[]>([]);
   const [mozz, setMozz] = useState(false);
@@ -97,7 +96,7 @@ export default function StickBuilder() {
                 <button className={`stick-toggle${icing ? " active" : ""}`} onClick={() => setIcing((v) => !v)}>
                   <span className="stick-toggle-txt">
                     <span className="stick-toggle-name">{t("stick_extra_icing")}</span>
-                    <span className="stick-toggle-price">+{fmt(icingPrice)}</span>
+                    <span className="stick-toggle-price">+{f.money(icingPrice)}</span>
                   </span>
                   <span className="stick-switch" aria-hidden="true" />
                 </button>
@@ -120,7 +119,7 @@ export default function StickBuilder() {
                           </div>
                           <div className="dip-info">
                             <div className="dip-name">{itemName(d, lang)}</div>
-                            <div className="dip-price">+{fmt(d.price)}</div>
+                            <div className="dip-price">+{f.money(d.price)}</div>
                           </div>
                           {sel && <div className="dip-check">✓</div>}
                         </button>
@@ -134,7 +133,7 @@ export default function StickBuilder() {
                   <button className={`stick-toggle${mozz ? " active" : ""}`} onClick={() => setMozz((v) => !v)}>
                     <span className="stick-toggle-txt">
                       <span className="stick-toggle-name">{t("stick_extra_mozz")}</span>
-                      <span className="stick-toggle-price">+{fmt(EXTRA_MOZZ_PRICE)}</span>
+                      <span className="stick-toggle-price">+{f.money(EXTRA_MOZZ_PRICE)}</span>
                     </span>
                     <span className="stick-switch" aria-hidden="true" />
                   </button>
@@ -146,7 +145,7 @@ export default function StickBuilder() {
           <div className="modal-footer">
             <button className="cta-primary" onClick={commit}>
               <span>{t("add_to_order")}</span>
-              <span className="cta-price">{fmt(total)}</span>
+              <span className="cta-price">{f.money(total)}</span>
             </button>
           </div>
         </div>

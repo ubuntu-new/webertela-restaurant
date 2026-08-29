@@ -18,7 +18,7 @@ import {
   itemName,
   type Lang,
 } from "@/lib/data";
-import { SIZE_KEYS, CRUST_KEYS, SAUCE_KEYS, fmt } from "@/lib/pricing";
+import { SIZE_KEYS, CRUST_KEYS, SAUCE_KEYS } from "@/lib/pricing";
 
 const SCOOTER = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M6 17h7l4-8h-4M9 6h3l2 4"/></svg>`;
 const FREE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l4 4 10-10"/><circle cx="12" cy="12" r="10" opacity=".25"/></svg>`;
@@ -57,7 +57,7 @@ function CartIcon({ photo }: { photo?: string }) {
 
 export default function CartDrawer() {
   const { lines, subtotal, cartOpen, closeCart, setQty, openCustomizer, openHH, openCheckout } = useCart();
-  const { lang, t } = useLang();
+  const { lang, t, f } = useLang();
 
   if (!cartOpen) return null;
 
@@ -82,18 +82,18 @@ export default function CartDrawer() {
     fillCls = "min-fill free";
   } else if (subtotal >= MIN_ORDER) {
     const pct = ((subtotal - MIN_ORDER) / (FREE_DELIVERY - MIN_ORDER)) * 100;
-    const need = (FREE_DELIVERY - subtotal).toFixed(2);
+    const need = FREE_DELIVERY - subtotal;
     barCls = "min-order-bar ok";
-    label = t("good_to_go_fee");
+    label = t("good_to_go_fee").replace("{amount}", f.money(DELIVERY_FEE));
     subCls = "mob-sub free-near";
-    subHtml = t("add_more_free_delivery").replace("{n}", `<strong>${need} ₾</strong>`);
+    subHtml = t("add_more_free_delivery").replace("{n}", `<strong>${f.money(need)}</strong>`);
     fillPct = pct.toFixed(1) + "%";
     fillCls = "min-fill ok";
   } else {
     const pct = (subtotal / MIN_ORDER) * 100;
-    const need = (MIN_ORDER - subtotal).toFixed(2);
-    label = subtotal > 0 ? t("away_from_delivery").replace("{n}", need + " ₾") : t("cart_no_items");
-    subHtml = t("cart_min_hint");
+    const need = MIN_ORDER - subtotal;
+    label = subtotal > 0 ? t("away_from_delivery").replace("{n}", f.money(need)) : t("cart_no_items");
+    subHtml = t("cart_min_hint").replace("{amount}", f.money(MIN_ORDER));
     fillPct = pct.toFixed(1) + "%";
   }
 
@@ -149,7 +149,7 @@ export default function CartDrawer() {
             </button>
           </div>
           <div className="ci-right">
-            <div className="ci-price">{fmt(l.price * l.qty)}</div>
+            <div className="ci-price">{f.money(l.price * l.qty)}</div>
             <div className="ci-qty">
               <button className="qty-btn" onClick={() => setQty(idx, -1)}>−</button>
               <span className="qty-num">{l.qty}</span>
@@ -168,7 +168,7 @@ export default function CartDrawer() {
             {l.detail && <div className="ci-detail">{l.detail}</div>}
           </div>
           <div className="ci-right">
-            <div className="ci-price">{fmt(l.price * l.qty)}</div>
+            <div className="ci-price">{f.money(l.price * l.qty)}</div>
             <div className="ci-qty">
               <button className="qty-btn" onClick={() => setQty(idx, -1)}>−</button>
               <span className="qty-num">{l.qty}</span>
@@ -198,7 +198,7 @@ export default function CartDrawer() {
           )}
         </div>
         <div className="ci-right">
-          <div className="ci-price">{fmt(l.price * l.qty)}</div>
+          <div className="ci-price">{f.money(l.price * l.qty)}</div>
           <div className="ci-qty">
             <button className="qty-btn" onClick={() => setQty(idx, -1)}>−</button>
             <span className="qty-num">{l.qty}</span>
@@ -260,16 +260,16 @@ export default function CartDrawer() {
               <div className="order-summary">
                 <div className="summary-row">
                   <span className="sr-label">{t("subtotal")}</span>
-                  <span className="sr-value">{fmt(subtotal)}</span>
+                  <span className="sr-value">{f.money(subtotal)}</span>
                 </div>
                 <div className={`summary-row ${subtotal >= FREE_DELIVERY ? "sr-free" : "sr-delivery"}`}>
                   <span className="sr-label">{subtotal >= FREE_DELIVERY ? t("delivery") : t("delivery_fee")}</span>
-                  <span className="sr-value">{subtotal >= FREE_DELIVERY ? t("free") + " 🎉" : fmt(DELIVERY_FEE)}</span>
+                  <span className="sr-value">{subtotal >= FREE_DELIVERY ? t("free") + " 🎉" : f.money(DELIVERY_FEE)}</span>
                 </div>
               </div>
             )}
             <button className="checkout-btn" disabled={subtotal < MIN_ORDER} onClick={openCheckout}>
-              <span className="co-total">{fmt(grand)}</span>
+              <span className="co-total">{f.money(grand)}</span>
               <span className="co-label">
                 {t("go_to_checkout")}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

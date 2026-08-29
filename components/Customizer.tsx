@@ -27,7 +27,6 @@ import {
   userAddedSlots,
   pizzaTotal,
   seedToppings,
-  fmt,
 } from "@/lib/pricing";
 
 const ZONE_BADGE: Record<Zone, { cls: string; check: string; label2x: string }> = {
@@ -48,7 +47,7 @@ const Slice = () => <span className="t-emoji" dangerouslySetInnerHTML={{ __html:
 
 export default function Customizer() {
   const { customizerPizza, editingIdx, lines, commitPizza, closeCustomizer, showToast } = useCart();
-  const { lang, t } = useLang();
+  const { lang, t, f } = useLang();
 
   const [sizeIdx, setSizeIdx] = useState(1);
   const [crustIdx, setCrustIdx] = useState(0);
@@ -189,7 +188,7 @@ export default function Customizer() {
             <button key={i} className={sizeIdx === i ? "active" : ""} onClick={() => setSizeIdx(i)}>
               <span>{t(SIZE_KEYS[i])}</span>
               <span className="s-sub">{SIZE_CM[i]}</span>
-              <span className="s-price">{fmt(pizza.sizes[i])}</span>
+              <span className="s-price">{f.money(pizza.sizes[i])}</span>
             </button>
           ))}
         </div>
@@ -356,7 +355,7 @@ export default function Customizer() {
             <div className="t-name">{tDisp(tp, lang)}</div>
             <div className="t-price-row">
               <span className="t-price">
-                +{price.toFixed(2)} ₾{isHalf ? " (½)" : ""}
+                +{f.money(price)}{isHalf ? " (½)" : ""}
               </span>
               {hint && <div className="t-hint" aria-hidden="true">{hint}</div>}
             </div>
@@ -369,7 +368,7 @@ export default function Customizer() {
   const cta = (
     <button className="cta-primary" onClick={commit}>
       <span>{t("add_to_order")}</span>
-      <span className="cta-price">{fmt(total)}</span>
+      <span className="cta-price">{f.money(total)}</span>
     </button>
   );
 

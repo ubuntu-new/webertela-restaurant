@@ -16,7 +16,7 @@ import {
   itemName,
   type Lang,
 } from "@/lib/data";
-import { SIZE_KEYS, fmt } from "@/lib/pricing";
+import { SIZE_KEYS } from "@/lib/pricing";
 import { detailLines, lineColor } from "@/lib/item-detail";
 
 function lineLabel(l: CartLine, lang: Lang, t: (k: string) => string): string {
@@ -49,7 +49,7 @@ function lineIngredients(l: CartLine): string[] {
 
 export default function Checkout() {
   const { checkoutOpen, closeCheckout, lines, subtotal, clearCart } = useCart();
-  const { lang, t } = useLang();
+  const { lang, t, f } = useLang();
 
   const [mode, setMode] = useState<"delivery" | "pickup">("delivery");
   const [name, setName] = useState("");
@@ -228,22 +228,22 @@ export default function Checkout() {
                           </span>
                         )}
                       </span>
-                      <span className="cr-price">{fmt(l.price * l.qty)}</span>
+                      <span className="cr-price">{f.money(l.price * l.qty)}</span>
                     </div>
                   );
                 })}
                 <div className="co-sum">
                   <div className="co-sum-row">
                     <span>{t("subtotal")}</span>
-                    <span>{fmt(subtotal)}</span>
+                    <span>{f.money(subtotal)}</span>
                   </div>
                   <div className="co-sum-row">
                     <span>{mode === "delivery" ? t("delivery_fee") : t("co_pickup")}</span>
-                    <span>{fee > 0 ? fmt(fee) : t("free")}</span>
+                    <span>{fee > 0 ? f.money(fee) : t("free")}</span>
                   </div>
                   <div className="co-sum-row grand">
                     <span>{t("total")}</span>
-                    <span>{fmt(grand)}</span>
+                    <span>{f.money(grand)}</span>
                   </div>
                 </div>
               </div>
@@ -266,7 +266,7 @@ export default function Checkout() {
 
             <div className="checkout-foot">
               <button className="place-order-btn" onClick={placeOrder} disabled={!canPlace}>
-                {sending ? (lang === "ka" ? "იგზავნება…" : "Sending…") : `${t("place_order")} · ${fmt(grand)}`}
+                {sending ? (lang === "ka" ? "იგზავნება…" : "Sending…") : `${t("place_order")} · ${f.money(grand)}`}
               </button>
             </div>
           </>

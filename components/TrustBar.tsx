@@ -1,13 +1,14 @@
 "use client";
 
 import { useLang } from "@/lib/i18n";
+import { MIN_ORDER } from "@/lib/data";
 
 function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 export default function TrustBar() {
-  const { t } = useLang();
+  const { t, f } = useLang();
   return (
     <div className="trust-bar">
       <div className="trust-item">
@@ -30,7 +31,7 @@ export default function TrustBar() {
       <div className="trust-sep" />
       <div className="trust-item">
         <span className="t-lbl t-lbl-min">{t("min_order")}</span>
-        <strong>25 ₾</strong>
+        <strong>{f.money(MIN_ORDER)}</strong>
       </div>
       <div className="trust-sep" />
       <button
