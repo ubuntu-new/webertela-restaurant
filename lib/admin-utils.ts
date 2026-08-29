@@ -14,7 +14,17 @@ export function i18nOf(v: unknown): I18n {
   return { en: "", ka: "" };
 }
 
-export function i18nText(v: unknown, lang: "en" | "ka" = "ka"): string {
+/**
+ * A record's own name, in the reader's language.
+ *
+ * The default was "ka", from when there was one customer and she was Georgian.
+ * On an English instance that put Georgian product names on an English screen —
+ * the advice panel announced that "ჩიზქეიქი sells at 17.3% margin". English is
+ * the source language everywhere else in this codebase; it is the default here
+ * too, and a Georgian instance still reads Georgian because the record carries
+ * both and the caller passes the language when it knows it.
+ */
+export function i18nText(v: unknown, lang: "en" | "ka" = "en"): string {
   const t = i18nOf(v);
   return lang === "ka" ? t.ka || t.en : t.en || t.ka;
 }

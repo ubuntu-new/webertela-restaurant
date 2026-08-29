@@ -154,7 +154,8 @@ export default async function Dashboard({
         <div>
           <h1>Dashboard</h1>
           <p>
-            {session?.name} · last {p.label}
+            {session?.name} · last{" "}
+            {days === 1 ? t("24 hours") : `${days} ${t("days")}`}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

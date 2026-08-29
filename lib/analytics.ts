@@ -23,7 +23,8 @@ export function periodOf(days: number): Period {
     from,
     to,
     days,
-    label: days === 1 ? "24 საათი" : `${days} დღე`,
+    // English is the source language; the dictionary translates it.
+    label: days === 1 ? "24 hours" : `${days} days`,
   };
 }
 

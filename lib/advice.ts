@@ -251,12 +251,17 @@ export async function advise(input: AdviceInput): Promise<Finding[]> {
       orderBy: { clockIn: "asc" },
     }),
     worstMargin(),
-    db.order.count({
+    // Prisma cannot compare two columns, so the week's deliveries come back and
+    // the arithmetic happens here. The first version of this counted every
+    // delivery instead of the late ones and told a demo restaurant that 103 of
+    // its orders were late. A count with no condition on it is not a finding.
+    db.order.findMany({
       where: {
         deliveredAt: { not: null },
         assignedAt: { not: null },
         createdAt: { gte: new Date(Date.now() - 7 * 86400_000) },
       },
+      select: { assignedAt: true, deliveredAt: true },
     }),
   ]);
 
@@ -303,11 +308,19 @@ export async function advise(input: AdviceInput): Promise<Finding[]> {
     });
   }
 
-  if (late > 0) {
+  const LATE_MINUTES = 45;
+  const lateCount = late.filter(
+    (o) =>
+      o.deliveredAt != null &&
+      o.assignedAt != null &&
+      (o.deliveredAt.getTime() - o.assignedAt.getTime()) / 60000 > LATE_MINUTES,
+  ).length;
+
+  if (lateCount > 0) {
     out.push({
       id: "late-delivery",
       severity: "watch",
-      title: `${late} deliveries took over 45 minutes this week`,
+      title: `${lateCount} deliver${lateCount === 1 ? "y" : "ies"} took over ${LATE_MINUTES} minutes this week`,
       why:
         "Late deliveries are the single most common reason a customer who ordered once does not order again.",
       action: { label: "See the orders", href: "/admin/orders" },
