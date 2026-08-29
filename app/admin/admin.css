@@ -374,3 +374,31 @@
   .admin-stats.cols-4 { grid-template-columns: repeat(2, 1fr); }
   .dash-hero .h-side { border-left: 0; padding-left: 0; text-align: left; }
 }
+
+/* ── Advice ─────────────────────────────────────────────────────────────
+   The software telling the owner what to do, not only what is true.
+   A severity stripe rather than a coloured card: the page already has
+   panels, and three loud boxes in a row stop being loud. */
+
+.advice { margin-bottom: 20px; }
+.advice > h2 { font-size: 16px; margin: 0 0 12px; font-weight: 600; }
+
+.advice-item {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 18px;
+  background: var(--a-panel); border: 1px solid var(--a-line);
+  border-left: 3px solid var(--a-muted);
+  border-radius: var(--a-radius); padding: 14px 16px; margin-bottom: 8px;
+}
+.advice-item.sev-critical { border-left-color: var(--a-danger); }
+.advice-item.sev-warning  { border-left-color: #d8a12a; }
+.advice-item.sev-watch    { border-left-color: var(--a-line); }
+
+.advice-body { min-width: 0; }
+.advice-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+.advice-why { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--a-muted); max-width: 72ch; }
+.advice-do { white-space: nowrap; flex: 0 0 auto; }
+
+@media (max-width: 700px) {
+  .advice-item { flex-direction: column; gap: 10px; }
+  .advice-do { align-self: flex-start; }
+}

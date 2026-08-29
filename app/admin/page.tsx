@@ -4,8 +4,10 @@ import { getSession } from "@/lib/admin-auth";
 import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
 import { setupChecklist } from "@/lib/setup-checklist";
+import { advise } from "@/lib/advice";
 import { fmt } from "@/lib/format";
 import SetupChecklist from "./_components/SetupChecklist";
+import Advice from "./_components/Advice";
 import HelpNote from "./_components/HelpNote";
 import {
   periodOf,
@@ -125,6 +127,22 @@ export default async function Dashboard({
       ? Math.round((grossProfit - labour.cost - fixedForPeriod) * 100) / 100
       : null;
 
+  // Advice runs after the metrics, because it reads them rather than
+  // re-querying. One source for each number, always.
+  const findings = await advise({
+    period: p,
+    revenue: core.revenue,
+    growth: core.growth,
+    cogs: costs.cogs,
+    waste: costs.waste,
+    countAdjust: costs.countAdjust,
+    labourCost: labour.cost,
+    labourHours: labour.hours,
+    unpricedShifts: labour.unpriced,
+    fixedMonthly: fixed ? fixed.monthly : null,
+    lowStockCount: stock.low,
+  });
+
   const maxHour = Math.max(...load.hours.map((h) => h.count), 1);
   const maxBranch = Math.max(...branches.map((b) => b.revenue), 1);
 
@@ -166,6 +184,8 @@ export default async function Dashboard({
           </div>
         </div>
       )}
+
+      <Advice findings={findings} />
 
       {noData ? (
         <div className="admin-panel">
