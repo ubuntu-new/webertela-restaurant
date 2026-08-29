@@ -3,24 +3,26 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { i18nText, i18nOf } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
+import { tr } from "@/lib/admin-i18n";
 import { updateStockItem, archiveStockItem } from "../../actions";
 import ArchiveButton from "../../../_components/ArchiveButton";
 
 export const dynamic = "force-dynamic";
 
 const MOVE_LABEL: Record<string, string> = {
-  receipt: "მიღება",
-  transfer_out: "გაცემა",
-  transfer_in: "მიღება გადატანით",
-  production_in: "წარმოებამ დაამზადა",
-  production_out: "წარმოებამ დახარჯა",
-  sale: "გაყიდვა",
-  waste: "ჩამოწერა",
-  count_adjust: "ინვენტარიზაცია",
+  receipt: "Receipt",
+  transfer_out: "Transfer out",
+  transfer_in: "Transfer in",
+  production_in: "Made in production",
+  production_out: "Used by production",
+  sale: "Sale",
+  waste: "Waste",
+  count_adjust: "Count",
 };
 
 export default async function StockItemEdit({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const t = await tr();
 
   const [item, locations, movements] = await Promise.all([
     db.stockItem.findUnique({ where: { id }, include: { levels: true } }),
@@ -42,10 +44,10 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
   const archive = archiveStockItem.bind(null, id);
 
   const consequences = [
-    "მარაგის ეკრანიდან და მოძრაობის ფორმიდან გაქრება.",
-    `${item.levels.length} ლოკაციაზე ნაშთი (სულ ${fmtQty(totalQty, item.unit)}) შენარჩუნდება.`,
-    `${movements.length >= 25 ? "25+" : movements.length} მოძრაობის ისტორია ხელუხლებელი რჩება.`,
-    "თუ ეს ერთეული რომელიმე რეცეპტშია, ის რეცეპტი აღარ იმუშავებს — ჯერ შეამოწმე.",
+    t("It disappears from the stock screen and from the movement form."),
+    `${item.levels.length} ${t("locations keep their stock")} (${fmtQty(totalQty, item.unit)}).`,
+    `${movements.length >= 25 ? "25+" : movements.length} ${t("movements stay in the history untouched.")}`,
+    t("If this item is in a recipe, that recipe stops working — check first."),
   ];
 
   return (
@@ -54,43 +56,43 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
         <div>
           <h1>{name.ka || name.en}</h1>
           <p>
-            {item.unit} · სულ {fmtQty(totalQty, item.unit)}
+            {item.unit} · {t("Total")} {fmtQty(totalQty, item.unit)}
           </p>
         </div>
         <Link className="btn btn-ghost" href="/admin/stock/items">
-          ← სია
+          {t("Back to list")}
         </Link>
       </div>
 
       <form className="admin-form" action={save} style={{ maxWidth: 900 }}>
         <div className="admin-panel">
-          <h2>ძირითადი</h2>
+          <h2>{t("Basics")}</h2>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="name_en">დასახელება (EN)</label>
+              <label htmlFor="name_en">{t("Name")} (EN)</label>
               <input id="name_en" name="name_en" type="text" defaultValue={name.en} required />
             </div>
             <div className="field">
-              <label htmlFor="name_ka">დასახელება (KA)</label>
+              <label htmlFor="name_ka">{t("Name")} (KA)</label>
               <input id="name_ka" name="name_ka" type="text" defaultValue={name.ka} />
             </div>
           </div>
 
           <div className="field-row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
             <div className="field">
-              <label htmlFor="unit">ერთეული</label>
+              <label htmlFor="unit">{t("Unit")}</label>
               <select id="unit" name="unit" defaultValue={item.unit}>
-                <option value="kg">კილოგრამი</option>
-                <option value="g">გრამი</option>
-                <option value="l">ლიტრი</option>
-                <option value="ml">მილილიტრი</option>
-                <option value="pcs">ცალი</option>
+                <option value="kg">{t("Kilogram")}</option>
+                <option value="g">{t("Gram")}</option>
+                <option value="l">{t("Liter")}</option>
+                <option value="ml">{t("Milliliter")}</option>
+                <option value="pcs">{t("Each")}</option>
               </select>
-              <span className="hint">შეცვლა ძველ მოძრაობებს არ გადაითვლის.</span>
+              <span className="hint">{t("Changing this does not recalculate past movements.")}</span>
             </div>
             <div className="field">
-              <label htmlFor="category">ჯგუფი</label>
+              <label htmlFor="category">{t("Group")}</label>
               <input id="category" name="category" type="text" defaultValue={item.category ?? ""} />
             </div>
             <div className="field">
@@ -100,35 +102,35 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
           </div>
 
           <div className="field">
-            <label htmlFor="note">შენიშვნა</label>
+            <label htmlFor="note">{t("Note")}</label>
             <input id="note" name="note" type="text" defaultValue={item.note ?? ""} />
           </div>
 
           <div className="field-check">
             <input id="isProduced" name="isProduced" type="checkbox" defaultChecked={item.isProduced} />
-            <label htmlFor="isProduced">საწარმოში მზადდება რეცეპტით</label>
+            <label htmlFor="isProduced">{t("Made in-house from a recipe")}</label>
           </div>
           <div className="field-check">
             <input id="active" name="active" type="checkbox" defaultChecked={item.active} />
-            <label htmlFor="active">აქტიური</label>
+            <label htmlFor="active">{t("Active")}</label>
           </div>
         </div>
 
         {/* ── მინიმუმები ლოკაციებზე ── */}
         <div className="admin-panel">
-          <h2>ნაშთი და ზღვრები</h2>
+          <h2>{t("Stock and thresholds")}</h2>
           <p className="hint" style={{ marginTop: -8, marginBottom: 14 }}>
-            ⭐ <b>საწარმოსაც</b> დაუყენე მინიმუმი — თორემ ფილიალები შეავსებენ და საწყობი ჩუმად
-            დაიცლება.
+            ⭐ <b>{t("The warehouse too")}</b>{" "}
+            {t("needs a minimum — otherwise the branches top it up and it quietly runs dry.")}
           </p>
 
           <table className="admin-table">
             <thead>
               <tr>
-                <th>ლოკაცია</th>
-                <th style={{ width: 130 }}>ნაშთი</th>
-                <th style={{ width: 130 }}>მინიმუმი</th>
-                <th style={{ width: 130 }}>სამიზნე</th>
+                <th>{t("Location")}</th>
+                <th style={{ width: 130 }}>{t("On hand")}</th>
+                <th style={{ width: 130 }}>{t("Min")}</th>
+                <th style={{ width: 130 }}>{t("Target")}</th>
               </tr>
             </thead>
             <tbody>
@@ -143,7 +145,7 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
                   <tr key={loc.id}>
                     <td>
                       {i18nText(loc.name)}
-                      {loc.type === "warehouse" && <span className="hint"> ⭐ საწარმო</span>}
+                      {loc.type === "warehouse" && <span className="hint"> ⭐ {t("Warehouse")}</span>}
                     </td>
                     <td>
                       <b style={low ? { color: "var(--a-danger)" } : undefined}>
@@ -176,37 +178,38 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
             </tbody>
           </table>
           <p className="hint" style={{ marginTop: 10 }}>
-            ზღვრები ნაშთის გარეშეც ივსება — შეავსე ახლა, მიღება მოგვიანებით ჩაწერე.
-            ცარიელი ველი ნიშნავს, რომ ამ ლოკაციაზე კონტროლი გამორთულია.
+            {t(
+              "Thresholds can be set before you have any stock — set them now, record the receipt later. An empty field means this location is not watched.",
+            )}
           </p>
         </div>
 
         <div className="form-actions">
           <button className="btn" type="submit">
-            შენახვა
+            {t("Save")}
           </button>
           <Link className="btn btn-ghost" href="/admin/stock/items">
-            გაუქმება
+            {t("Cancel")}
           </Link>
         </div>
       </form>
 
       {/* ── ჟურნალი ── */}
       <div className="admin-panel" style={{ maxWidth: 900 }}>
-        <h2>ბოლო მოძრაობები</h2>
+        <h2>{t("Recent movements")}</h2>
         {movements.length === 0 ? (
           <p className="hint" style={{ margin: 0 }}>
-            მოძრაობა ჯერ არ ყოფილა.
+            {t("No movements yet.")}
           </p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
-                <th style={{ width: 150 }}>დრო</th>
-                <th>ლოკაცია</th>
-                <th style={{ width: 150 }}>ტიპი</th>
-                <th style={{ width: 110 }}>რაოდენობა</th>
-                <th style={{ width: 110 }}>ნაშთი</th>
+                <th style={{ width: 150 }}>{t("Time")}</th>
+                <th>{t("Location")}</th>
+                <th style={{ width: 150 }}>{t("Type")}</th>
+                <th style={{ width: 110 }}>{t("Quantity")}</th>
+                <th style={{ width: 110 }}>{t("On hand")}</th>
               </tr>
             </thead>
             <tbody>
@@ -222,7 +225,7 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
                       {m.note && <div className="hint">{m.note}</div>}
                     </td>
                     <td>
-                      <span className="hint">{MOVE_LABEL[m.type] ?? m.type}</span>
+                      <span className="hint">{t(MOVE_LABEL[m.type] ?? m.type)}</span>
                     </td>
                     <td>
                       <b style={{ color: q < 0 ? "var(--a-danger)" : "var(--a-ok)" }}>
@@ -244,7 +247,7 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
       </div>
 
       <div className="admin-panel" style={{ maxWidth: 900 }}>
-        <h2>არქივი</h2>
+        <h2>{t("Archive")}</h2>
         <ArchiveButton action={archive} subject={name.ka || name.en} consequences={consequences} />
       </div>
     </>

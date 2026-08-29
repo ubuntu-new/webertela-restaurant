@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
+import { tr } from "@/lib/admin-i18n";
 import { addMovement } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export default async function StockPage({
   searchParams: Promise<{ loc?: string; saved?: string; low?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const locations = await db.stockLocation.findMany({
     where: { deletedAt: null },
@@ -47,23 +49,25 @@ export default async function StockPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>მარაგი</h1>
+          <h1>{t("Stock")}</h1>
           <p>
-            {location ? i18nText(location.name) : "ლოკაცია არ არის"} · {items.length} ერთეული
-            {lowCount > 0 && ` · ${lowCount} ამოწურვის ზღვარზე`}
+            {location ? i18nText(location.name) : t("No location")} · {items.length} {t("items")}
+            {lowCount > 0 && ` · ${lowCount} ${t("running low")}`}
           </p>
         </div>
         <Link className="btn btn-ghost" href="/admin/stock/movements">
-          ჟურნალი
+          {t("Movement log")}
         </Link>
       </div>
 
-      {sp.saved && <div className="alert alert-ok">ჩაწერილია.</div>}
+      {sp.saved && <div className="alert alert-ok">{t("Recorded.")}</div>}
 
       {lowCount > 0 && sp.low !== "1" && (
         <div className="alert" style={{ background: "#fdf3d6", color: "#8a6a12" }}>
-          <b>{lowCount} ერთეული მინიმუმზეა ან ქვემოთ.</b>{" "}
-          <Link href={`/admin/stock?loc=${locId}&low=1`}>ნახე მხოლოდ ისინი →</Link>
+          <b>
+            {lowCount} {t("items are at or below minimum.")}
+          </b>{" "}
+          <Link href={`/admin/stock?loc=${locId}&low=1`}>{t("Show only those")} →</Link>
         </div>
       )}
 
@@ -80,7 +84,7 @@ export default async function StockPage({
             </Link>
           ))}
           <Link className="btn btn-ghost" href="/admin/stock/items">
-            ერთეულების მართვა
+            {t("Manage items")}
           </Link>
         </div>
       </div>
@@ -88,32 +92,33 @@ export default async function StockPage({
       {locations.length === 0 ? (
         <div className="admin-panel">
           <p className="hint" style={{ margin: 0 }}>
-            ლოკაციები ჯერ არ შექმნილა — გაუშვი <code>npx tsx scripts/seed-stock-locations.mjs</code>
+            {t("No locations yet — run")} <code>npx tsx scripts/seed-stock-locations.mjs</code>
           </p>
         </div>
       ) : items.length === 0 ? (
         <div className="admin-panel">
           <p className="hint" style={{ marginTop: 0 }}>
-            საწყობის ერთეული ჯერ არ არის. დაამატე ის, რასაც ინახავ — მოცარელა (კგ), კოკა-კოლა
-            (ცალი), ფქვილი (კგ).
+            {t(
+              "No stock items yet. Add what you keep on hand — mozzarella (kg), Coke (each), flour (kg).",
+            )}
           </p>
           <Link className="btn" href="/admin/stock/items/new">
-            + პირველი ერთეული
+            + {t("First item")}
           </Link>
         </div>
       ) : (
         <>
           <div className="admin-panel">
-            <h2>ნაშთები</h2>
+            <h2>{t("Stock levels")}</h2>
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>ერთეული</th>
-                  <th style={{ width: 90 }}>ჯგუფი</th>
-                  <th style={{ width: 120 }}>ნაშთი</th>
-                  <th style={{ width: 100 }}>მინიმუმი</th>
-                  <th style={{ width: 100 }}>სამიზნე</th>
-                  <th style={{ width: 150 }}>საჭიროა</th>
+                  <th>{t("Item")}</th>
+                  <th style={{ width: 90 }}>{t("Group")}</th>
+                  <th style={{ width: 120 }}>{t("On hand")}</th>
+                  <th style={{ width: 100 }}>{t("Min")}</th>
+                  <th style={{ width: 100 }}>{t("Target")}</th>
+                  <th style={{ width: 150 }}>{t("Needed")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -123,7 +128,7 @@ export default async function StockPage({
                       <Link href={`/admin/stock/items/${r.it.id}`}>{i18nText(r.it.name)}</Link>
                       <div className="hint">
                         {r.it.sku ?? ""}
-                        {r.it.isProduced && " · იწარმოება"}
+                        {r.it.isProduced && ` · ${t("Produced")}`}
                       </div>
                     </td>
                     <td>
@@ -157,12 +162,12 @@ export default async function StockPage({
 
           {/* ── ხელით მოძრაობა ── */}
           <form className="admin-panel admin-form" action={addMovement} style={{ maxWidth: "none" }}>
-            <h2>მოძრაობის დამატება</h2>
+            <h2>{t("Add movement")}</h2>
             <input type="hidden" name="locationId" value={locId} />
 
             <div className="field-row" style={{ gridTemplateColumns: "2fr 1fr 1fr" }}>
               <div className="field">
-                <label htmlFor="itemId">ერთეული</label>
+                <label htmlFor="itemId">{t("Item")}</label>
                 <select id="itemId" name="itemId" required>
                   {items.map((it) => (
                     <option key={it.id} value={it.id}>
@@ -172,41 +177,42 @@ export default async function StockPage({
                 </select>
               </div>
               <div className="field">
-                <label htmlFor="kind">ტიპი</label>
+                <label htmlFor="kind">{t("Type")}</label>
                 <select id="kind" name="kind" defaultValue="receipt">
-                  <option value="receipt">მიღება (+)</option>
-                  <option value="waste">ჩამოწერა (−)</option>
-                  <option value="count">ინვენტარიზაცია</option>
+                  <option value="receipt">{t("Receipt")} (+)</option>
+                  <option value="waste">{t("Waste")} (−)</option>
+                  <option value="count">{t("Count")}</option>
                 </select>
               </div>
               <div className="field">
-                <label htmlFor="qty">რაოდენობა</label>
+                <label htmlFor="qty">{t("Quantity")}</label>
                 <input id="qty" name="qty" type="number" step="0.001" min="0" required />
               </div>
             </div>
 
             <div className="field-row">
               <div className="field">
-                <label htmlFor="unitCost">ერთეულის ფასი (₾)</label>
-                <input id="unitCost" name="unitCost" type="number" step="0.0001" min="0" placeholder="მხოლოდ მიღებისას" />
+                <label htmlFor="unitCost">{t("Unit cost")} (₾)</label>
+                <input id="unitCost" name="unitCost" type="number" step="0.0001" min="0" placeholder={t("Receipts only")} />
                 <span className="hint">
-                  შესყიდვის ფასი ერთეულზე. ამის გარეშე თვითღირებულება ვერ დაითვლება.
+                  {t("Purchase price per unit. Without it we cannot work out food cost.")}
                 </span>
               </div>
               <div className="field">
-                <label htmlFor="note">შენიშვნა</label>
-                <input id="note" name="note" type="text" placeholder="მიმწოდებელი, მიზეზი…" />
+                <label htmlFor="note">{t("Note")}</label>
+                <input id="note" name="note" type="text" placeholder={t("Supplier, reason…")} />
               </div>
             </div>
 
             <p className="hint" style={{ marginTop: -4 }}>
-              <b>მიღება</b> ამატებს · <b>ჩამოწერა</b> აკლებს (მინუსს ავტომატურად ვსვამთ) ·{" "}
-              <b>ინვენტარიზაცია</b> — ჩაწერე ფაქტობრივი ნაშთი, სხვაობას სისტემა თვითონ დაითვლის.
+              <b>{t("Receipt")}</b> {t("adds")} · <b>{t("Waste")}</b>{" "}
+              {t("subtracts (we put the minus in for you)")} · <b>{t("Count")}</b>{" "}
+              {t("— enter what you actually counted, the system works out the difference.")}
             </p>
 
             <div className="form-actions">
               <button className="btn" type="submit">
-                ჩაწერა
+                {t("Record")}
               </button>
             </div>
           </form>
@@ -214,17 +220,21 @@ export default async function StockPage({
       )}
 
       <div className="admin-panel">
-        <h2>როგორ მუშაობს</h2>
+        <h2>{t("How it works")}</h2>
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.8, color: "var(--a-muted)" }}>
           <li>
-            ნაშთი <b>ხელით არასდროს იწერება</b> — ის მოძრაობების ჯამია. ამიტომ ყოველთვის შეიძლება
-            კითხვა „რატომ დარჩა ამდენი?“ და პასუხი ჟურნალშია.
+            {t("On hand")} <b>{t("is never typed in by hand")}</b>{" "}
+            {t(
+              "— it is the sum of the movements. So you can always ask why this much is left, and the answer is in the log.",
+            )}
           </li>
           <li>
-            <b>საწარმოსაც</b> სჭირდება მინიმუმი — თორემ ხუთივე ფილიალი შეავსებს და საწყობი ჩუმად
-            დაიცლება.
+            <b>{t("The warehouse too")}</b>{" "}
+            {t(
+              "needs a minimum too — otherwise all five branches top up from it and it quietly runs dry.",
+            )}
           </li>
-          <li>ავტომატური ჩამოწერა შეკვეთაზე რეცეპტებთან ერთად მოვა (ეტაპი 3B).</li>
+          <li>{t("Automatic deduction on orders comes with recipes (stage 3B).")}</li>
         </ul>
       </div>
     </>

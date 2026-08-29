@@ -1,18 +1,19 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 export const dynamic = "force-dynamic";
 
 const LABEL: Record<string, string> = {
-  receipt: "მიღება",
-  transfer_out: "გაცემა",
-  transfer_in: "მიღება გადატანით",
-  production_in: "წარმოებამ დაამზადა",
-  production_out: "წარმოებამ დახარჯა",
-  sale: "გაყიდვა",
-  waste: "ჩამოწერა",
-  count_adjust: "ინვენტარიზაცია",
+  receipt: "Receipt",
+  transfer_out: "Transfer out",
+  transfer_in: "Transfer in",
+  production_in: "Made in production",
+  production_out: "Used by production",
+  sale: "Sale",
+  waste: "Waste",
+  count_adjust: "Count",
 };
 
 export default async function MovementsPage({
@@ -21,6 +22,7 @@ export default async function MovementsPage({
   searchParams: Promise<{ loc?: string; type?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const [locations, movements] = await Promise.all([
     db.stockLocation.findMany({ where: { deletedAt: null }, orderBy: { type: "asc" } }),
@@ -39,18 +41,20 @@ export default async function MovementsPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>მარაგის ჟურნალი</h1>
-          <p>ბოლო {movements.length} მოძრაობა</p>
+          <h1>{t("Stock log")}</h1>
+          <p>
+            {t("Last")} {movements.length} {t("movements")}
+          </p>
         </div>
         <Link className="btn btn-ghost" href="/admin/stock">
-          ← ნაშთები
+          ← {t("Stock levels")}
         </Link>
       </div>
 
       <div className="admin-panel">
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
           <Link className={sp.loc ? "btn btn-ghost" : "btn"} href="/admin/stock/movements">
-            ყველა ლოკაცია
+            {t("All locations")}
           </Link>
           {locations.map((l) => (
             <Link
@@ -64,15 +68,15 @@ export default async function MovementsPage({
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link className={sp.type ? "btn btn-ghost" : "btn"} href="/admin/stock/movements">
-            ყველა ტიპი
+            {t("All types")}
           </Link>
-          {Object.keys(LABEL).map((t) => (
+          {Object.keys(LABEL).map((k) => (
             <Link
-              key={t}
-              className={sp.type === t ? "btn" : "btn btn-ghost"}
-              href={`/admin/stock/movements?type=${t}`}
+              key={k}
+              className={sp.type === k ? "btn" : "btn btn-ghost"}
+              href={`/admin/stock/movements?type=${k}`}
             >
-              {LABEL[t]}
+              {t(LABEL[k])}
             </Link>
           ))}
         </div>
@@ -81,19 +85,19 @@ export default async function MovementsPage({
       <div className="admin-panel">
         {movements.length === 0 ? (
           <p className="hint" style={{ margin: 0 }}>
-            მოძრაობა ჯერ არ ყოფილა.
+            {t("No movements yet.")}
           </p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
-                <th style={{ width: 150 }}>დრო</th>
-                <th>ერთეული</th>
-                <th>ლოკაცია</th>
-                <th style={{ width: 150 }}>ტიპი</th>
-                <th style={{ width: 100 }}>რაოდ.</th>
-                <th style={{ width: 100 }}>ნაშთი</th>
-                <th>შენიშვნა</th>
+                <th style={{ width: 150 }}>{t("Time")}</th>
+                <th>{t("Item")}</th>
+                <th>{t("Location")}</th>
+                <th style={{ width: 150 }}>{t("Type")}</th>
+                <th style={{ width: 100 }}>{t("Qty")}</th>
+                <th style={{ width: 100 }}>{t("On hand")}</th>
+                <th>{t("Note")}</th>
               </tr>
             </thead>
             <tbody>
@@ -109,7 +113,7 @@ export default async function MovementsPage({
                     </td>
                     <td>{i18nText(m.location.name)}</td>
                     <td>
-                      <span className="hint">{LABEL[m.type] ?? m.type}</span>
+                      <span className="hint">{t(LABEL[m.type] ?? m.type)}</span>
                     </td>
                     <td>
                       <b style={{ color: q < 0 ? "var(--a-danger)" : "var(--a-ok)" }}>

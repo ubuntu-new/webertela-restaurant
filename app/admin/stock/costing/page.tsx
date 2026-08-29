@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { i18nText } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 import { computeMenuCosts, stockValue } from "@/lib/costing";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ function MarginBadge({ pct }: { pct: number | null }) {
 }
 
 export default async function CostingPage() {
+  const t = await tr();
   const [{ products, toppings }, values] = await Promise.all([computeMenuCosts(), stockValue()]);
 
   const totalValue = values.reduce((s, v) => s + v.value, 0);
@@ -37,34 +39,38 @@ export default async function CostingPage() {
     <>
       <div className="admin-head">
         <div>
-          <h1>თვითღირებულება</h1>
+          <h1>{t("Costing")}</h1>
           <p>
-            მარაგის ღირებულება <b>{money(totalValue)} ₾</b>
-            {unpriced > 0 && ` · ${unpriced} ერთეულს ფასი აკლია`}
+            {t("Stock value")} <b>{money(totalValue)} ₾</b>
+            {unpriced > 0 && ` · ${unpriced} ${t("items are missing a price")}`}
           </p>
         </div>
         <Link className="btn btn-ghost" href="/admin/stock">
-          ← მარაგი
+          ← {t("Stock")}
         </Link>
       </div>
 
       {unpriced > 0 && (
         <div className="alert" style={{ background: "#fdf3d6", color: "#8a6a12" }}>
-          <b>{unpriced} ერთეულს საშუალო ღირებულება არ აქვს.</b> ღირებულება მიღებისას იწერება —
-          ჩაწერე შესყიდვის ფასი შემდეგ მიღებაზე და რიცხვები შეივსება.
+          <b>
+            {unpriced} {t("items have no average cost.")}
+          </b>{" "}
+          {t(
+            "Cost is recorded on receiving — put the purchase price on the next delivery and the numbers fill in.",
+          )}
         </div>
       )}
 
       {/* ── მარაგის ღირებულება ── */}
       <div className="admin-panel">
-        <h2>მარაგის ღირებულება</h2>
+        <h2>{t("Stock value")}</h2>
         <table className="admin-table">
           <thead>
             <tr>
-              <th>ლოკაცია</th>
-              <th style={{ width: 110 }}>ერთეული</th>
-              <th style={{ width: 140 }}>ღირებულება</th>
-              <th style={{ width: 130 }}>ფასის გარეშე</th>
+              <th>{t("Location")}</th>
+              <th style={{ width: 110 }}>{t("Items")}</th>
+              <th style={{ width: 140 }}>{t("Value")}</th>
+              <th style={{ width: 130 }}>{t("No price")}</th>
             </tr>
           </thead>
           <tbody>
@@ -95,25 +101,26 @@ export default async function CostingPage() {
 
       {/* ── პროდუქტები ── */}
       <div className="admin-panel">
-        <h2>პროდუქტების მოგება</h2>
+        <h2>{t("Product margins")}</h2>
         <p className="hint" style={{ marginTop: -8, marginBottom: 14 }}>
-          დალაგებულია <b>ყველაზე დაბალი მოგებით ზემოთ</b> — სწორედ ისინი საჭიროებენ ყურადღებას.
+          {t("Sorted with")} <b>{t("the lowest margin on top")}</b>{" "}
+          {t("— those are the ones that need attention.")}
         </p>
 
         {sorted.length === 0 ? (
           <p className="hint" style={{ margin: 0 }}>
-            ხარჯვის წესები ჯერ არ არის.{" "}
-            <Link href="/admin/stock/consumption">დაამატე ისინი →</Link>
+            {t("No consumption rules yet.")}{" "}
+            <Link href="/admin/stock/consumption">{t("Add them →")}</Link>
           </p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
-                <th>პროდუქტი</th>
-                <th style={{ width: 70 }}>ზომა</th>
-                <th style={{ width: 110 }}>ღირებულება</th>
-                <th style={{ width: 110 }}>ფასი</th>
-                <th style={{ width: 110 }}>მოგება</th>
+                <th>{t("Product")}</th>
+                <th style={{ width: 70 }}>{t("Size")}</th>
+                <th style={{ width: 110 }}>{t("Cost")}</th>
+                <th style={{ width: 110 }}>{t("Price")}</th>
+                <th style={{ width: 110 }}>{t("Margin")}</th>
                 <th style={{ width: 90 }}>%</th>
               </tr>
             </thead>
@@ -133,7 +140,7 @@ export default async function CostingPage() {
                     </div>
                     {p.missing > 0 && (
                       <div className="hint" style={{ color: "var(--a-danger)" }}>
-                        {p.missing} ინგრედიენტს ფასი აკლია — ღირებულება არასრულია
+                        {p.missing} {t("ingredients are missing a price — the cost is incomplete")}
                       </div>
                     )}
                   </td>
@@ -164,47 +171,47 @@ export default async function CostingPage() {
       {/* ── ტოპინგები ── */}
       {toppings.length > 0 && (
         <div className="admin-panel">
-          <h2>ტოპინგების მოგება</h2>
+          <h2>{t("Topping margins")}</h2>
           <table className="admin-table">
             <thead>
               <tr>
-                <th>ტოპინგი</th>
-                <th style={{ width: 70 }}>ზომა</th>
-                <th style={{ width: 110 }}>ღირებულება</th>
-                <th style={{ width: 110 }}>დანამატის ფასი</th>
-                <th style={{ width: 110 }}>მოგება</th>
+                <th>{t("Topping")}</th>
+                <th style={{ width: 70 }}>{t("Size")}</th>
+                <th style={{ width: 110 }}>{t("Cost")}</th>
+                <th style={{ width: 110 }}>{t("Add-on price")}</th>
+                <th style={{ width: 110 }}>{t("Margin")}</th>
                 <th style={{ width: 90 }}>%</th>
               </tr>
             </thead>
             <tbody>
-              {toppings.map((t, i) => (
-                <tr key={`${t.toppingId}-${t.sizeKey}-${i}`}>
+              {toppings.map((tp, i) => (
+                <tr key={`${tp.toppingId}-${tp.sizeKey}-${i}`}>
                   <td>
-                    {t.toppingId ? (
-                      <Link href={`/admin/toppings/${t.toppingId}`}>{i18nText(t.name)}</Link>
+                    {tp.toppingId ? (
+                      <Link href={`/admin/toppings/${tp.toppingId}`}>{i18nText(tp.name)}</Link>
                     ) : (
-                      i18nText(t.name)
+                      i18nText(tp.name)
                     )}
                     <div className="hint">
-                      {t.lines.map((l) => `${i18nText(l.name)} ${l.qty}${l.unit}`).join(" · ")}
+                      {tp.lines.map((l) => `${i18nText(l.name)} ${l.qty}${l.unit}`).join(" · ")}
                     </div>
                   </td>
                   <td>
-                    <span className="hint">{t.sizeKey ?? "ყველა"}</span>
+                    <span className="hint">{tp.sizeKey ?? t("All")}</span>
                   </td>
-                  <td>{money(t.cost)} ₾</td>
-                  <td>{t.price != null ? `${money(t.price)} ₾` : <span className="hint">—</span>}</td>
+                  <td>{money(tp.cost)} ₾</td>
+                  <td>{tp.price != null ? `${money(tp.price)} ₾` : <span className="hint">—</span>}</td>
                   <td>
-                    {t.margin != null ? (
-                      <b style={t.margin < 0 ? { color: "var(--a-danger)" } : undefined}>
-                        {money(t.margin)} ₾
+                    {tp.margin != null ? (
+                      <b style={tp.margin < 0 ? { color: "var(--a-danger)" } : undefined}>
+                        {money(tp.margin)} ₾
                       </b>
                     ) : (
                       <span className="hint">—</span>
                     )}
                   </td>
                   <td>
-                    <MarginBadge pct={t.marginPct} />
+                    <MarginBadge pct={tp.marginPct} />
                   </td>
                 </tr>
               ))}
@@ -214,22 +221,26 @@ export default async function CostingPage() {
       )}
 
       <div className="admin-panel">
-        <h2>როგორ ითვლება</h2>
+        <h2>{t("How it's worked out")}</h2>
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.8, color: "var(--a-muted)" }}>
           <li>
-            <b>მოძრავი საშუალო:</b> მიღებისას ახალი ფასი ძველ ნაშთს ერევა.
-            20კგ × 8₾ + 10კგ × 11₾ = 30კგ × <b>9₾</b>.
+            <b>{t("Moving average:")}</b>{" "}
+            {t("on receiving, the new price blends into the balance you already have.")}{" "}
+            {/* Units and currency stay out of the sentence: a worked example
+                reads the same in any country if it is only arithmetic. */}
+            20 × 8 + 10 × 11 = 30 × <b>9</b>.
           </li>
           <li>
-            ღირებულება <b>საწარმოს</b> ლოკაციიდან მოდის — ის ცენტრალური მიღების წერტილია.
+            {t("Cost comes from the")} <b>{t("warehouse")}</b>{" "}
+            {t("location — that's the central receiving point.")}
           </li>
           <li>
-            თუ ინგრედიენტს ფასი აკლია, ის ჯამში <b>არ ითვლება</b> — ამიტომ ღირებულება
-            რეალურზე დაბალი გამოჩნდება. სვეტში გაფრთხილება წერია.
+            {t("If an ingredient is missing a price, it")} <b>{t("isn't counted")}</b>{" "}
+            {t("in the total — so the cost shows lower than it really is. The column carries a warning.")}
           </li>
           <li>
-            ეს <b>ინგრედიენტების</b> ღირებულებაა. შრომა, ენერგია და ქირა არ შედის —
-            რეალური მოგება ამაზე დაბალია.
+            {t("This is the")} <b>{t("ingredient")}</b>{" "}
+            {t("cost. Labor, power and rent are not in it — real margin is lower than this.")}
           </li>
         </ul>
       </div>

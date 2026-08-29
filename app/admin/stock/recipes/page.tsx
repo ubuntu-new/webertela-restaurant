@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 import { fmtQty } from "@/lib/stock";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export default async function RecipesPage({
   searchParams: Promise<{ archived?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const recipes = await db.recipe.findMany({
     where: { deletedAt: null },
@@ -22,37 +24,40 @@ export default async function RecipesPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>წარმოების რეცეპტები</h1>
-          <p>{recipes.length} რეცეპტი</p>
+          <h1>{t("Production recipes")}</h1>
+          <p>
+            {recipes.length} {t("recipes")}
+          </p>
         </div>
         <Link className="btn" href="/admin/stock/recipes/new">
-          + ახალი რეცეპტი
+          + {t("New recipe")}
         </Link>
       </div>
 
-      {sp.archived && <div className="alert alert-ok">არქივში გადავიდა.</div>}
+      {sp.archived && <div className="alert alert-ok">{t("Moved to the archive.")}</div>}
 
       <div className="admin-panel">
         <p className="hint" style={{ marginTop: 0 }}>
-          ეს არის <b>საწარმოს</b> რეცეპტი — ნედლეულიდან ნახევარფაბრიკატი.
-          მენიუს რეცეპტი („რა იხარჯება პიცაზე“) ცალკეა:{" "}
-          <Link href="/admin/stock/consumption">ხარჯვის წესები</Link>.
+          {t("This is a")} <b>{t("warehouse")}</b>{" "}
+          {t("recipe — raw material into a prep item. The menu recipe (“what a pizza uses”) is separate:")}{" "}
+          <Link href="/admin/stock/consumption">{t("Consumption rules")}</Link>.
         </p>
 
         {recipes.length === 0 ? (
           <p className="hint" style={{ margin: 0 }}>
-            ჯერ ცარიელია. მაგალითი: ფქვილი 15კგ + წყალი 9ლ + საფუარი 0.2კგ → 100 ცომის გუნდა.
+            {t("Nothing here yet.")}{" "}
+            {t("Example: flour 15kg + water 9L + yeast 0.2kg → 100 dough balls.")}
           </p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
-                <th>რეცეპტი</th>
-                <th>რას აწარმოებს</th>
-                <th style={{ width: 130 }}>ერთი გატარება</th>
-                <th style={{ width: 90 }}>შემავალი</th>
-                <th style={{ width: 90 }}>პარტია</th>
-                <th style={{ width: 100 }}>სტატუსი</th>
+                <th>{t("Recipe")}</th>
+                <th>{t("Produces")}</th>
+                <th style={{ width: 130 }}>{t("One run")}</th>
+                <th style={{ width: 90 }}>{t("Inputs")}</th>
+                <th style={{ width: 90 }}>{t("Batches")}</th>
+                <th style={{ width: 100 }}>{t("Status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -61,7 +66,7 @@ export default async function RecipesPage({
                   <td>
                     <Link href={`/admin/stock/recipes/${r.id}`}>{i18nText(r.name)}</Link>
                     <div className="hint">
-                      {r.lines.map((l) => i18nText(l.item.name)).join(", ") || "შემავალი არ აქვს"}
+                      {r.lines.map((l) => i18nText(l.item.name)).join(", ") || t("No inputs")}
                     </div>
                   </td>
                   <td>{i18nText(r.outputItem.name)}</td>
@@ -70,7 +75,7 @@ export default async function RecipesPage({
                   <td>{r._count.orders}</td>
                   <td>
                     <span className={r.active ? "badge badge-on" : "badge badge-off"}>
-                      {r.active ? "აქტიური" : "გამორთული"}
+                      {r.active ? t("Active") : t("Disabled")}
                     </span>
                   </td>
                 </tr>

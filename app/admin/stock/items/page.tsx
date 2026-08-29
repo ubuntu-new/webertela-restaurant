@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
+import { tr } from "@/lib/admin-i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ export default async function StockItemsPage({
   searchParams: Promise<{ saved?: string; archived?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const items = await db.stockItem.findMany({
     where: { deletedAt: null },
@@ -22,37 +24,38 @@ export default async function StockItemsPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>საწყობის ერთეულები</h1>
-          <p>{items.length} ჩანაწერი</p>
+          <h1>{t("Stock items")}</h1>
+          <p>
+            {items.length} {t("records")}
+          </p>
         </div>
         <Link className="btn" href="/admin/stock/items/new">
-          + ახალი ერთეული
+          + {t("New item")}
         </Link>
       </div>
 
-      {sp.saved && <div className="alert alert-ok">შენახულია.</div>}
-      {sp.archived && <div className="alert alert-ok">არქივში გადავიდა.</div>}
+      {sp.saved && <div className="alert alert-ok">{t("Saved.")}</div>}
+      {sp.archived && <div className="alert alert-ok">{t("Moved to the archive.")}</div>}
 
       <div className="admin-panel">
         <p className="hint" style={{ marginTop: 0 }}>
-          ეს არის ის, რასაც <b>ინახავ</b> — და არა ის, რასაც ყიდი. პიცა აქ არ არის;
-          მოცარელა, ცომი და ფქვილი — არის.
+          {t("This is what you keep — not what you sell. A pizza is not here; mozzarella, dough and flour are.")}
         </p>
 
         {items.length === 0 ? (
           <p className="hint" style={{ margin: 0 }}>
-            ჯერ ცარიელია.
+            {t("Nothing here yet.")}
           </p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
-                <th>დასახელება</th>
+                <th>{t("Name")}</th>
                 <th style={{ width: 90 }}>SKU</th>
-                <th style={{ width: 90 }}>ერთეული</th>
-                <th style={{ width: 100 }}>ჯგუფი</th>
-                <th style={{ width: 130 }}>სულ ნაშთი</th>
-                <th style={{ width: 110 }}>წარმოშობა</th>
+                <th style={{ width: 90 }}>{t("Unit")}</th>
+                <th style={{ width: 100 }}>{t("Group")}</th>
+                <th style={{ width: 130 }}>{t("On hand")}</th>
+                <th style={{ width: 110 }}>{t("Origin")}</th>
               </tr>
             </thead>
             <tbody>
@@ -62,7 +65,7 @@ export default async function StockItemsPage({
                   <tr key={it.id}>
                     <td>
                       <Link href={`/admin/stock/items/${it.id}`}>{i18nText(it.name)}</Link>
-                      {!it.active && <div className="hint">გამორთული</div>}
+                      {!it.active && <div className="hint">{t("Disabled")}</div>}
                     </td>
                     <td>
                       <span className="hint">{it.sku ?? "—"}</span>
@@ -74,7 +77,7 @@ export default async function StockItemsPage({
                     <td>{fmtQty(total, it.unit)}</td>
                     <td>
                       <span className="badge badge-off">
-                        {it.isProduced ? "იწარმოება" : "ყიდულობ"}
+                        {it.isProduced ? t("Produced") : t("Purchased")}
                       </span>
                     </td>
                   </tr>

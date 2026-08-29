@@ -2,12 +2,12 @@
  *  თვითნებურ ექსპორტს არ უშვებს. */
 
 export const STATUS: Record<string, string> = {
-  draft: "მონახაზი",
-  requested: "მოთხოვნილი",
-  approved: "დამტკიცებული",
-  sent: "გზაშია",
-  received: "მიღებული",
-  cancelled: "გაუქმებული",
+  draft: "Draft",
+  requested: "Requested",
+  approved: "Approved",
+  sent: "In transit",
+  received: "Received",
+  cancelled: "Cancelled",
 };
 
 export const TONE: Record<string, React.CSSProperties> = {

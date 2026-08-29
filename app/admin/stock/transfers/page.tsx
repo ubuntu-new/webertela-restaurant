@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 import { STATUS, TONE } from "./status";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export default async function TransfersPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const sp = await searchParams;
+  const tx = await tr();
 
   const [transfers, counts] = await Promise.all([
     db.transfer.findMany({
@@ -32,21 +34,21 @@ export default async function TransfersPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>გადატანები</h1>
+          <h1>{tx("Transfers")}</h1>
           <p>
-            {transfers.length} ნაჩვენები · დასამტკიცებელი {countOf("requested")} · გზაში{" "}
-            {countOf("sent")}
+            {transfers.length} {tx("shown")} · {countOf("requested")} {tx("to approve")} ·{" "}
+            {countOf("sent")} {tx("in transit")}
           </p>
         </div>
         <Link className="btn" href="/admin/stock/replenish">
-          შევსების წინადადებები
+          {tx("Replenishment suggestions")}
         </Link>
       </div>
 
       <div className="admin-panel">
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link className={sp.status ? "btn btn-ghost" : "btn"} href="/admin/stock/transfers">
-            ყველა
+            {tx("All")}
           </Link>
           {Object.keys(STATUS).map((s) => (
             <Link
@@ -54,11 +56,11 @@ export default async function TransfersPage({
               className={sp.status === s ? "btn" : "btn btn-ghost"}
               href={`/admin/stock/transfers?status=${s}`}
             >
-              {STATUS[s]} {countOf(s) > 0 && `(${countOf(s)})`}
+              {tx(STATUS[s])} {countOf(s) > 0 && `(${countOf(s)})`}
             </Link>
           ))}
           <Link className="btn btn-ghost" href="/admin/stock/transfers/new">
-            + ახალი გადატანა
+            + {tx("New transfer")}
           </Link>
         </div>
       </div>
@@ -66,19 +68,20 @@ export default async function TransfersPage({
       <div className="admin-panel">
         {transfers.length === 0 ? (
           <p className="hint" style={{ margin: 0 }}>
-            გადატანა ჯერ არ არის. დაიწყე „შევსების წინადადებებიდან“ — სისტემა თვითონ
-            გეტყვის, რომელ ფილიალს რა აკლია.
+            {tx(
+              "No transfers yet. Start from “Replenishment suggestions” — the system tells you which branch is short of what.",
+            )}
           </p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
                 <th style={{ width: 70 }}>№</th>
-                <th>საიდან</th>
-                <th>სად</th>
-                <th style={{ width: 90 }}>პოზიცია</th>
-                <th style={{ width: 130 }}>სტატუსი</th>
-                <th style={{ width: 150 }}>შეიქმნა</th>
+                <th>{tx("From")}</th>
+                <th>{tx("To")}</th>
+                <th style={{ width: 90 }}>{tx("Lines")}</th>
+                <th style={{ width: 130 }}>{tx("Status")}</th>
+                <th style={{ width: 150 }}>{tx("Created")}</th>
               </tr>
             </thead>
             <tbody>
@@ -97,7 +100,7 @@ export default async function TransfersPage({
                       className="badge"
                       style={TONE[t.status] ?? { background: "#f5f5f4", color: "#78716c" }}
                     >
-                      {STATUS[t.status] ?? t.status}
+                      {STATUS[t.status] ? tx(STATUS[t.status]) : t.status}
                     </span>
                   </td>
                   <td>
@@ -111,18 +114,20 @@ export default async function TransfersPage({
       </div>
 
       <div className="admin-panel">
-        <h2>როგორ მუშაობს</h2>
+        <h2>{tx("How it works")}</h2>
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.8, color: "var(--a-muted)" }}>
           <li>
-            <b>მოთხოვნა → დამტკიცება → გაგზავნა → მიღება.</b> თითო ეტაპს თავისი
-            პასუხისმგებელი ჰყავს და ჟურნალში იწერება.
+            <b>{tx("Request → approve → send → receive.")}</b>{" "}
+            {tx("Every step has an owner and lands in the log.")}
           </li>
           <li>
-            მარაგი მხოლოდ ორ წერტილში იცვლება: <b>გაგზავნისას</b> აკლდება წყაროს,
-            <b> მიღებისას</b> ემატება ფილიალს. შუალედური ეტაპები შეთანხმებაა, არა მოძრაობა.
+            {tx("Stock changes at two points only:")} <b>{tx("when you send")}</b>{" "}
+            {tx("it comes off the source,")} <b>{tx("when you receive")}</b>{" "}
+            {tx("it goes on at the branch. The steps in between are agreements, not movement.")}
           </li>
           <li>
-            გაგზავნილი და მიღებული ცალკე იწერება — <b>სხვაობა თვალსაჩინოა</b> და არ იკარგება.
+            {tx("Sent and received are recorded separately —")} <b>{tx("the gap is visible")}</b>{" "}
+            {tx("and never gets lost.")}
           </li>
         </ul>
       </div>

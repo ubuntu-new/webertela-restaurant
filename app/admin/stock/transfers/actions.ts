@@ -8,6 +8,7 @@ import { recordMovements } from "@/lib/stock";
 import { logAction } from "@/lib/audit";
 import { notifyTransferRequest, notifyTransferSent } from "@/lib/telegram";
 import { fdNum, fdStr } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 /**
  * გადატანის ეტაპები.
@@ -31,14 +32,16 @@ const FLOW: Record<string, string[]> = {
 };
 
 async function loadOrFail(id: string) {
+  const tx = await tr();
   const t = await db.transfer.findUnique({ where: { id }, include: { lines: true } });
-  if (!t) throw new Error("გადატანა ვერ მოიძებნა");
+  if (!t) throw new Error(tx("Transfer not found"));
   return t;
 }
 
-function guard(from: string, to: string) {
+async function guard(from: string, to: string) {
   if (!FLOW[from]?.includes(to)) {
-    throw new Error(`სტატუსი "${from}" → "${to}" დაუშვებელია`);
+    const tx = await tr();
+    throw new Error(`${tx("Status")} "${from}" → "${to}" ${tx("is not allowed")}`);
   }
 }
 
@@ -48,11 +51,12 @@ function guard(from: string, to: string) {
 
 export async function createTransfer(fd: FormData) {
   const s = await requirePermission("can_transfer_branch");
+  const tx = await tr();
 
   const fromLocationId = fdStr(fd, "fromLocationId");
   const toLocationId = fdStr(fd, "toLocationId");
-  if (!fromLocationId || !toLocationId) throw new Error("აირჩიე ორივე ლოკაცია");
-  if (fromLocationId === toLocationId) throw new Error("წყარო და დანიშნულება ერთი ვერ იქნება");
+  if (!fromLocationId || !toLocationId) throw new Error(tx("Pick both locations"));
+  if (fromLocationId === toLocationId) throw new Error(tx("Source and destination cannot be the same"));
 
   // მხოლოდ შევსებული სტრიქონები
   const lines: { itemId: string; qty: number }[] = [];
@@ -62,7 +66,7 @@ export async function createTransfer(fd: FormData) {
     if (!Number.isFinite(qty) || qty <= 0) continue;
     lines.push({ itemId: key.slice(4), qty });
   }
-  if (lines.length === 0) throw new Error("შეავსე ერთი პოზიცია მაინც");
+  if (lines.length === 0) throw new Error(tx("Fill in at least one line"));
 
   const t = await db.transfer.create({
     data: {
@@ -111,15 +115,16 @@ export async function createTransfer(fd: FormData) {
 
 export async function approveTransfer(id: string, fd: FormData) {
   const s = await requirePermission("can_transfer_branch");
+  const tx = await tr();
   const t = await loadOrFail(id);
-  guard(t.status, "approved");
+  await guard(t.status, "approved");
 
   const changes: Record<string, { requested: number; approved: number }> = {};
 
   for (const l of t.lines) {
     const q = fdNum(fd, `approve_${l.id}`);
     const approved = q === null ? Number(l.qtyRequested) : q;
-    if (approved < 0) throw new Error("რაოდენობა უარყოფითი ვერ იქნება");
+    if (approved < 0) throw new Error(tx("Quantity cannot be negative"));
 
     await db.transferLine.update({ where: { id: l.id }, data: { qtyApproved: approved } });
 
@@ -151,8 +156,9 @@ export async function approveTransfer(id: string, fd: FormData) {
 
 export async function sendTransfer(id: string, fd: FormData) {
   const s = await requirePermission("can_transfer_branch");
+  const tx = await tr();
   const t = await loadOrFail(id);
-  guard(t.status, "sent");
+  await guard(t.status, "sent");
 
   const moves = [];
   const sent: Record<string, number> = {};
@@ -161,7 +167,7 @@ export async function sendTransfer(id: string, fd: FormData) {
     const fallback = l.qtyApproved != null ? Number(l.qtyApproved) : Number(l.qtyRequested);
     const q = fdNum(fd, `send_${l.id}`);
     const qty = q === null ? fallback : q;
-    if (qty < 0) throw new Error("რაოდენობა უარყოფითი ვერ იქნება");
+    if (qty < 0) throw new Error(tx("Quantity cannot be negative"));
 
     await db.transferLine.update({ where: { id: l.id }, data: { qtySent: qty } });
     if (qty === 0) continue;
@@ -174,7 +180,7 @@ export async function sendTransfer(id: string, fd: FormData) {
       qty: -qty,
       refType: "Transfer",
       refId: id,
-      note: `გადატანა #${t.no} — გაგზავნა`,
+      note: `${tx("Transfer")} #${t.no} — ${tx("Send")}`,
       employeeId: s.sub,
     });
   }
@@ -221,8 +227,9 @@ export async function sendTransfer(id: string, fd: FormData) {
 
 export async function receiveTransfer(id: string, fd: FormData) {
   const s = await requirePermission("can_transfer_branch");
+  const tx = await tr();
   const t = await loadOrFail(id);
-  guard(t.status, "received");
+  await guard(t.status, "received");
 
   const moves = [];
   const received: Record<string, number> = {};
@@ -232,7 +239,7 @@ export async function receiveTransfer(id: string, fd: FormData) {
     const sentQty = l.qtySent != null ? Number(l.qtySent) : 0;
     const q = fdNum(fd, `receive_${l.id}`);
     const qty = q === null ? sentQty : q;
-    if (qty < 0) throw new Error("რაოდენობა უარყოფითი ვერ იქნება");
+    if (qty < 0) throw new Error(tx("Quantity cannot be negative"));
 
     await db.transferLine.update({ where: { id: l.id }, data: { qtyReceived: qty } });
     if (qty !== sentQty) gaps[l.itemId] = { sent: sentQty, received: qty };
@@ -246,7 +253,7 @@ export async function receiveTransfer(id: string, fd: FormData) {
       qty,
       refType: "Transfer",
       refId: id,
-      note: `გადატანა #${t.no} — მიღება`,
+      note: `${tx("Transfer")} #${t.no} — ${tx("Receive")}`,
       employeeId: s.sub,
     });
   }
@@ -262,7 +269,7 @@ export async function receiveTransfer(id: string, fd: FormData) {
     action: "transfer.received",
     entityType: "Transfer",
     entityId: id,
-    after: { no: t.no, received, ...(Object.keys(gaps).length ? { სხვაობა: gaps } : {}) },
+    after: { no: t.no, received, ...(Object.keys(gaps).length ? { gap: gaps } : {}) },
     employeeId: s.sub,
   });
 
@@ -277,9 +284,10 @@ export async function receiveTransfer(id: string, fd: FormData) {
 
 export async function cancelTransfer(id: string) {
   const s = await requirePermission("can_transfer_branch");
+  const tx = await tr();
   const session = await getSession();
   const t = await loadOrFail(id);
-  guard(t.status, "cancelled");
+  await guard(t.status, "cancelled");
 
   // თუ უკვე გაგზავნილი იყო, საქონელი წყაროს უბრუნდება
   if (t.status === "sent") {
@@ -292,7 +300,7 @@ export async function cancelTransfer(id: string) {
         qty: Number(l.qtySent),
         refType: "Transfer",
         refId: id,
-        note: `გადატანა #${t.no} — გაუქმდა, დაბრუნდა`,
+        note: `${tx("Transfer")} #${t.no} — ${tx("cancelled, returned")}`,
         employeeId: session?.sub ?? null,
       }));
     if (moves.length > 0) await recordMovements(moves);

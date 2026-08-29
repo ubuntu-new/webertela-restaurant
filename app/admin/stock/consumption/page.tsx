@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 import { addRule, saveRules } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export default async function ConsumptionPage({
   searchParams: Promise<{ saved?: string; owner?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const [items, products, toppings, rules] = await Promise.all([
     db.stockItem.findMany({ where: { deletedAt: null, active: true }, orderBy: { category: "asc" } }),
@@ -40,72 +42,76 @@ export default async function ConsumptionPage({
   ]);
 
   const covered = products.filter((p) => withRules.has(p.id)).length;
-  const coveredT = toppings.filter((t) => withRules.has(t.id)).length;
+  const coveredT = toppings.filter((tp) => withRules.has(tp.id)).length;
 
   return (
     <>
       <div className="admin-head">
         <div>
-          <h1>ხარჯვის წესები</h1>
+          <h1>{t("Consumption rules")}</h1>
           <p>
-            {rules.length} წესი · პროდუქტები {covered}/{products.length} · ტოპინგები {coveredT}/
-            {toppings.length}
+            {rules.length} {t("rules")} · {t("Products")} {covered}/{products.length} · {t("Toppings")}{" "}
+            {coveredT}/{toppings.length}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <Link className="btn" href="/admin/stock/consumption/bulk">
-            ტოპინგების ჯგუფური შევსება
+            {t("Bulk fill toppings")}
           </Link>
           <Link className="btn btn-ghost" href="/admin/stock">
-            ← მარაგი
+            ← {t("Stock")}
           </Link>
         </div>
       </div>
 
-      {sp.saved && <div className="alert alert-ok">შენახულია.</div>}
+      {sp.saved && <div className="alert alert-ok">{t("Saved.")}</div>}
 
       {items.length === 0 && (
         <div className="alert alert-error">
-          საწყობის ერთეული ჯერ არ არის. <Link href="/admin/stock/items/new">დაამატე ჯერ ისინი →</Link>
+          {t("No stock items yet.")}{" "}
+          <Link href="/admin/stock/items/new">{t("Add them first →")}</Link>
         </div>
       )}
 
       <div className="admin-panel">
-        <h2>როგორ მუშაობს</h2>
+        <h2>{t("How it works")}</h2>
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.8, color: "var(--a-muted)" }}>
           <li>
-            <b>პროდუქტზე</b> ეწერება ბაზა — ცომი, სოუსი, ყუთი. კოკა-კოლაზე — თავად კოკა-კოლა, 1 ცალი.
+            <b>{t("On a product")}</b>{" "}
+            {t("you put the base — dough, sauce, box. On a Coke — the Coke itself, 1 each.")}
           </li>
           <li>
-            <b>ტოპინგზე</b> ეწერება მისი ხარჯი — მოცარელა 0.18 კგ. პიცის ინგრედიენტები ტოპინგებია,
-            ამიტომ ცალკე ჩაწერა არ სჭირდება.
+            <b>{t("On a topping")}</b>{" "}
+            {t(
+              "you put what it uses — mozzarella 0.18 kg. Pizza ingredients are toppings, so you don't enter them separately.",
+            )}
           </li>
-          <li>ზომა ცარიელი = ყველა ზომაზე ერთი და იგივე. კონკრეტული ზომა ჩრდილავს ზოგადს.</li>
+          <li>{t("Blank size = the same on every size. A specific size overrides the general one.")}</li>
           <li>
-            რაოდენობა იმ ერთეულშია, რომელიც <b>საწყობის ერთეულს</b> აქვს — თუ კილოგრამებში ინახავ,
-            აქაც კილოგრამი წერე (0.18).
+            {t("Quantity is in the unit the")} <b>{t("stock item")}</b>{" "}
+            {t("has — if you keep it in kilograms, enter kilograms here too (0.18).")}
           </li>
-          <li>წესის არარსებობა შეკვეთას არ აჩერებს — უბრალოდ ის პოზიცია მარაგს არ ეხება.</li>
+          <li>{t("A missing rule doesn't hold up an order — that line simply won't touch stock.")}</li>
         </ul>
       </div>
 
       {/* ── ახალი წესი ── */}
       <form className="admin-panel admin-form" action={addRule} style={{ maxWidth: "none" }}>
-        <h2>წესის დამატება</h2>
+        <h2>{t("Add a rule")}</h2>
 
         <div className="field-row" style={{ gridTemplateColumns: "2fr 2fr 1fr 1fr" }}>
           <div className="field">
-            <label htmlFor="owner">რაზე</label>
+            <label htmlFor="owner">{t("Applies to")}</label>
             <select id="owner" name="owner" defaultValue={sp.owner ?? ""} required>
-              <option value="">— აირჩიე —</option>
-              <optgroup label="ტოპინგი">
-                {toppings.map((t) => (
-                  <option key={t.id} value={`topping:${t.id}`}>
-                    {i18nText(t.name)}
+              <option value="">{t("— select —")}</option>
+              <optgroup label={t("Topping")}>
+                {toppings.map((tp) => (
+                  <option key={tp.id} value={`topping:${tp.id}`}>
+                    {i18nText(tp.name)}
                   </option>
                 ))}
               </optgroup>
-              <optgroup label="პროდუქტი">
+              <optgroup label={t("Product")}>
                 {products.map((p) => (
                   <option key={p.id} value={`product:${p.id}`}>
                     {i18nText(p.name)} · {i18nText(p.category.name)}
@@ -116,9 +122,9 @@ export default async function ConsumptionPage({
           </div>
 
           <div className="field">
-            <label htmlFor="itemId">საწყობის ერთეული</label>
+            <label htmlFor="itemId">{t("Stock item")}</label>
             <select id="itemId" name="itemId" required>
-              <option value="">— აირჩიე —</option>
+              <option value="">{t("— select —")}</option>
               {items.map((it) => (
                 <option key={it.id} value={it.id}>
                   {i18nText(it.name)} ({it.unit})
@@ -128,14 +134,14 @@ export default async function ConsumptionPage({
           </div>
 
           <div className="field">
-            <label htmlFor="qty">რაოდენობა</label>
+            <label htmlFor="qty">{t("Quantity")}</label>
             <input id="qty" name="qty" type="number" step="0.001" min="0" required />
           </div>
 
           <div className="field">
-            <label htmlFor="sizeKey">ზომა</label>
+            <label htmlFor="sizeKey">{t("Size")}</label>
             <select id="sizeKey" name="sizeKey" defaultValue="">
-              <option value="">ყველა</option>
+              <option value="">{t("All")}</option>
               <option value="S">S</option>
               <option value="M">M</option>
               <option value="XL">XL</option>
@@ -145,7 +151,7 @@ export default async function ConsumptionPage({
 
         <div className="form-actions">
           <button className="btn" type="submit">
-            დამატება
+            {t("Add")}
           </button>
         </div>
       </form>
@@ -153,20 +159,22 @@ export default async function ConsumptionPage({
       {/* ── არსებული წესები ── */}
       <form action={saveRules}>
         <div className="admin-panel">
-          <h2>ტოპინგები ({toppingRules.length})</h2>
+          <h2>
+            {t("Toppings")} ({toppingRules.length})
+          </h2>
           {toppingRules.length === 0 ? (
             <p className="hint" style={{ margin: 0 }}>
-              ჯერ არცერთი. დაიწყე მოცარელით — ის თითქმის ყველა პიცაშია.
+              {t("None yet. Start with mozzarella — it's on almost every pizza.")}
             </p>
           ) : (
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>ტოპინგი</th>
-                  <th>ხარჯავს</th>
-                  <th style={{ width: 90 }}>ზომა</th>
-                  <th style={{ width: 130 }}>რაოდენობა</th>
-                  <th style={{ width: 70 }}>წაშლა</th>
+                  <th>{t("Topping")}</th>
+                  <th>{t("Uses")}</th>
+                  <th style={{ width: 90 }}>{t("Size")}</th>
+                  <th style={{ width: 130 }}>{t("Quantity")}</th>
+                  <th style={{ width: 70 }}>{t("Delete")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -178,7 +186,7 @@ export default async function ConsumptionPage({
                     </td>
                     <td>{i18nText(r.item.name)}</td>
                     <td>
-                      <span className="hint">{r.sizeKey ?? "ყველა"}</span>
+                      <span className="hint">{r.sizeKey ?? t("All")}</span>
                     </td>
                     <td>
                       <input
@@ -202,20 +210,22 @@ export default async function ConsumptionPage({
         </div>
 
         <div className="admin-panel">
-          <h2>პროდუქტები ({productRules.length})</h2>
+          <h2>
+            {t("Products")} ({productRules.length})
+          </h2>
           {productRules.length === 0 ? (
             <p className="hint" style={{ margin: 0 }}>
-              ჯერ არცერთი. პიცაზე ჩაწერე ცომი და სოუსი, სასმელზე — თავად სასმელი.
+              {t("None yet. On a pizza put dough and sauce; on a drink — the drink itself.")}
             </p>
           ) : (
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>პროდუქტი</th>
-                  <th>ხარჯავს</th>
-                  <th style={{ width: 90 }}>ზომა</th>
-                  <th style={{ width: 130 }}>რაოდენობა</th>
-                  <th style={{ width: 70 }}>წაშლა</th>
+                  <th>{t("Product")}</th>
+                  <th>{t("Uses")}</th>
+                  <th style={{ width: 90 }}>{t("Size")}</th>
+                  <th style={{ width: 130 }}>{t("Quantity")}</th>
+                  <th style={{ width: 70 }}>{t("Delete")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -227,7 +237,7 @@ export default async function ConsumptionPage({
                     </td>
                     <td>{i18nText(r.item.name)}</td>
                     <td>
-                      <span className="hint">{r.sizeKey ?? "ყველა"}</span>
+                      <span className="hint">{r.sizeKey ?? t("All")}</span>
                     </td>
                     <td>
                       <input
@@ -253,7 +263,7 @@ export default async function ConsumptionPage({
         {rules.length > 0 && (
           <div className="form-actions">
             <button className="btn" type="submit">
-              ცვლილებების შენახვა
+              {t("Save changes")}
             </button>
           </div>
         )}

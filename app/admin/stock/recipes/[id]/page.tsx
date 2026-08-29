@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { i18nOf, i18nText } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 import { fmtQty } from "@/lib/stock";
 import { updateRecipe, archiveRecipe } from "../actions";
 import ArchiveButton from "../../../_components/ArchiveButton";
@@ -25,6 +26,7 @@ export default async function RecipeEdit({
 }) {
   const { id } = await params;
   const sp = await searchParams;
+  const t = await tr();
 
   const [recipe, items] = await Promise.all([
     db.recipe.findUnique({
@@ -46,9 +48,9 @@ export default async function RecipeEdit({
   const archive = archiveRecipe.bind(null, id);
 
   const consequences = [
-    "ახალი პარტიის დაწყებისას ვეღარ აირჩევ.",
-    `${recipe._count.orders} დასრულებული პარტია ხელუხლებელი რჩება — მათში ნედლეულის ასლია შენახული.`,
-    "მარაგი არ იცვლება.",
+    t("You won't be able to pick it when starting a new batch."),
+    `${recipe._count.orders} ${t("finished batches stay untouched — each one keeps its own copy of the inputs.")}`,
+    t("Stock does not change."),
   ];
 
   return (
@@ -58,33 +60,33 @@ export default async function RecipeEdit({
           <h1>{name.ka || name.en}</h1>
           <p>
             {fmtQty(Number(recipe.outputQty), recipe.outputItem.unit)}{" "}
-            {i18nText(recipe.outputItem.name)} · {recipe._count.orders} პარტია
+            {i18nText(recipe.outputItem.name)} · {recipe._count.orders} {t("batches")}
           </p>
         </div>
         <Link className="btn btn-ghost" href="/admin/stock/recipes">
-          ← სია
+          {t("Back to list")}
         </Link>
       </div>
 
-      {sp.saved && <div className="alert alert-ok">შენახულია.</div>}
+      {sp.saved && <div className="alert alert-ok">{t("Saved.")}</div>}
 
       <form className="admin-form" action={save} style={{ maxWidth: 900 }}>
         <div className="admin-panel">
-          <h2>ძირითადი</h2>
+          <h2>{t("Basics")}</h2>
           <div className="field-row">
             <div className="field">
-              <label htmlFor="name_en">დასახელება (EN)</label>
+              <label htmlFor="name_en">{t("Name")} (EN)</label>
               <input id="name_en" name="name_en" type="text" defaultValue={name.en} required />
             </div>
             <div className="field">
-              <label htmlFor="name_ka">დასახელება (KA)</label>
+              <label htmlFor="name_ka">{t("Name")} (KA)</label>
               <input id="name_ka" name="name_ka" type="text" defaultValue={name.ka} />
             </div>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label htmlFor="outputItemId">რას აწარმოებს</label>
+              <label htmlFor="outputItemId">{t("Produces")}</label>
               <select id="outputItemId" name="outputItemId" defaultValue={recipe.outputItemId}>
                 {items.map((it) => (
                   <option key={it.id} value={it.id}>
@@ -94,7 +96,7 @@ export default async function RecipeEdit({
               </select>
             </div>
             <div className="field">
-              <label htmlFor="outputQty">ერთი გატარების გამოსავალი</label>
+              <label htmlFor="outputQty">{t("Yield per run")}</label>
               <input
                 id="outputQty"
                 name="outputQty"
@@ -107,29 +109,30 @@ export default async function RecipeEdit({
           </div>
 
           <div className="field">
-            <label htmlFor="note">შენიშვნა</label>
+            <label htmlFor="note">{t("Note")}</label>
             <input id="note" name="note" type="text" defaultValue={recipe.note ?? ""} />
           </div>
 
           <div className="field-check">
             <input id="active" name="active" type="checkbox" defaultChecked={recipe.active} />
-            <label htmlFor="active">აქტიური</label>
+            <label htmlFor="active">{t("Active")}</label>
           </div>
         </div>
 
         <div className="admin-panel">
-          <h2>შემავალი ნედლეული</h2>
+          <h2>{t("Raw material inputs")}</h2>
           <p className="hint" style={{ marginTop: -8, marginBottom: 14 }}>
-            რაოდენობა <b>ერთ გატარებაზეა</b>. პარტიაში ის გამრავლდება გატარებების რიცხვზე.
+            {t("Quantity is")} <b>{t("per one run")}</b>.{" "}
+            {t("In a batch it's multiplied by the number of runs.")}
           </p>
 
           {recipe.lines.length > 0 && (
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>ერთეული</th>
-                  <th style={{ width: 160 }}>რაოდენობა</th>
-                  <th style={{ width: 70 }}>წაშლა</th>
+                  <th>{t("Item")}</th>
+                  <th style={{ width: 160 }}>{t("Quantity")}</th>
+                  <th style={{ width: 70 }}>{t("Delete")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -157,10 +160,10 @@ export default async function RecipeEdit({
           )}
 
           <div className="field" style={{ marginTop: 14 }}>
-            <label>შემავალის დამატება</label>
+            <label>{t("Add an input")}</label>
             <div className="field-row">
               <select name="new_itemId" defaultValue="">
-                <option value="">— აირჩიე —</option>
+                <option value="">{t("— select —")}</option>
                 {items
                   .filter((it) => !used.has(it.id) && it.id !== recipe.outputItemId)
                   .map((it) => (
@@ -169,23 +172,23 @@ export default async function RecipeEdit({
                     </option>
                   ))}
               </select>
-              <input name="new_qty" type="number" step="0.001" min="0" placeholder="რაოდენობა" />
+              <input name="new_qty" type="number" step="0.001" min="0" placeholder={t("Quantity")} />
             </div>
           </div>
         </div>
 
         <div className="form-actions">
           <button className="btn" type="submit">
-            შენახვა
+            {t("Save")}
           </button>
           <Link className="btn btn-ghost" href="/admin/stock/recipes">
-            გაუქმება
+            {t("Cancel")}
           </Link>
         </div>
       </form>
 
       <div className="admin-panel" style={{ maxWidth: 900, marginTop: 20 }}>
-        <h2>არქივი</h2>
+        <h2>{t("Archive")}</h2>
         <ArchiveButton action={archive} subject={name.ka || name.en} consequences={consequences} />
       </div>
     </>

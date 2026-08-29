@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 import { createItemsFromToppings, saveBulkConsumption } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,7 @@ export default async function BulkConsumptionPage({
   searchParams: Promise<{ saved?: string; created?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const [toppings, items, rules] = await Promise.all([
     db.topping.findMany({ where: { deletedAt: null }, orderBy: { sortOrder: "asc" } }),
@@ -45,56 +47,66 @@ export default async function BulkConsumptionPage({
     }
   }
 
-  const filled = toppings.filter((t) => current.has(t.id)).length;
+  const filled = toppings.filter((tp) => current.has(tp.id)).length;
   const missingItems = toppings.filter(
-    (t) => !autoMatch(i18nText(t.name, "en"), items) && !current.has(t.id),
+    (tp) => !autoMatch(i18nText(tp.name, "en"), items) && !current.has(tp.id),
   ).length;
 
   return (
     <>
       <div className="admin-head">
         <div>
-          <h1>ტოპინგების ხარჯვა</h1>
+          <h1>{t("Topping consumption")}</h1>
           <p>
-            {filled}/{toppings.length} შევსებული
+            {filled}/{toppings.length} {t("filled in")}
           </p>
         </div>
         <Link className="btn btn-ghost" href="/admin/stock/consumption">
-          ← ყველა წესი
+          ← {t("All rules")}
         </Link>
       </div>
 
-      {sp.saved && <div className="alert alert-ok">შენახულია — {sp.saved} წესი.</div>}
+      {sp.saved && (
+        <div className="alert alert-ok">
+          {t("Saved")} — {sp.saved} {t("rules")}.
+        </div>
+      )}
       {sp.created && (
         <div className="alert alert-ok">
-          {sp.created === "0" ? "ყველა ერთეული უკვე არსებობდა." : `${sp.created} ერთეული შეიქმნა.`}
+          {sp.created === "0" ? t("Every item already existed.") : `${sp.created} ${t("items created.")}`}
         </div>
       )}
 
       {missingItems > 0 && (
         <div className="admin-panel">
-          <h2>ჯერ საწყობის ერთეულები</h2>
+          <h2>{t("Stock items first")}</h2>
           <p className="hint" style={{ marginTop: -8, marginBottom: 12 }}>
-            <b>{missingItems} ტოპინგს</b> საწყობის ერთეული არ აქვს. პრემიუმ ტოპინგსაც თავისი
-            სჭირდება — პროშუტოს ღირებულება მოცარელადან ვერ გამოითვლება.
+            <b>
+              {missingItems} {t("toppings")}
+            </b>{" "}
+            {t(
+              "have no stock item. A premium topping needs its own — you can't work out the cost of prosciutto from mozzarella.",
+            )}
           </p>
           <form action={createItemsFromToppings}>
             <button className="btn" type="submit">
-              შექმენი ტოპინგებიდან ({missingItems})
+              {t("Create from toppings")} ({missingItems})
             </button>
           </form>
           <p className="hint" style={{ marginTop: 10 }}>
-            კილოგრამებში შეიქმნება. თუ რომელიმე ცალობითია, ერთეულის გვერდზე შეცვლი.
+            {t("They're created in kilograms. If one is counted by the piece, change it on the item page.")}
           </p>
         </div>
       )}
 
       <form action={saveBulkConsumption}>
         <div className="admin-panel">
-          <h2>ზომების კოეფიციენტი</h2>
+          <h2>{t("Size multipliers")}</h2>
           <p className="hint" style={{ marginTop: -8, marginBottom: 12 }}>
-            ჩაწერ <b>M-ის</b> გრამაჟს — S და XL აქედან დაითვლება. ნაგულისხმევი რიცხვები
-            თქვენივე ფასების პროპორციიდანაა აღებული.
+            {t("You enter the")} <b>{t("M")}</b>{" "}
+            {t(
+              "weight — S and XL come off it. The default numbers are taken from your own price ratios.",
+            )}
           </p>
           <div className="field-row" style={{ maxWidth: 420 }}>
             <div className="field">
@@ -109,38 +121,38 @@ export default async function BulkConsumptionPage({
         </div>
 
         <div className="admin-panel">
-          <h2>ტოპინგები</h2>
+          <h2>{t("Toppings")}</h2>
           <p className="hint" style={{ marginTop: -8, marginBottom: 14 }}>
-            ცარიელი გრამაჟი = წესი არ გვჭირდება (არსებული წაიშლება).
+            {t("Blank weight = no rule needed (an existing one is deleted).")}
           </p>
 
           <table className="admin-table">
             <thead>
               <tr>
-                <th>ტოპინგი</th>
-                <th style={{ width: 280 }}>საწყობის ერთეული</th>
-                <th style={{ width: 150 }}>M გრამაჟი</th>
+                <th>{t("Topping")}</th>
+                <th style={{ width: 280 }}>{t("Stock item")}</th>
+                <th style={{ width: 150 }}>{t("M weight")}</th>
               </tr>
             </thead>
             <tbody>
-              {toppings.map((t) => {
-                const nameEn = i18nText(t.name, "en");
-                const cur = current.get(t.id);
+              {toppings.map((tp) => {
+                const nameEn = i18nText(tp.name, "en");
+                const cur = current.get(tp.id);
                 const guess = cur?.itemId || autoMatch(nameEn, items);
 
                 return (
-                  <tr key={t.id}>
+                  <tr key={tp.id}>
                     <td>
-                      <input type="hidden" name="row" value={t.id} />
-                      {i18nText(t.name)}
+                      <input type="hidden" name="row" value={tp.id} />
+                      {i18nText(tp.name)}
                       <div className="hint">
                         {nameEn}
-                        {t.recipeOnly && " · მხოლოდ რეცეპტში"}
+                        {tp.recipeOnly && ` · ${t("recipe only")}`}
                       </div>
                     </td>
                     <td>
-                      <select name={`item_${t.id}`} defaultValue={guess} style={inp}>
-                        <option value="">— არ ითვლება —</option>
+                      <select name={`item_${tp.id}`} defaultValue={guess} style={inp}>
+                        <option value="">{t("— not counted —")}</option>
                         {items.map((it) => (
                           <option key={it.id} value={it.id}>
                             {i18nText(it.name)} ({it.unit})
@@ -150,7 +162,7 @@ export default async function BulkConsumptionPage({
                     </td>
                     <td>
                       <input
-                        name={`qty_${t.id}`}
+                        name={`qty_${tp.id}`}
                         type="number"
                         step="0.001"
                         min="0"
@@ -167,27 +179,28 @@ export default async function BulkConsumptionPage({
 
           <div className="form-actions" style={{ marginTop: 18 }}>
             <button className="btn" type="submit">
-              ყველას შენახვა
+              {t("Save all")}
             </button>
           </div>
         </div>
       </form>
 
       <div className="admin-panel">
-        <h2>რატომ ასე</h2>
+        <h2>{t("Why it works this way")}</h2>
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.8, color: "var(--a-muted)" }}>
           <li>
-            24 ტოპინგი × 3 ზომა = <b>72 ჩანაწერი</b>. კოეფიციენტით 24 ველი კმარა და
-            შეცდომის ადგილი აღარ რჩება.
+            {t("24 toppings × 3 sizes =")} <b>{t("72 records")}</b>.{" "}
+            {t("With a multiplier, 24 fields are enough and there's nowhere left to slip up.")}
           </li>
           <li>
-            <b>პრემიუმ ტოპინგი</b> ცალკე მექანიზმს არ საჭიროებს — მას თავისი ერთეული და
-            თავისი ფასი აქვს, ამიტომ მოგების % ავტომატურად სწორად გამოდის. სწორედ აქ
-            დაინახავ, პრემიუმი მართლა მომგებიანია თუ მხოლოდ ძვირი.
+            <b>{t("A premium topping")}</b>{" "}
+            {t(
+              "needs no machinery of its own — it has its own item and its own price, so the margin % comes out right by itself. This is exactly where you see whether premium is really making money or only costing more.",
+            )}
           </li>
           <li>
-            პიცის ინგრედიენტები ტოპინგებია — ერთხელ ჩაწერ და{" "}
-            <b>ყველა პიცაზე ვრცელდება</b>.
+            {t("Pizza ingredients are toppings — you enter them once and")}{" "}
+            <b>{t("they apply to every pizza")}</b>.
           </li>
         </ul>
       </div>

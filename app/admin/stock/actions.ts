@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/admin-auth";
 import { recordMovement, stockCount } from "@/lib/stock";
 import { applyReceiptCost, applyOutgoingCost } from "@/lib/costing";
 import { fdNum, fdStr } from "@/lib/admin-utils";
+import { tr } from "@/lib/admin-i18n";
 
 const UNITS = ["g", "kg", "ml", "l", "pcs"] as const;
 type Unit = (typeof UNITS)[number];
@@ -18,14 +19,15 @@ const unitOf = (v: string): Unit => ((UNITS as readonly string[]).includes(v) ? 
 
 export async function createStockItem(fd: FormData) {
   const s = await requirePermission("can_edit_menu");
+  const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
+  if (!nameEn) throw new Error(t("The English name is required"));
 
   const sku = fdStr(fd, "sku") || null;
   if (sku) {
     const clash = await db.stockItem.findUnique({ where: { sku } });
-    if (clash) throw new Error(`SKU "${sku}" უკვე გამოიყენება`);
+    if (clash) throw new Error(`SKU "${sku}" ${t("is already in use")}`);
   }
 
   const item = await db.stockItem.create({
@@ -50,14 +52,15 @@ export async function createStockItem(fd: FormData) {
 
 export async function updateStockItem(id: string, fd: FormData) {
   const s = await requirePermission("can_edit_menu");
+  const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
+  if (!nameEn) throw new Error(t("The English name is required"));
 
   const sku = fdStr(fd, "sku") || null;
   if (sku) {
     const clash = await db.stockItem.findFirst({ where: { sku, NOT: { id } } });
-    if (clash) throw new Error(`SKU "${sku}" უკვე გამოიყენება`);
+    if (clash) throw new Error(`SKU "${sku}" ${t("is already in use")}`);
   }
 
   await db.stockItem.update({
@@ -132,20 +135,21 @@ export async function archiveStockItem(id: string) {
 /** მიღება / ჩამოწერა — ხელით. */
 export async function addMovement(fd: FormData) {
   const s = await requirePermission("can_edit_menu");
+  const t = await tr();
 
   const locationId = fdStr(fd, "locationId");
   const itemId = fdStr(fd, "itemId");
   const kind = fdStr(fd, "kind"); // receipt | waste | count
   const amount = fdNum(fd, "qty");
 
-  if (!locationId || !itemId) throw new Error("აირჩიე ლოკაცია და ერთეული");
-  if (amount === null) throw new Error("შეიყვანე რაოდენობა");
+  if (!locationId || !itemId) throw new Error(t("Pick a location and an item"));
+  if (amount === null) throw new Error(t("Enter a quantity"));
 
   if (kind === "count") {
-    if (amount < 0) throw new Error("ინვენტარიზაციის რაოდენობა უარყოფითი ვერ იქნება");
+    if (amount < 0) throw new Error(t("A count cannot be negative"));
     await stockCount(locationId, itemId, amount, s.sub, fdStr(fd, "note") || null);
   } else {
-    if (amount <= 0) throw new Error("რაოდენობა ნულზე მეტი უნდა იყოს");
+    if (amount <= 0) throw new Error(t("Quantity must be greater than zero"));
     // ჩამოწერა ყოველთვის მინუსია — ნიშანს მომხმარებელს არ ვაწერინებთ
     const mv = await recordMovement({
       locationId,

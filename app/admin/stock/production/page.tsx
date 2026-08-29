@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
+import { tr } from "@/lib/admin-i18n";
 import { PSTATUS, PTONE } from "./status";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export default async function ProductionPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const [orders, counts] = await Promise.all([
     db.productionOrder.findMany({
@@ -29,20 +31,20 @@ export default async function ProductionPage({
     <>
       <div className="admin-head">
         <div>
-          <h1>წარმოება</h1>
+          <h1>{t("Production")}</h1>
           <p>
-            {orders.length} ნაჩვენები · მიმდინარე {countOf("in_progress")}
+            {orders.length} {t("shown")} · {countOf("in_progress")} {t("in progress")}
           </p>
         </div>
         <Link className="btn" href="/admin/stock/production/new">
-          + პარტიის დაწყება
+          + {t("Start a batch")}
         </Link>
       </div>
 
       <div className="admin-panel">
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link className={sp.status ? "btn btn-ghost" : "btn"} href="/admin/stock/production">
-            ყველა
+            {t("All")}
           </Link>
           {Object.keys(PSTATUS).map((s) => (
             <Link
@@ -50,11 +52,11 @@ export default async function ProductionPage({
               className={sp.status === s ? "btn" : "btn btn-ghost"}
               href={`/admin/stock/production?status=${s}`}
             >
-              {PSTATUS[s]} {countOf(s) > 0 && `(${countOf(s)})`}
+              {t(PSTATUS[s])} {countOf(s) > 0 && `(${countOf(s)})`}
             </Link>
           ))}
           <Link className="btn btn-ghost" href="/admin/stock/recipes">
-            რეცეპტები
+            {t("Recipes")}
           </Link>
         </div>
       </div>
@@ -62,20 +64,21 @@ export default async function ProductionPage({
       <div className="admin-panel">
         {orders.length === 0 ? (
           <p className="hint" style={{ margin: 0 }}>
-            პარტია ჯერ არ ყოფილა. ჯერ <Link href="/admin/stock/recipes">რეცეპტი</Link> შექმენი.
+            {t("No batches yet. First create a")}{" "}
+            <Link href="/admin/stock/recipes">{t("recipe")}</Link>.
           </p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
                 <th style={{ width: 70 }}>№</th>
-                <th>რეცეპტი</th>
-                <th>ლოკაცია</th>
-                <th style={{ width: 110 }}>დაგეგმილი</th>
-                <th style={{ width: 110 }}>ფაქტობრივი</th>
-                <th style={{ width: 100 }}>გამოსავალი</th>
-                <th style={{ width: 110 }}>სტატუსი</th>
-                <th style={{ width: 150 }}>დაიწყო</th>
+                <th>{t("Recipe")}</th>
+                <th>{t("Location")}</th>
+                <th style={{ width: 110 }}>{t("Planned")}</th>
+                <th style={{ width: 110 }}>{t("Actual")}</th>
+                <th style={{ width: 100 }}>{t("Yield")}</th>
+                <th style={{ width: 110 }}>{t("Status")}</th>
+                <th style={{ width: 150 }}>{t("Started")}</th>
               </tr>
             </thead>
             <tbody>
@@ -122,7 +125,7 @@ export default async function ProductionPage({
                         className="badge"
                         style={PTONE[o.status] ?? { background: "#f5f5f4", color: "#78716c" }}
                       >
-                        {PSTATUS[o.status] ?? o.status}
+                        {PSTATUS[o.status] ? t(PSTATUS[o.status]) : o.status}
                       </span>
                     </td>
                     <td>
@@ -137,11 +140,12 @@ export default async function ProductionPage({
       </div>
 
       <div className="admin-panel">
-        <h2>გამოსავალი</h2>
+        <h2>{t("Yield")}</h2>
         <p className="hint" style={{ margin: 0 }}>
-          რეცეპტით 100 გუნდა უნდა გამოსულიყო, ფაქტობრივად 88 — <b>88%</b>. თუ ეს რიცხვი
-          სისტემატურად დაბალია, ან რეცეპტია არაზუსტი, ან სადმე დანაკარგია. სწორედ ამის
-          დასაჭერად ინახება დაგეგმილი და ფაქტობრივი ცალკე.
+          {t("The recipe says 100 dough balls, you got 88 —")} <b>88%</b>.{" "}
+          {t(
+            "If that number keeps coming in low, either the recipe is off or something is being lost along the way. That is exactly why planned and actual are kept apart.",
+          )}
         </p>
       </div>
     </>

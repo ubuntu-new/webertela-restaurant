@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
+import { tr } from "@/lib/admin-i18n";
 import { finishProduction, cancelProduction } from "../actions";
 import { PSTATUS } from "../status";
 
@@ -25,6 +26,7 @@ export default async function ProductionDetail({
 }) {
   const { id } = await params;
   const sp = await searchParams;
+  const t = await tr();
 
   const o = await db.productionOrder.findUnique({
     where: { id },
@@ -58,49 +60,57 @@ export default async function ProductionDetail({
   const cancel = cancelProduction.bind(null, id);
 
   const stages = [
-    { label: "დაწყება", by: o.startedById, at: o.startedAt },
-    { label: "დასრულება", by: o.finishedById, at: o.finishedAt },
-    { label: "გაუქმება", by: o.cancelledById, at: o.cancelledAt },
+    { label: t("Start"), by: o.startedById, at: o.startedAt },
+    { label: t("Finish"), by: o.finishedById, at: o.finishedAt },
+    { label: t("Cancel"), by: o.cancelledById, at: o.cancelledAt },
   ].filter((s) => s.at);
 
   return (
     <>
       <div className="admin-head">
         <div>
-          <h1>წარმოება #{o.no}</h1>
+          <h1>
+            {t("Production")} #{o.no}
+          </h1>
           <p>
             {i18nText(o.recipe.name)} · {i18nText(o.location.name)} ·{" "}
-            {PSTATUS[o.status] ?? o.status}
+            {PSTATUS[o.status] ? t(PSTATUS[o.status]) : o.status}
           </p>
         </div>
         <Link className="btn btn-ghost" href="/admin/stock/production">
-          ← სია
+          {t("Back to list")}
         </Link>
       </div>
 
-      {sp.ok && <div className="alert alert-ok">შესრულდა.</div>}
+      {sp.ok && <div className="alert alert-ok">{t("Done.")}</div>}
 
       <div className="admin-panel">
-        <h2>შედეგი</h2>
+        <h2>{t("Result")}</h2>
         <table className="admin-table">
           <tbody>
             <tr>
-              <td style={{ width: 200 }}>გატარებები</td>
+              <td style={{ width: 200 }}>{t("Runs")}</td>
               <td>{Number(o.batches)}</td>
             </tr>
             <tr>
-              <td>დაგეგმილი</td>
+              <td>{t("Planned")}</td>
               <td>
                 {fmtQty(planned, unit)} {i18nText(o.recipe.outputItem.name)}
               </td>
             </tr>
             <tr>
-              <td>ფაქტობრივი</td>
-              <td>{actual != null ? fmtQty(actual, unit) : <span className="hint">ჯერ არ დასრულებულა</span>}</td>
+              <td>{t("Actual")}</td>
+              <td>
+                {actual != null ? (
+                  fmtQty(actual, unit)
+                ) : (
+                  <span className="hint">{t("Not finished yet")}</span>
+                )}
+              </td>
             </tr>
             {pct != null && (
               <tr>
-                <td>გამოსავალი</td>
+                <td>{t("Yield")}</td>
                 <td>
                   <span
                     className="badge"
@@ -115,7 +125,8 @@ export default async function ProductionDetail({
                   {pct < 95 && (
                     <span className="hint">
                       {" "}
-                      — დაკლდა {fmtQty(Math.round((planned - (actual ?? 0)) * 1000) / 1000, unit)}
+                      — {t("short by")}{" "}
+                      {fmtQty(Math.round((planned - (actual ?? 0)) * 1000) / 1000, unit)}
                     </span>
                   )}
                 </td>
@@ -125,13 +136,13 @@ export default async function ProductionDetail({
         </table>
         {o.note && (
           <p className="hint" style={{ marginTop: 10 }}>
-            შენიშვნა: {o.note}
+            {t("Note")}: {o.note}
           </p>
         )}
       </div>
 
       <div className="admin-panel">
-        <h2>ეტაპები</h2>
+        <h2>{t("Stages")}</h2>
         <table className="admin-table">
           <tbody>
             {stages.map((s) => (
@@ -148,14 +159,14 @@ export default async function ProductionDetail({
       </div>
 
       <div className="admin-panel">
-        <h2>ნედლეული</h2>
+        <h2>{t("Ingredients")}</h2>
         <table className="admin-table">
           <thead>
             <tr>
-              <th>ერთეული</th>
-              <th style={{ width: 130 }}>დაგეგმილი</th>
-              <th style={{ width: 130 }}>დახარჯული</th>
-              <th style={{ width: 140 }}>ნაშთი ლოკაციაზე</th>
+              <th>{t("Item")}</th>
+              <th style={{ width: 130 }}>{t("Planned")}</th>
+              <th style={{ width: 130 }}>{t("Used")}</th>
+              <th style={{ width: 140 }}>{t("On hand here")}</th>
             </tr>
           </thead>
           <tbody>
@@ -199,16 +210,16 @@ export default async function ProductionDetail({
       {o.status === "in_progress" && (
         <>
           <form className="admin-panel admin-form" action={finish} style={{ maxWidth: "none" }}>
-            <h2>დასრულება</h2>
+            <h2>{t("Finish")}</h2>
             <p className="hint" style={{ marginTop: -8 }}>
-              ამ ღილაკზე ხდება მთელი მოძრაობა: ნედლეული <b>ჩამოიწერება</b>, პროდუქტი{" "}
-              <b>დაემატება</b>. ჩაწერე ფაქტობრივი რიცხვები — თუ დაგეგმილს არ ემთხვევა,
-              სხვაობა ჩაიწერება და ჩანს.
+              {t("This button does the whole move: the ingredients are")} <b>{t("written off")}</b>
+              {t(", the product is")} <b>{t("added")}</b>
+              {t(". Enter the real numbers — if they do not match the plan, the difference is recorded and stays visible.")}
             </p>
 
             <div className="field" style={{ maxWidth: 320 }}>
               <label htmlFor="actualQty">
-                ფაქტობრივად გამოვიდა ({i18nText(o.recipe.outputItem.name)})
+                {t("Actual output")} ({i18nText(o.recipe.outputItem.name)})
               </label>
               <input
                 id="actualQty"
@@ -219,15 +230,17 @@ export default async function ProductionDetail({
                 defaultValue={planned}
                 required
               />
-              <span className="hint">დაგეგმილი: {fmtQty(planned, unit)}</span>
+              <span className="hint">
+                {t("Planned")}: {fmtQty(planned, unit)}
+              </span>
             </div>
 
             <table className="admin-table" style={{ marginTop: 14 }}>
               <thead>
                 <tr>
-                  <th>ნედლეული</th>
-                  <th style={{ width: 140 }}>დაგეგმილი</th>
-                  <th style={{ width: 170 }}>ფაქტობრივად დაიხარჯა</th>
+                  <th>{t("Ingredient")}</th>
+                  <th style={{ width: 140 }}>{t("Planned")}</th>
+                  <th style={{ width: 170 }}>{t("Actually used")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -254,7 +267,7 @@ export default async function ProductionDetail({
 
             <div className="form-actions" style={{ marginTop: 16 }}>
               <button className="btn" type="submit">
-                დასრულება და ჩამოწერა
+                {t("Finish and write off")}
               </button>
             </div>
           </form>
@@ -265,7 +278,7 @@ export default async function ProductionDetail({
               type="submit"
               style={{ color: "var(--a-danger)", borderColor: "#f3d5d2" }}
             >
-              პარტიის გაუქმება (მარაგი არ შეცვლილა)
+              {t("Cancel batch (stock is untouched)")}
             </button>
           </form>
         </>

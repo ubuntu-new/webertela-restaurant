@@ -5,18 +5,20 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
 import { logAction } from "@/lib/audit";
+import { tr } from "@/lib/admin-i18n";
 import { fdNum, fdStr } from "@/lib/admin-utils";
 
 export async function createRecipe(fd: FormData) {
   const s = await requirePermission("can_edit_menu");
+  const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
   const outputItemId = fdStr(fd, "outputItemId");
   const outputQty = fdNum(fd, "outputQty");
 
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
-  if (!outputItemId) throw new Error("აირჩიე, რას აწარმოებს");
-  if (outputQty === null || outputQty <= 0) throw new Error("გამოსავალი ნულზე მეტი უნდა იყოს");
+  if (!nameEn) throw new Error(t("The English name is required"));
+  if (!outputItemId) throw new Error(t("Pick what it produces"));
+  if (outputQty === null || outputQty <= 0) throw new Error(t("Yield must be greater than zero"));
 
   const r = await db.recipe.create({
     data: {
@@ -42,11 +44,12 @@ export async function createRecipe(fd: FormData) {
 
 export async function updateRecipe(id: string, fd: FormData) {
   const s = await requirePermission("can_edit_menu");
+  const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
   const outputQty = fdNum(fd, "outputQty");
-  if (!nameEn) throw new Error("ინგლისური სახელი სავალდებულოა");
-  if (outputQty === null || outputQty <= 0) throw new Error("გამოსავალი ნულზე მეტი უნდა იყოს");
+  if (!nameEn) throw new Error(t("The English name is required"));
+  if (outputQty === null || outputQty <= 0) throw new Error(t("Yield must be greater than zero"));
 
   await db.recipe.update({
     where: { id },

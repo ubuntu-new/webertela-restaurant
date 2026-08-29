@@ -4,19 +4,21 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
+import { tr } from "@/lib/admin-i18n";
 import { fdNum, fdStr } from "@/lib/admin-utils";
 
 /** ახალი წესი — ან პროდუქტზე, ან ტოპინგზე. */
 export async function addRule(fd: FormData) {
   const s = await requirePermission("can_edit_menu");
+  const t = await tr();
 
   const owner = fdStr(fd, "owner"); // "product:<id>" | "topping:<id>"
   const itemId = fdStr(fd, "itemId");
   const qty = fdNum(fd, "qty");
   const sizeKey = fdStr(fd, "sizeKey") || null;
 
-  if (!owner || !itemId) throw new Error("აირჩიე პოზიცია და საწყობის ერთეული");
-  if (qty === null || qty <= 0) throw new Error("რაოდენობა ნულზე მეტი უნდა იყოს");
+  if (!owner || !itemId) throw new Error(t("Pick a menu item and a stock item"));
+  if (qty === null || qty <= 0) throw new Error(t("Quantity must be greater than zero"));
 
   const [kind, id] = owner.split(":");
   const productId = kind === "product" ? id : null;

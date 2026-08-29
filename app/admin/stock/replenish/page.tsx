@@ -3,11 +3,13 @@ import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
 import { suggestReplenishment } from "@/lib/replenish";
+import { tr } from "@/lib/admin-i18n";
 import { createTransfer } from "../transfers/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReplenishPage() {
+  const tx = await tr();
   const { warehouse, needs, warehouseLow, shortages } = await suggestReplenishment();
 
   const openTransfers = await db.transfer.findMany({
@@ -19,26 +21,27 @@ export default async function ReplenishPage() {
     <>
       <div className="admin-head">
         <div>
-          <h1>შევსების წინადადებები</h1>
+          <h1>{tx("Replenishment suggestions")}</h1>
           <p>
-            {needs.length} ფილიალს სჭირდება შევსება
-            {warehouseLow.length > 0 && ` · საწარმოში ${warehouseLow.length} ერთეული ზღვარზეა`}
+            {needs.length} {tx("branches need a top-up")}
+            {warehouseLow.length > 0 &&
+              ` · ${tx("at the warehouse")} ${warehouseLow.length} ${tx("items are low")}`}
           </p>
         </div>
         <Link className="btn btn-ghost" href="/admin/stock/transfers">
-          გადატანები
+          {tx("Transfers")}
         </Link>
       </div>
 
       {/* ── საწყობი ვერ დააკმაყოფილებს ── */}
       {shortages.length > 0 && (
         <div className="alert alert-error">
-          <b>საწარმოს ნაშთი არ ჰყოფნის ყველა მოთხოვნას:</b>
+          <b>{tx("The warehouse does not have enough to cover every request:")}</b>
           <ul style={{ margin: "8px 0 0", paddingLeft: 20 }}>
             {shortages.map((s) => (
               <li key={s.itemId}>
-                {i18nText(s.name)} — საჭიროა {s.total} {s.unit}, აქვს {s.have} {s.unit} (აკლია{" "}
-                <b>{s.gap}</b>)
+                {i18nText(s.name)} — {tx("need")} {s.total} {s.unit}, {tx("have")} {s.have} {s.unit}{" "}
+                ({tx("short")} <b>{s.gap}</b>)
               </li>
             ))}
           </ul>
@@ -47,17 +50,17 @@ export default async function ReplenishPage() {
 
       {warehouseLow.length > 0 && (
         <div className="admin-panel">
-          <h2>⭐ საწარმო თვითონ საჭიროებს შევსებას</h2>
+          <h2>⭐ {tx("The warehouse itself needs a top-up")}</h2>
           <p className="hint" style={{ marginTop: -8, marginBottom: 12 }}>
-            ეს მიმწოდებლისგან შესყიდვის სიგნალია — ფილიალები ამას ვერ დააკმაყოფილებენ.
+            {tx("This is a signal to buy from the supplier — the branches cannot cover it.")}
           </p>
           <table className="admin-table">
             <thead>
               <tr>
-                <th>ერთეული</th>
-                <th style={{ width: 120 }}>ნაშთი</th>
-                <th style={{ width: 120 }}>მინიმუმი</th>
-                <th style={{ width: 140 }}>შესასყიდი</th>
+                <th>{tx("Item")}</th>
+                <th style={{ width: 120 }}>{tx("On hand")}</th>
+                <th style={{ width: 120 }}>{tx("Min")}</th>
+                <th style={{ width: 140 }}>{tx("To buy")}</th>
               </tr>
             </thead>
             <tbody>
@@ -85,11 +88,11 @@ export default async function ReplenishPage() {
       {needs.length === 0 ? (
         <div className="admin-panel">
           <p className="hint" style={{ margin: 0 }}>
-            ყველა ფილიალი მინიმუმზე მაღლაა. წინადადება არ არის.
+            {tx("Every branch is above its minimum. Nothing to suggest.")}
           </p>
           <p className="hint" style={{ marginTop: 8 }}>
-            თუ ცარიელია მაშინაც, როცა მარაგი ცოტაა — შეამოწმე, დაყენებული გაქვს თუ არა
-            <b> მინიმუმი და სამიზნე</b> ერთეულის გვერდზე.
+            {tx("If this stays empty while stock looks thin — check whether you have set a")}
+            <b> {tx("minimum and target")}</b> {tx("on the item page.")}
           </p>
         </div>
       ) : (
@@ -106,24 +109,25 @@ export default async function ReplenishPage() {
 
               {open.length > 0 && (
                 <div className="alert" style={{ background: "#fdf3d6", color: "#8a6a12" }}>
-                  ამ ფილიალს უკვე აქვს მიმდინარე გადატანა:{" "}
-                  {open.map((t) => `#${t.no}`).join(", ")} — ჯერ ის შეამოწმე, რომ ორჯერ არ გაიგზავნოს.
+                  {tx("This branch already has a transfer in flight:")}{" "}
+                  {open.map((t) => `#${t.no}`).join(", ")} —{" "}
+                  {tx("check that one first so nothing goes out twice.")}
                 </div>
               )}
 
               <input type="hidden" name="fromLocationId" value={warehouse?.id ?? ""} />
               <input type="hidden" name="toLocationId" value={n.locationId} />
-              <input type="hidden" name="note" value="ავტომატური წინადადება (მინიმუმზე ჩამოსვლა)" />
+              <input type="hidden" name="note" value={tx("Auto suggestion (dropped to minimum)")} />
 
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>ერთეული</th>
-                    <th style={{ width: 110 }}>ნაშთი</th>
-                    <th style={{ width: 100 }}>მინიმუმი</th>
-                    <th style={{ width: 100 }}>სამიზნე</th>
-                    <th style={{ width: 130 }}>საწარმოშია</th>
-                    <th style={{ width: 150 }}>მოთხოვნა</th>
+                    <th>{tx("Item")}</th>
+                    <th style={{ width: 110 }}>{tx("On hand")}</th>
+                    <th style={{ width: 100 }}>{tx("Min")}</th>
+                    <th style={{ width: 100 }}>{tx("Target")}</th>
+                    <th style={{ width: 130 }}>{tx("At the warehouse")}</th>
+                    <th style={{ width: 150 }}>{tx("Request")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -173,7 +177,7 @@ export default async function ReplenishPage() {
 
               <div className="form-actions" style={{ marginTop: 14 }}>
                 <button className="btn" type="submit" disabled={!warehouse}>
-                  მოთხოვნის შექმნა
+                  {tx("Create request")}
                 </button>
               </div>
             </form>
@@ -182,19 +186,22 @@ export default async function ReplenishPage() {
       )}
 
       <div className="admin-panel">
-        <h2>როგორ ითვლება</h2>
+        <h2>{tx("How it is worked out")}</h2>
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, lineHeight: 1.8, color: "var(--a-muted)" }}>
           <li>
-            <b>ნაშთი ≤ მინიმუმი</b> → წინადადება <b>სამიზნე − ნაშთი</b>. რიცხვი წინასწარ
-            შევსებულია, მაგრამ შეგიძლია შეცვალო.
+            <b>{tx("On hand ≤ min")}</b> → {tx("suggestion")} <b>{tx("target − on hand")}</b>.{" "}
+            {tx("The number is filled in for you, but you can change it.")}
           </li>
           <li>
-            „საწარმოშია“ სვეტი ჯერ <b>დამტკიცებამდე</b> გიჩვენებს, ჰყოფნის თუ არა — და არა
-            მაშინ, როცა მანქანა უკვე გაგზავნილია.
+            {tx("The “at the warehouse” column tells you whether there is enough")}{" "}
+            <b>{tx("before you approve")}</b>{" "}
+            {tx("— not once the truck has already gone.")}
           </li>
           <li>
-            ⭐ საწარმოს საკუთარი მინიმუმი ცალკე მოწმდება — თორემ ხუთივე ფილიალი შეავსებს და
-            საწყობი ჩუმად დაიცლება.
+            ⭐{" "}
+            {tx(
+              "The warehouse has its own minimum, checked separately — otherwise all five branches get topped up and the warehouse quietly runs dry.",
+            )}
           </li>
         </ul>
       </div>

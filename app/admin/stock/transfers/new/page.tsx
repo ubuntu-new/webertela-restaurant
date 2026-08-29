@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
+import { tr } from "@/lib/admin-i18n";
 import { createTransfer } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export default async function NewTransfer({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const sp = await searchParams;
+  const t = await tr();
 
   const [locations, items, levels] = await Promise.all([
     db.stockLocation.findMany({ where: { deletedAt: null, active: true }, orderBy: { type: "asc" } }),
@@ -36,27 +38,28 @@ export default async function NewTransfer({
     <>
       <div className="admin-head">
         <div>
-          <h1>ახალი გადატანა</h1>
-          <p>შეავსე მხოლოდ ის პოზიციები, რომლებიც გადააქვს</p>
+          <h1>{t("New transfer")}</h1>
+          <p>{t("Fill in only the lines you are actually moving")}</p>
         </div>
         <Link className="btn btn-ghost" href="/admin/stock/transfers">
-          ← სია
+          {t("Back to list")}
         </Link>
       </div>
 
       {items.length === 0 ? (
         <div className="admin-panel">
           <p className="hint" style={{ margin: 0 }}>
-            საწყობის ერთეული ჯერ არ არის. <Link href="/admin/stock/items/new">დაამატე ჯერ ისინი →</Link>
+            {t("No stock items yet.")}{" "}
+            <Link href="/admin/stock/items/new">{t("Add them first →")}</Link>
           </p>
         </div>
       ) : (
         <form className="admin-form" action={createTransfer} style={{ maxWidth: "none" }}>
           <div className="admin-panel">
-            <h2>საიდან და სად</h2>
+            <h2>{t("From and to")}</h2>
             <div className="field-row">
               <div className="field">
-                <label htmlFor="fromLocationId">საიდან</label>
+                <label htmlFor="fromLocationId">{t("From")}</label>
                 <select id="fromLocationId" name="fromLocationId" defaultValue={fromId} required>
                   {locations.map((l) => (
                     <option key={l.id} value={l.id}>
@@ -67,9 +70,9 @@ export default async function NewTransfer({
                 </select>
               </div>
               <div className="field">
-                <label htmlFor="toLocationId">სად</label>
+                <label htmlFor="toLocationId">{t("To")}</label>
                 <select id="toLocationId" name="toLocationId" defaultValue={sp.to ?? ""} required>
-                  <option value="">— აირჩიე —</option>
+                  <option value="">{t("— pick one —")}</option>
                   {locations.map((l) => (
                     <option key={l.id} value={l.id}>
                       {i18nText(l.name)}
@@ -79,23 +82,23 @@ export default async function NewTransfer({
               </div>
             </div>
             <div className="field">
-              <label htmlFor="note">შენიშვნა</label>
-              <input id="note" name="note" type="text" placeholder="მიზეზი, ვადა…" />
+              <label htmlFor="note">{t("Note")}</label>
+              <input id="note" name="note" type="text" placeholder={t("Reason, deadline…")} />
             </div>
           </div>
 
           <div className="admin-panel">
-            <h2>პოზიციები</h2>
+            <h2>{t("Lines")}</h2>
             <p className="hint" style={{ marginTop: -8, marginBottom: 14 }}>
-              „ნაშთი“ არჩეული წყაროს მიხედვითაა ნაჩვენები გვერდის ჩატვირთვისას.
+              {t("“On hand” is shown for the source that was selected when the page loaded.")}
             </p>
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>ერთეული</th>
-                  <th style={{ width: 100 }}>ჯგუფი</th>
-                  <th style={{ width: 140 }}>ნაშთი წყაროში</th>
-                  <th style={{ width: 160 }}>რაოდენობა</th>
+                  <th>{t("Item")}</th>
+                  <th style={{ width: 100 }}>{t("Group")}</th>
+                  <th style={{ width: 140 }}>{t("On hand at source")}</th>
+                  <th style={{ width: 160 }}>{t("Quantity")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -126,10 +129,10 @@ export default async function NewTransfer({
 
           <div className="form-actions">
             <button className="btn" type="submit">
-              მოთხოვნის შექმნა
+              {t("Create request")}
             </button>
             <Link className="btn btn-ghost" href="/admin/stock/transfers">
-              გაუქმება
+              {t("Cancel")}
             </Link>
           </div>
         </form>

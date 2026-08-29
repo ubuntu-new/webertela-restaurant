@@ -2,9 +2,9 @@
  *  თვითნებურ ექსპორტს არ უშვებს. */
 
 export const PSTATUS: Record<string, string> = {
-  in_progress: "მიმდინარე",
-  done: "დასრულებული",
-  cancelled: "გაუქმებული",
+  in_progress: "In progress",
+  done: "Done",
+  cancelled: "Cancelled",
 };
 
 export const PTONE: Record<string, React.CSSProperties> = {
