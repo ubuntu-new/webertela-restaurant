@@ -59,7 +59,12 @@ let totalWritten = 0;
 let totalDupes = 0;
 
 for (const model of MODELS) {
-  const rows = await db[model].findMany({ select: { id: true, name: true, nameKey: true } });
+  // Deleted rows are backfilled too — a key is what lets an undelete be matched
+  // against what is already there — but they are not *counted* as duplicates
+  // below. Every model here soft-deletes, so the field is always present.
+  const rows = await db[model].findMany({
+    select: { id: true, name: true, nameKey: true, deletedAt: true },
+  });
 
   let written = 0;
   const seen = new Map(); // key → first row that had it
@@ -78,7 +83,13 @@ for (const model of MODELS) {
       written++;
     }
 
-    if (key) {
+    // Only live rows can duplicate each other. Counting deleted ones reports a
+    // problem that has already been solved: every successful merge soft-deletes
+    // the row it absorbed, so the tidier the database gets, the more duplicates
+    // this claimed to find. It said "1 existing duplicates found" on a demo
+    // whose duplicates screen was empty, which is the kind of contradiction
+    // that teaches an operator to stop reading the output.
+    if (key && r.deletedAt === null) {
       const first = seen.get(key);
       if (first) {
         totalDupes++;
