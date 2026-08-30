@@ -192,7 +192,7 @@ export default async function NewOrderPage({
             )}
             <li>Stock is deducted automatically, exactly as for a website order.</li>
             <li>
-              Extra toppings can't be added here yet. For a customised pizza, add it and note the
+              Extra toppings can’t be added here yet. For a customised pizza, add it and note the
               changes in the order note.
             </li>
           </ul>

@@ -125,7 +125,6 @@ export default function PosTerminal({
   const [usePoints, setUsePoints] = useState(false);
   const [suggestions, setSuggestions] = useState<Customer[]>([]);
   const [showSug, setShowSug] = useState(false);
-  const [showCustomer, setShowCustomer] = useState(false);
   const [paying, setPaying] = useState(false);
   const [tendered, setTendered] = useState("");
   const [sending, setSending] = useState(false);
@@ -737,7 +736,7 @@ export default function PosTerminal({
         <aside className="pos-cart">
           <div className="pos-seg">
             <button type="button" className={fulfillment === "pickup" ? "on" : ""} onClick={() => setFulfillment("pickup")}>Pickup</button>
-            <button type="button" className={fulfillment === "delivery" ? "on" : ""} onClick={() => { setFulfillment("delivery"); setShowCustomer(true); }}>Delivery</button>
+            <button type="button" className={fulfillment === "delivery" ? "on" : ""} onClick={() => setFulfillment("delivery")}>Delivery</button>
           </div>
 
           {(true) && (

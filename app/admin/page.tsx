@@ -8,7 +8,6 @@ import { advise } from "@/lib/advice";
 import { fmt } from "@/lib/format";
 import SetupChecklist from "./_components/SetupChecklist";
 import Advice from "./_components/Advice";
-import HelpNote from "./_components/HelpNote";
 import {
   periodOf,
   coreMetrics,
@@ -379,7 +378,7 @@ export default async function Dashboard({
                   <tr>
                     <td colSpan={3}>
                       <span className="hint">
-                        Net profit is hidden — rent and utilities haven't been entered.{" "}
+                        Net profit is hidden — rent and utilities haven’t been entered.{" "}
                         <Link href="/admin/settings">Add them in Settings →</Link>
                       </span>
                     </td>
@@ -554,7 +553,7 @@ export default async function Dashboard({
             <b>Food cost 28–33%</b> — the restaurant norm. Higher means prices are low, portions are large, or something is being lost.
           </li>
           <li>
-            <b>Prime cost ≤ 65%</b> — ingredients plus labour. This single number says more about a restaurant's health than revenue does.
+            <b>Prime cost ≤ 65%</b> — ingredients plus labour. This single number says more about a restaurant’s health than revenue does.
           </li>
           <li>
             <b>Stock count variance</b> — what quietly eats the profit. Everyone watches revenue; almost nobody watches this.

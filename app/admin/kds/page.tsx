@@ -51,7 +51,7 @@ export default async function KdsPage({
             </li>
             <li>
               <b>Paper tickets keep printing as they do now.</b> This screen is added alongside,
-              not instead — if the kitchen doesn't take to it, nothing is lost.
+              not instead — if the kitchen doesn’t take to it, nothing is lost.
             </li>
             <li>
               The clock on each order turns amber at 10 minutes and red at 20. That number is the
