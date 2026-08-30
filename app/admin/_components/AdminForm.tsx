@@ -38,6 +38,8 @@ export default function AdminForm({
   id,
   style,
   hideSubmit = false,
+  submitDisabled = false,
+  disabledReason,
 }: {
   action: (state: ActionState, fd: FormData) => Promise<ActionState>;
   children: React.ReactNode;
@@ -50,6 +52,11 @@ export default function AdminForm({
   /** For a form whose contents can legitimately be empty — a Save button with
    *  nothing behind it teaches people that buttons do not always work. */
   hideSubmit?: boolean;
+  /** The form cannot be submitted for a reason outside it — no warehouse
+   *  exists, say. Always pair it with `disabledReason`: a greyed-out button
+   *  with no explanation is the dead end this whole wave is about. */
+  submitDisabled?: boolean;
+  disabledReason?: string;
 }) {
   const t = useT();
   const [state, formAction, pending] = useActionState(action, null);
@@ -165,9 +172,10 @@ export default function AdminForm({
 
       {!hideSubmit && (
         <div className="form-actions">
-          <button className="btn" type="submit" disabled={pending}>
+          <button className="btn" type="submit" disabled={pending || submitDisabled}>
             {pending ? (pendingLabel ?? t("Saving…")) : submitLabel}
           </button>
+          {submitDisabled && disabledReason && <span className="hint">{disabledReason}</span>}
           {cancelHref && (
             <Link className="btn btn-ghost" href={cancelHref}>
               {t("Cancel")}

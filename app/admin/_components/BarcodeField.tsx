@@ -176,7 +176,11 @@ export default function BarcodeField({
     return () => clearTimeout(timer);
   }, [stored, model, excludeId, defaultValue]);
 
-  const showProblem = value.trim().length > 0 && parsed && !parsed.ok;
+  // The message itself rather than a flag, so the JSX below has nothing left to
+  // check. TypeScript would follow the flag version too — it narrows through an
+  // aliased condition — but a value that is either a sentence or null is one
+  // fewer thing for a reader to hold.
+  const problem = value.trim().length > 0 && parsed && !parsed.ok ? parsed.problem : null;
 
   return (
     <div className="field">
@@ -225,7 +229,7 @@ export default function BarcodeField({
 
       {scanError && <div className="dup-live">{scanError}</div>}
 
-      {showProblem && <div className="dup-live">{parsed.problem}</div>}
+      {problem && <div className="dup-live">{problem}</div>}
 
       {parsed?.ok && level === "case" && (
         <div className="dup-live">

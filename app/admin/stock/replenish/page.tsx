@@ -5,6 +5,7 @@ import { fmtQty } from "@/lib/stock";
 import { suggestReplenishment } from "@/lib/replenish";
 import { tr } from "@/lib/admin-i18n";
 import { createTransfer } from "../transfers/actions";
+import AdminForm from "@/app/admin/_components/AdminForm";
 
 export const dynamic = "force-dynamic";
 
@@ -100,10 +101,14 @@ export default async function ReplenishPage() {
           const open = openTransfers.filter((t) => t.toLocationId === n.locationId);
 
           return (
-            <form
+            <AdminForm
               key={n.locationId}
               className="admin-panel"
               action={createTransfer}
+              submitLabel={tx("Create request")}
+              pendingLabel={tx("Creating…")}
+              submitDisabled={!warehouse}
+              disabledReason={tx("There is no warehouse location yet — a transfer needs somewhere to come from.")}
             >
               <h2>{i18nText(n.locationName)}</h2>
 
@@ -175,12 +180,7 @@ export default async function ReplenishPage() {
                 </tbody>
               </table>
 
-              <div className="form-actions" style={{ marginTop: 14 }}>
-                <button className="btn" type="submit" disabled={!warehouse}>
-                  {tx("Create request")}
-                </button>
-              </div>
-            </form>
+            </AdminForm>
           );
         })
       )}

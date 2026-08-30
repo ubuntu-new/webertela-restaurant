@@ -25,7 +25,12 @@ export async function setOrderStatus(id: string, status: string) {
 
   // A button, not a form — there is no state to return to, so the refusal
   // travels in the URL and the order page shows it.
-  const fail = (msg: string) => failTo(`/admin/orders/${id}`, msg);
+  // The `: never` is not decoration. TypeScript only treats a call as
+  // terminating control flow when the thing being called carries an explicit
+  // never return type — an inferred one is not enough. Without it, `order` is
+  // still possibly null on the next line and the build stops, which is exactly
+  // what happened.
+  const fail = (msg: string): never => failTo(`/admin/orders/${id}`, msg);
 
   if (!(FLOW as readonly string[]).includes(status)) fail(t("Unknown status"));
 
