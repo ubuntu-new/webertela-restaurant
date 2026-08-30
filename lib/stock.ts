@@ -1,5 +1,6 @@
 import "server-only";
-import { Prisma } from "@prisma/client";
+import { Prisma, type StockUnit } from "@prisma/client";
+import { unitLabel } from "@/lib/units";
 import { db } from "@/lib/db";
 
 /**
@@ -134,9 +135,19 @@ export async function recomputeLevel(locationId: string, itemId: string) {
   return sum;
 }
 
-/** ერთეულის ჩვენება — გრამები/მილილიტრები დიდ რიცხვებში იკარგება. */
+/**
+ * ერთეულის ჩვენება — გრამები/მილილიტრები დიდ რიცხვებში იკარგება.
+ *
+ * The labels used to be a hard-coded Georgian list of five: გ, კგ, მლ, ლ, ცალი.
+ * That put "6.062 კგ" on the stock screen of an English demo — the very screen a
+ * prospect is shown — and left the five imperial units added in wave 1 with no
+ * label at all, so oz and lb printed as raw enum values.
+ *
+ * The symbols come from lib/units.ts now, which knows all ten. They are not
+ * English so much as international: kg is kg in Tbilisi too, and a Georgian
+ * reading "kg" loses nothing, while an American reading "კგ" loses everything.
+ */
 export function fmtQty(qty: number, unit: string): string {
   const n = Math.round(qty * 1000) / 1000;
-  const label: Record<string, string> = { g: "გ", kg: "კგ", ml: "მლ", l: "ლ", pcs: "ცალი" };
-  return `${n} ${label[unit] ?? unit}`;
+  return `${n} ${unitLabel(unit as StockUnit)}`;
 }
