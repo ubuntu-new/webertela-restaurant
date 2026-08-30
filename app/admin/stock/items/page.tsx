@@ -67,6 +67,23 @@ export default async function StockItemsPage({
         </div>
       )}
 
+      {/* An empty stock list is the wall every new restaurant hits. Meeting it
+          with an explanation of what a stock item is helps nobody; meeting it
+          with forty of them, already filled in, is the whole point. */}
+      {items.length === 0 && (
+        <div className="starter-nudge">
+          <b>{t("Start from a kind of place instead of an empty list")}</b>
+          <p>
+            {t(
+              "Pizzeria, burgers, coffee bar — the ingredients, units and portions every kitchen of that kind already has, filled in for you. Your menu and prices stay yours, and all of it can be taken back out.",
+            )}
+          </p>
+          <Link className="btn" href="/admin/setup/starter">
+            {t("Choose a kind of place")}
+          </Link>
+        </div>
+      )}
+
       <div className="admin-panel">
         <p className="hint" style={{ marginTop: 0 }}>
           {t("This is what you keep — not what you sell. A pizza is not here; mozzarella, dough and flour are.")}

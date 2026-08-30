@@ -489,3 +489,48 @@
   width: 100%; max-height: 240px; margin-top: 9px;
   border-radius: 10px; background: #000; object-fit: cover;
 }
+
+/* ── Starter packs ──────────────────────────────────────────────────────────
+   The first screen of an empty restaurant. Cards rather than a dropdown,
+   because the question is "which of these is my place" and that is answered by
+   looking, not by reading a list of options. */
+.grid-packs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 820px) { .grid-packs { grid-template-columns: 1fr; } }
+
+.pack-card {
+  display: block; text-decoration: none; color: inherit;
+  background: var(--a-panel); border: 1px solid var(--a-line);
+  border-radius: var(--a-radius); padding: 18px 18px 15px;
+  transition: border-color .12s, box-shadow .12s;
+}
+.pack-card:hover { border-color: var(--a-orange); }
+.pack-card-on {
+  border-color: var(--a-orange);
+  box-shadow: inset 0 0 0 1px var(--a-orange);
+}
+.pack-emoji { font-size: 30px; line-height: 1; margin-bottom: 8px; }
+.pack-card b { display: block; font-size: 16.5px; margin-bottom: 4px; }
+.pack-card p { margin: 0 0 8px; font-size: 13.5px; color: var(--a-muted); line-height: 1.55; }
+
+/* The full list, shown before the button rather than summarised — seeing the
+   forty rows is what settles the hesitation, not a sentence about them. */
+.pack-list { list-style: none; margin: 6px 0 0; padding: 0; font-size: 13.5px; }
+.pack-list li { padding: 5px 0; border-bottom: 1px solid var(--a-line); line-height: 1.5; }
+.pack-list li:last-child { border-bottom: 0; }
+.pack-list li span { color: var(--a-muted); }
+.pack-list li em { font-style: normal; color: var(--a-ok); font-size: 12.5px; }
+.pack-list li.pack-have b { color: var(--a-muted); font-weight: 500; }
+
+/* The nudge on an empty stock list. */
+.starter-nudge {
+  background: linear-gradient(180deg, #fffaf0, #fff);
+  border: 1px solid #ecd9a0; border-left: 3px solid var(--a-orange);
+  border-radius: var(--a-radius); padding: 17px 19px; margin-bottom: 18px;
+}
+.starter-nudge b { display: block; font-size: 16px; margin-bottom: 4px; }
+.starter-nudge p { margin: 0 0 12px; font-size: 14px; color: var(--a-muted); line-height: 1.6; }
+
+/* Two columns that become one on a narrow screen. Used where a panel holds two
+   parallel lists — the ingredients and the toppings a starter pack brings. */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 820px) { .grid-2 { grid-template-columns: 1fr; } }

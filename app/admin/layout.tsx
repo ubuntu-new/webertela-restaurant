@@ -31,6 +31,7 @@ const NAV: { href: string; label: string }[] = [
   { href: "/admin/stock/costing", label: "Costing" },
   { href: "/admin/stock/consumption", label: "Consumption rules" },
   { href: "/admin/suppliers", label: "Suppliers" },
+  { href: "/admin/setup/starter", label: "Starter packs" },
   { href: "/admin/branches", label: "Branches" },
   { href: "/admin/employees", label: "Staff" },
   { href: "/admin/discounts", label: "Discounts" },

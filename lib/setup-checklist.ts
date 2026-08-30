@@ -72,18 +72,29 @@ export async function setupChecklist(): Promise<{ steps: Step[]; done: number; t
       id: "stockItems",
       title: "Stock items exist",
       why: "What you STORE (mozzarella in kg), not what you sell (a pizza).",
-      href: "/admin/stock/items",
+      // With nothing there, the useful destination is not the empty list — it
+      // is the screen that fills it. A step that sends somebody to a blank form
+      // has told them what is missing and left them to type it.
+      href: stockItems > 0 ? "/admin/stock/items" : "/admin/setup/starter",
       done: stockItems > 0,
-      detail: stockItems > 0 ? `${stockItems} items` : "Nothing to track yet",
+      detail:
+        stockItems > 0
+          ? `${stockItems} items`
+          : "Nothing yet — a starter pack fills this in about a minute",
       blocking: true,
     },
     {
       id: "consumption",
       title: "Consumption rules are filled in",
       why: "Without these the system can't know what a sale uses — cost stays at zero.",
-      href: "/admin/stock/consumption/bulk",
+      href: stockItems === 0 ? "/admin/setup/starter" : "/admin/stock/consumption/bulk",
       done: consumption > 0,
-      detail: consumption > 0 ? `${consumption} rules` : "Cost cannot be calculated",
+      detail:
+        consumption > 0
+          ? `${consumption} rules`
+          : stockItems === 0
+            ? "Start with a starter pack — it brings the topping portions with it"
+            : "Cost cannot be calculated",
       blocking: true,
     },
     {
