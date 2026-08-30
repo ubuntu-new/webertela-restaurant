@@ -213,6 +213,57 @@ export default function PosTerminal({
     }
   }, [menuProp]);
 
+  /**
+   * Confirm a locally restored session the moment the connection allows it.
+   *
+   * The terminal restores its shift from the device when there is no server to
+   * ask. Usually right; occasionally not — the cookie can have been cleared, or
+   * the employee deactivated mid-shift. Without this the first proof arrives
+   * when a queued order comes back 401, by which time the cashier has already
+   * taken the money and handed over the food.
+   *
+   * GET /api/pos/session is the cheapest possible answer: it returns the
+   * session the cookie actually carries, or null. Only a definitive null signs
+   * the terminal out — a failed request means the connection is still bad, not
+   * that the shift is over.
+   */
+  useEffect(() => {
+    if (!online || !signedIn || !posId) return;
+    let gone = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/pos/session", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (gone) return;
+
+        // A session for a different terminal is as wrong as none: this device
+        // would be filing its sales under someone else's till.
+        const valid = data?.session && data.session.posId === posId;
+        if (!valid) {
+          try { localStorage.removeItem(SESSION_KEY); } catch { /* already gone */ }
+          forgetPin();
+          setSignedIn(false);
+          setError(
+            queue.length > 0
+              ? "The shift ended while this till was offline. Sign in to send the orders still stored here."
+              : "The shift ended while this till was offline. Please sign in again.",
+          );
+        }
+      } catch {
+        /* still unreachable — believe the device until the server can answer */
+      }
+    })();
+
+    return () => {
+      gone = true;
+    };
+    // Deliberately not keyed on `queue`: this is a check that runs when the
+    // connection or the shift changes, not on every sale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online, signedIn, posId]);
+
   // ── boot ──
   useEffect(() => {
     try {
