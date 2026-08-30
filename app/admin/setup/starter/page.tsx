@@ -94,26 +94,49 @@ export default async function StarterPacksPage({
             </div>
           )}
 
-          <p style={{ fontSize: 14.5 }}>
-            <b>
-              {plan.newItems} {t("ingredients")}
-            </b>
-            {plan.newItems !== plan.items.length && (
-              <span className="hint">
-                {" "}
-                ({plan.items.length - plan.newItems} {t("you already have, left alone")})
-              </span>
-            )}
-            {" · "}
-            <b>
-              {plan.newToppings} {t("toppings")}
-            </b>
-            {" · "}
-            <b>
-              {plan.rules} {t("portions")}
-            </b>
-            <span className="hint"> ({t("how much of each ingredient a topping uses, per size")})</span>
-          </p>
+          {plan.newItems + plan.newToppings > 0 ? (
+            <p style={{ fontSize: 14.5 }}>
+              <b>
+                {plan.newItems} {t("ingredients")}
+              </b>
+              {" · "}
+              <b>
+                {plan.newToppings} {t("toppings")}
+              </b>
+              {" · "}
+              <b>
+                {plan.rules} {t("portions")}
+              </b>
+              <span className="hint"> {t("would be added")}</span>
+              {plan.preExistingItems + plan.preExistingToppings > 0 && (
+                <span className="hint">
+                  {" · "}
+                  {plan.preExistingItems + plan.preExistingToppings} {t("you already had, left alone")}
+                </span>
+              )}
+            </p>
+          ) : (
+            <p style={{ fontSize: 14.5 }}>
+              {/* After applying, saying "you already have this" about a row this
+                  pack created ten seconds ago is true and useless. The two are
+                  counted separately so the sentence says what the button did. */}
+              {plan.addedItems + plan.addedToppings > 0 && (
+                <>
+                  <b>
+                    {plan.addedItems} {t("ingredients")} {t("and")} {plan.addedToppings} {t("toppings")}
+                  </b>{" "}
+                  {t("came from this pack")}
+                  {plan.preExistingItems + plan.preExistingToppings > 0 && ". "}
+                </>
+              )}
+              {plan.preExistingItems + plan.preExistingToppings > 0 && (
+                <span className="hint">
+                  {plan.preExistingItems + plan.preExistingToppings}{" "}
+                  {t("were already yours before you used it.")}
+                </span>
+              )}
+            </p>
+          )}
 
           <div className="grid-2" style={{ alignItems: "start" }}>
             <div>
@@ -123,7 +146,11 @@ export default async function StarterPacksPage({
                   <li key={i.name} className={i.exists ? "pack-have" : undefined}>
                     <b>{i.name}</b>
                     <span> · {i.detail}</span>
-                    {i.exists && <em> — {t("you already have this")}</em>}
+                    {i.fromPack ? (
+                      <em className="pack-added"> — {t("added by this pack")}</em>
+                    ) : (
+                      i.exists && <em> — {t("you already had this")}</em>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -136,7 +163,11 @@ export default async function StarterPacksPage({
                   <li key={tp.name} className={tp.exists ? "pack-have" : undefined}>
                     <b>{tp.name}</b>
                     <span> · {tp.detail}</span>
-                    {tp.exists && <em> — {t("you already have this")}</em>}
+                    {tp.fromPack ? (
+                      <em className="pack-added"> — {t("added by this pack")}</em>
+                    ) : (
+                      tp.exists && <em> — {t("you already had this")}</em>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -172,7 +203,7 @@ export default async function StarterPacksPage({
           {plan.newItems === 0 && plan.newToppings === 0 ? (
             <p style={{ margin: "14px 0 0", fontSize: 14.5 }}>
               <b>{t("There is nothing left to add.")}</b>{" "}
-              {t("You already have everything in this pack.")}
+              {t("Everything in this pack is now in your kitchen.")}
             </p>
           ) : (
             <AdminForm

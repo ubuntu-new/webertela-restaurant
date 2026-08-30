@@ -534,3 +534,8 @@
    parallel lists — the ingredients and the toppings a starter pack brings. */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 @media (max-width: 820px) { .grid-2 { grid-template-columns: 1fr; } }
+
+/* A row this pack put there, as opposed to one that was already the
+   restaurant's. Two different facts that read identically until they are told
+   apart. */
+.pack-list li em.pack-added { color: var(--a-orange); }

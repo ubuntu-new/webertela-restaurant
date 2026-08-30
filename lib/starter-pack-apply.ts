@@ -38,6 +38,15 @@ export interface PackPlanRow {
   detail: string;
   /** Already present under this name, so the pack will leave it alone. */
   exists: boolean;
+  /**
+   * This row exists because this pack created it.
+   *
+   * Without the distinction the screen says "you already have this" about a row
+   * the pack added ten seconds earlier — true in the narrowest sense and wrong
+   * in every way that matters, because it tells somebody they had something they
+   * did not, and hides what the button they pressed actually did.
+   */
+  fromPack: boolean;
 }
 
 export interface PackPlan {
@@ -48,6 +57,10 @@ export interface PackPlan {
   rules: number;
   newItems: number;
   newToppings: number;
+  addedItems: number;
+  addedToppings: number;
+  preExistingItems: number;
+  preExistingToppings: number;
   /** Applied before, and still undoable. */
   appliedAt: Date | null;
   canUndo: boolean;
@@ -60,13 +73,24 @@ export async function planPack(packId: string): Promise<PackPlan | null> {
   if (!pack) return null;
 
   const [stockItems, toppings, applied] = await Promise.all([
-    db.stockItem.findMany({ where: { deletedAt: null }, select: { nameKey: true } }),
-    db.topping.findMany({ where: { deletedAt: null }, select: { nameKey: true } }),
+    db.stockItem.findMany({ where: { deletedAt: null }, select: { id: true, nameKey: true } }),
+    db.topping.findMany({ where: { deletedAt: null }, select: { id: true, nameKey: true } }),
     lastApplication(packId),
   ]);
 
   const haveItems = new Set(stockItems.map((i) => i.nameKey).filter(Boolean));
   const haveToppings = new Set(toppings.map((t) => t.nameKey).filter(Boolean));
+
+  // Which of the rows now present were put there by this pack, by id rather
+  // than by name — a name can be edited afterwards and the row is still ours.
+  const madeItemIds = new Set(applied?.stockItemIds ?? []);
+  const madeToppingIds = new Set(applied?.toppingIds ?? []);
+  const madeItemKeys = new Set(
+    stockItems.filter((i) => madeItemIds.has(i.id)).map((i) => i.nameKey).filter(Boolean),
+  );
+  const madeToppingKeys = new Set(
+    toppings.filter((t) => madeToppingIds.has(t.id)).map((t) => t.nameKey).filter(Boolean),
+  );
 
   const items: PackPlanRow[] = pack.items.map((i) => ({
     name: i.name.en,
@@ -78,12 +102,14 @@ export async function planPack(packId: string): Promise<PackPlan | null> {
       .filter(Boolean)
       .join(" · "),
     exists: haveItems.has(nameKey(i.name.en)),
+    fromPack: madeItemKeys.has(nameKey(i.name.en)),
   }));
 
   const tops: PackPlanRow[] = pack.toppings.map((t) => ({
     name: t.name.en,
     detail: t.consumes ? `uses ${t.consumes.item}` : t.category,
     exists: haveToppings.has(nameKey(t.name.en)),
+    fromPack: madeToppingKeys.has(nameKey(t.name.en)),
   }));
 
   const newToppings = tops.filter((t) => !t.exists).length;
@@ -98,6 +124,12 @@ export async function planPack(packId: string): Promise<PackPlan | null> {
     rules: pack.toppings.filter((t) => t.consumes && !haveToppings.has(nameKey(t.name.en))).length * 3,
     newItems: items.filter((i) => !i.exists).length,
     newToppings,
+    /** Rows this pack put there — what the last press of the button did. */
+    addedItems: items.filter((i) => i.fromPack).length,
+    addedToppings: tops.filter((t) => t.fromPack).length,
+    /** Rows that were already the restaurant's before the pack was ever used. */
+    preExistingItems: items.filter((i) => i.exists && !i.fromPack).length,
+    preExistingToppings: tops.filter((t) => t.exists && !t.fromPack).length,
     appliedAt: applied?.at ?? null,
     canUndo: applied ? await undoIsSafe(applied) : false,
     undoBlockedBy: applied ? await undoBlocker(applied) : null,
