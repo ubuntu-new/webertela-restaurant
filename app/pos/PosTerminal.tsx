@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { detailLines, lineColor } from "@/lib/item-detail";
+import { useOfflineShell } from "./use-offline-shell";
+import { canUnlockOffline, forgetPin, matchesPin, rememberPin } from "./local-pin";
 import { makeFmt } from "@/lib/format-shared";
 import type { OrgFormat } from "@/lib/format-shared";
 
@@ -28,6 +30,16 @@ const QUEUE_KEY = "ronnys-pos-queue";
 const TERMINAL_KEY = "ronnys-pos-terminal";
 const COUNTER_KEY = "ronnys-pos-counter";
 const HELD_KEY = "ronnys-pos-held";
+/**
+ * The menu, kept on the device.
+ *
+ * It arrives as a server-rendered prop, which is right while there is a
+ * connection and useless without one. The service worker can serve the last
+ * page it saw, but that page could be days old and nothing on screen would say
+ * so. Storing the menu separately, with the moment it was confirmed, lets the
+ * till both keep working and admit how old what it is showing is.
+ */
+const MENU_KEY = "ronnys-pos-menu";
 
 interface Pizza { id: number; name: string; sizes: [number, number, number]; ings: string[] }
 interface Item { id: string; name: string; price: number; photo?: string }
@@ -89,7 +101,7 @@ const uuid = () =>
 
 export default function PosTerminal({
   session,
-  menu,
+  menu: menuProp,
   branches,
   terminals,
   org,
@@ -137,9 +149,51 @@ export default function PosTerminal({
   const [locked, setLocked] = useState(false);
   const [unlockPin, setUnlockPin] = useState("");
   const [recent, setRecent] = useState<RecentOrder[] | null>(null);
+  const [savedMenu, setSavedMenu] = useState<{ menu: Menu; at: number } | null>(null);
   const [voiding, setVoiding] = useState<RecentOrder | null>(null);
   const [voidPin, setVoidPin] = useState("");
   const [voidReason, setVoidReason] = useState("");
+
+  const shell = useOfflineShell();
+
+  /**
+   * What the till actually sells from: the freshly rendered menu when there is
+   * one, otherwise the last one stored on the device.
+   *
+   * `menuProp` is null when the server could not build a menu — the database is
+   * unreachable, or this is a cached page from a load that already failed. That
+   * used to be a dead screen reading "Menu unavailable", which is the correct
+   * message only if there is genuinely nothing to sell from, and there almost
+   * never is.
+   */
+  const menu = menuProp ?? savedMenu?.menu ?? null;
+
+  /** How old what is on screen might be, in words, or null while it is live. */
+  const menuAge = useMemo(() => {
+    if (menuProp && online) return null;
+    if (!savedMenu) return null;
+    const mins = Math.round((Date.now() - savedMenu.at) / 60000);
+    if (mins < 2) return "just now";
+    if (mins < 60) return `${mins} minutes ago`;
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+    const days = Math.round(hrs / 24);
+    return `${days} day${days === 1 ? "" : "s"} ago`;
+  }, [menuProp, online, savedMenu]);
+
+  // Every load that reaches the server refreshes the stored copy. Writing it on
+  // each render would be wasteful; the menu only changes when the page does.
+  useEffect(() => {
+    if (!menuProp) return;
+    const record = { menu: menuProp, at: Date.now() };
+    setSavedMenu(record);
+    try {
+      localStorage.setItem(MENU_KEY, JSON.stringify(record));
+    } catch {
+      // Storage full or blocked. The till still works right now; it simply will
+      // not survive a reload, which is what the badge in the header reports.
+    }
+  }, [menuProp]);
 
   // ── boot ──
   useEffect(() => {
@@ -151,6 +205,8 @@ export default function PosTerminal({
       if (Array.isArray(q)) setQueue(q);
       const h = JSON.parse(localStorage.getItem(HELD_KEY) ?? "[]");
       if (Array.isArray(h)) setHeld(h);
+      const m = JSON.parse(localStorage.getItem(MENU_KEY) ?? "null");
+      if (m?.menu?.PIZZAS) setSavedMenu(m);
     } catch {
       /* first run */
     }
@@ -278,6 +334,16 @@ export default function PosTerminal({
     };
   }, [signedIn]);
 
+  /**
+   * Reopen a locked terminal.
+   *
+   * Online this asks the server, as it always did. Offline it compares against
+   * the PIN the server accepted when this shift began — see local-pin.ts for
+   * why that is a safe trade. Without it the three-minute idle lock becomes a
+   * closed till: the unlock needs the network, and so does signing in again, so
+   * a cashier who steps away during an outage comes back to a screen with nine
+   * unsent sales behind it and no way through.
+   */
   const unlock = async () => {
     setError(null);
     try {
@@ -287,10 +353,22 @@ export default function PosTerminal({
         body: JSON.stringify({ pin: unlockPin, branchId, posId }),
       });
       if (!res.ok) { setError("PIN not recognised"); setUnlockPin(""); return; }
+      await rememberPin(unlockPin, posId);
       setLocked(false);
       setUnlockPin("");
     } catch {
-      setError("No connection");
+      if (await matchesPin(unlockPin, posId)) {
+        setLocked(false);
+        setUnlockPin("");
+        setError(null);
+        return;
+      }
+      setError(
+        canUnlockOffline(posId)
+          ? "PIN not recognised"
+          : "No connection, and this terminal has no PIN stored to check against.",
+      );
+      setUnlockPin("");
     }
   };
 
@@ -336,6 +414,8 @@ export default function PosTerminal({
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Could not sign in"); setPin(""); return; }
       localStorage.setItem(TERMINAL_KEY, JSON.stringify({ branchId, posId }));
+      // Only ever stored after the server has said yes.
+      await rememberPin(pin, posId);
       setWho(data.name);
       setSignedIn(true);
       setPin("");
@@ -409,7 +489,11 @@ export default function PosTerminal({
   };
 
   const signOut = async () => {
-    await fetch("/api/pos/session", { method: "DELETE" });
+    forgetPin();
+    await fetch("/api/pos/session", { method: "DELETE" }).catch(() => {
+      // Offline sign-out still ends the shift on this device. The cookie
+      // expires on its own, and the stored PIN is already gone.
+    });
     setSignedIn(false);
     setLines([]);
   };
@@ -636,11 +720,24 @@ export default function PosTerminal({
     );
   }
 
+  // Reached only when the server could not supply a menu AND this terminal has
+  // never stored one. After a single successful load online it is unreachable,
+  // which is the whole point of the change.
   if (!menu) {
     return (
       <div className="pos-login">
         <h1>Menu unavailable</h1>
-        <p className="pos-err">The menu could not be loaded. Check the connection and reload.</p>
+        <p className="pos-err">
+          {online
+            ? "The menu could not be loaded. Check the connection and reload."
+            : "There is no connection, and this till has not yet loaded the menu once while online. Reconnect and open it once — after that a dropout will not stop it."}
+        </p>
+        {queue.length > 0 && (
+          <p className="pos-queue-note">
+            {queue.length} order(s) are still stored here and will sync when the connection returns.
+            Nothing has been lost.
+          </p>
+        )}
       </div>
     );
   }
@@ -679,6 +776,16 @@ export default function PosTerminal({
         </div>
         <div className="pos-head-right">
           {!online && <span className="pos-offline">Offline</span>}
+          {/* Prices and availability are as of this moment, and saying so is
+              the difference between working offline and guessing offline. */}
+          {menuAge && <span className="pos-stale">Menu {menuAge}</span>}
+          {/* Shown only while it is a real risk: online, with the shell not yet
+              stored. Once the till is ready this disappears and stays gone. */}
+          {online && !shell.ready && (
+            <span className="pos-notready" title={shell.problem ?? "Preparing this till for offline use…"}>
+              {shell.problem ? "Offline not available" : "Preparing offline…"}
+            </span>
+          )}
           {queue.length > 0 && <span className="pos-sync">{queue.length} to sync</span>}
           <button type="button" onClick={() => { loadRecent(); }}>
             Recent

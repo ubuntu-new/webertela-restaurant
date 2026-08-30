@@ -116,6 +116,14 @@
 .pos-offline { background: #fdecea; color: var(--p-danger); padding: 4px 10px; border-radius: 20px; font-size: 13px; font-weight: 600; }
 .pos-sync { background: #fdf3d6; color: #8a6a12; padding: 4px 10px; border-radius: 20px; font-size: 13px; }
 
+/* How old the prices on screen are. Quieter than the offline badge on purpose:
+   it is context for a cashier who is already coping, not another alarm. */
+.pos-stale { background: #eef1f4; color: #5a6672; padding: 4px 10px; border-radius: 20px; font-size: 13px; }
+
+/* Only ever visible while the till is online and not yet able to survive a
+   reload — the one window in which someone can still do something about it. */
+.pos-notready { background: #fdf3d6; color: #8a6a12; padding: 4px 10px; border-radius: 20px; font-size: 13px; cursor: help; }
+
 .pos-main { flex: 1; display: grid; grid-template-columns: 1fr 400px; min-height: 0; }
 @media (max-width: 950px) { .pos-main { grid-template-columns: 1fr 330px; } }
 
