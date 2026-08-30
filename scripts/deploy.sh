@@ -42,7 +42,31 @@ die()  { printf '\n\033[31m!! %s\033[0m\n' "$*"; exit 1; }
 [ -f package.json ] || die "not a Next project — wrong directory?"
 [ -f .env ] || die "no .env in $APP"
 
-PORT="$(grep -oP '(?<=^PORT=)\d+' .env || echo 3000)"
+# ── which port does this instance actually listen on ──────────────────────────
+#
+# ⚠️ Not from `.env`. `PORT` is never written there — `deploy/new-tenant.sh` puts
+# it in the systemd unit, as `Environment=PORT=` and on the `ExecStart` line. So
+# `grep PORT .env` silently found nothing, fell through to a default of 3000,
+# and 3000 on this host is **a different customer's site**.
+#
+# That is how a deploy came to verify GeoTaxi's 404 page and report the
+# restaurant as healthy. Every check downstream was meaningless: the watchdog
+# would have monitored the wrong application for every instance, and a rollback
+# could have been decided on somebody else's uptime.
+#
+# There is no default any more. A port that cannot be determined is an error,
+# because guessing one means probing whatever else happens to be listening.
+port_of() {
+  local svc="$1" env line
+  env="$(systemctl show -p Environment --value "$svc" 2>/dev/null || true)"
+  line="$(printf '%s' "$env" | tr ' ' '\n' | grep -oP '(?<=^PORT=)\d+' | head -1)"
+  [ -n "$line" ] || line="$(systemctl show -p ExecStart --value "$svc" 2>/dev/null | grep -oP '(?<=-p )\d+' | head -1)"
+  printf '%s' "$line"
+}
+
+PORT="$(port_of "$SERVICE")"
+[ -n "$PORT" ] || die "could not find the port for $SERVICE in its systemd unit. Refusing to guess — the last guess probed another customer's site."
+
 
 # Is this instance serving?
 #

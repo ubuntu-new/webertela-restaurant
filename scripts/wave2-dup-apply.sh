@@ -36,6 +36,28 @@ BACKUP_DIR="/var/backups/pg"
 STAMP=$(date +%F_%H%M%S)
 
 say()  { printf '\n\033[1m== %s\033[0m\n' "$*"; }
+# ── which port does this instance actually listen on ──────────────────────────
+#
+# ⚠️ Not from `.env`. `PORT` is never written there — `deploy/new-tenant.sh` puts
+# it in the systemd unit, as `Environment=PORT=` and on the `ExecStart` line. So
+# `grep PORT .env` silently found nothing, fell through to a default of 3000,
+# and 3000 on this host is **a different customer's site**.
+#
+# That is how a deploy came to verify GeoTaxi's 404 page and report the
+# restaurant as healthy. Every check downstream was meaningless: the watchdog
+# would have monitored the wrong application for every instance, and a rollback
+# could have been decided on somebody else's uptime.
+#
+# There is no default any more. A port that cannot be determined is an error,
+# because guessing one means probing whatever else happens to be listening.
+port_of() {
+  local svc="$1" env line
+  env="$(systemctl show -p Environment --value "$svc" 2>/dev/null || true)"
+  line="$(printf '%s' "$env" | tr ' ' '\n' | grep -oP '(?<=^PORT=)\d+' | head -1)"
+  [ -n "$line" ] || line="$(systemctl show -p ExecStart --value "$svc" 2>/dev/null | grep -oP '(?<=-p )\d+' | head -1)"
+  printf '%s' "$line"
+}
+
 warn() { printf '\033[33m   %s\033[0m\n' "$*"; }
 
 fail() {
@@ -255,9 +277,15 @@ systemctl --no-pager --lines=0 status "$SERVICE" || true
 say "health check"
 # 307 is the locale redirect, so redirects are followed rather than counted as
 # a failure — an earlier version of this reported a healthy site as broken.
-PORT="$(grep -oP '(?<=^PORT=)\d+' .env || echo 3000)"
-curl -sS -L -o /dev/null -w '   HTTP %{http_code} after %{num_redirects} redirect(s)\n' \
-  "http://127.0.0.1:${PORT}/admin" || warn "curl could not reach the site"
+# The port comes from the systemd unit, never from .env — see port_of above.
+PORT="$(port_of "$SERVICE")"
+if [ -z "$PORT" ]; then
+  warn "could not find the port for $SERVICE — skipping the health check rather than probing a guess"
+else
+  echo "   checking 127.0.0.1:$PORT"
+  curl -sS -L -o /dev/null -w '   HTTP %{http_code} after %{num_redirects} redirect(s)\n' \
+    "http://127.0.0.1:${PORT}/admin" || warn "curl could not reach the site"
+fi
 
 say "recent log"
 journalctl -u "$SERVICE" -n 25 --no-pager

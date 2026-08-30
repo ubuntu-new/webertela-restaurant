@@ -94,6 +94,28 @@ transition() {
   fi
 }
 
+# ── which port does this instance actually listen on ──────────────────────────
+#
+# ⚠️ Not from `.env`. `PORT` is never written there — `deploy/new-tenant.sh` puts
+# it in the systemd unit, as `Environment=PORT=` and on the `ExecStart` line. So
+# `grep PORT .env` silently found nothing, fell through to a default of 3000,
+# and 3000 on this host is **a different customer's site**.
+#
+# That is how a deploy came to verify GeoTaxi's 404 page and report the
+# restaurant as healthy. Every check downstream was meaningless: the watchdog
+# would have monitored the wrong application for every instance, and a rollback
+# could have been decided on somebody else's uptime.
+#
+# There is no default any more. A port that cannot be determined is an error,
+# because guessing one means probing whatever else happens to be listening.
+port_of() {
+  local svc="$1" env line
+  env="$(systemctl show -p Environment --value "$svc" 2>/dev/null || true)"
+  line="$(printf '%s' "$env" | tr ' ' '\n' | grep -oP '(?<=^PORT=)\d+' | head -1)"
+  [ -n "$line" ] || line="$(systemctl show -p ExecStart --value "$svc" 2>/dev/null | grep -oP '(?<=-p )\d+' | head -1)"
+  printf '%s' "$line"
+}
+
 HOST="$(hostname -s)"
 
 # ── each instance ─────────────────────────────────────────────────────────────
@@ -102,8 +124,14 @@ for dir in "$INSTANCES_DIR"/*; do
   [ -f "$dir/.env" ] || continue
   slug="$(basename "$dir")"
 
-  port="$(grep -oP '(?<=^PORT=)\d+' "$dir/.env" 2>/dev/null | head -1)"
-  [ -n "$port" ] || continue
+  port="$(port_of "$slug")"
+  if [ -z "$port" ]; then
+    # Silence here would mean an instance nobody is watching, which is worse
+    # than the noise of saying so.
+    transition "port-$slug" bad "$HOST/$slug has no discoverable port — it is NOT being monitored."
+    continue
+  fi
+  transition "port-$slug" ok "$HOST/$slug is discoverable again."
 
   body="$(curl -sS -m 8 "http://127.0.0.1:${port}/api/health" 2>/dev/null)"
   code="$(curl -sS -m 8 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${port}/api/health" 2>/dev/null)"
