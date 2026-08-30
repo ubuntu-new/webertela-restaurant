@@ -4,6 +4,7 @@ import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
 import { tr } from "@/lib/admin-i18n";
 import { createTransfer } from "../actions";
+import AdminForm from "@/app/admin/_components/AdminForm";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,13 @@ export default async function NewTransfer({
           </p>
         </div>
       ) : (
-        <form className="admin-form" action={createTransfer} style={{ maxWidth: "none" }}>
+        <AdminForm
+          className="admin-form"
+          style={{ maxWidth: "none" }}
+          action={createTransfer}
+          submitLabel={t("Create request")}
+          cancelHref="/admin/stock/transfers"
+        >
           <div className="admin-panel">
             <h2>{t("From and to")}</h2>
             <div className="field-row">
@@ -127,15 +134,7 @@ export default async function NewTransfer({
             </table>
           </div>
 
-          <div className="form-actions">
-            <button className="btn" type="submit">
-              {t("Create request")}
-            </button>
-            <Link className="btn btn-ghost" href="/admin/stock/transfers">
-              {t("Cancel")}
-            </Link>
-          </div>
-        </form>
+        </AdminForm>
       )}
     </>
   );

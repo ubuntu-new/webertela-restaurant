@@ -142,6 +142,10 @@ model Branch {
   orgId     String
   code      String  @unique // "TBS-01"
   name      Json
+
+  /// Normalised name, for duplicate detection. See lib/name-key.ts — this is
+  /// what makes "Mozzarella" and "mozzarella " the same thing to the software.
+  nameKey   String?
   address   Json
   phone     String?
   hours     Json? // { mon: {open,close}, ... }
@@ -170,6 +174,7 @@ model Branch {
 
   @@index([orgId, active, sortOrder])
   @@index([deletedAt])
+  @@index([nameKey])
 }
 
 model Terminal {
@@ -207,6 +212,10 @@ model Setting {
 model Category {
   id        String       @id @default(cuid())
   name      Json
+
+  /// Normalised name, for duplicate detection. See lib/name-key.ts — this is
+  /// what makes "Mozzarella" and "mozzarella " the same thing to the software.
+  nameKey   String?
   icon      String?
   type      CategoryType @default(food)
   active    Boolean      @default(true)
@@ -224,12 +233,17 @@ model Category {
 
   @@index([active, sortOrder])
   @@index([deletedAt])
+  @@index([nameKey])
 }
 
 model Subcategory {
   id         String  @id @default(cuid())
   categoryId String
   name       Json
+
+  /// Normalised name, for duplicate detection. See lib/name-key.ts — this is
+  /// what makes "Mozzarella" and "mozzarella " the same thing to the software.
+  nameKey   String?
   active     Boolean @default(true)
   sortOrder  Int     @default(0)
 
@@ -242,6 +256,7 @@ model Subcategory {
 
   @@index([categoryId, active, sortOrder])
   @@index([deletedAt])
+  @@index([nameKey])
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -251,6 +266,15 @@ model Subcategory {
 model Product {
   id            String      @id @default(cuid())
   name          Json
+
+  /// For anything sold in the packaging it arrived in — a bottled drink, a
+  /// T-shirt. Prepared food has no barcode and never will, so this is null for
+  /// most of the menu, which is correct rather than incomplete.
+  barcode String? @unique
+
+  /// Normalised name, for duplicate detection. See lib/name-key.ts — this is
+  /// what makes "Mozzarella" and "mozzarella " the same thing to the software.
+  nameKey   String?
   description   Json?
   categoryId    String
   subcategoryId String?
@@ -315,6 +339,7 @@ model Product {
 
   @@index([type, active])
   @@index([deletedAt])
+  @@index([nameKey])
 }
 
 model ProductSize {
@@ -348,6 +373,10 @@ model ProductPromo {
 model Topping {
   id         String   @id @default(cuid())
   name       Json
+
+  /// Normalised name, for duplicate detection. See lib/name-key.ts — this is
+  /// what makes "Mozzarella" and "mozzarella " the same thing to the software.
+  nameKey   String?
   category   String? // "meat" | "veg" | "cheese" | "sauce"
   emoji      String?
   dots       String[] @default([]) // UI-ს ფერადი ნიშნულები
@@ -368,6 +397,7 @@ model Topping {
 
   @@index([active, sortOrder])
   @@index([deletedAt])
+  @@index([nameKey])
 }
 
 model ToppingPrice {
@@ -400,6 +430,10 @@ model ProductTopping {
 model Combo {
   id          String  @id @default(cuid())
   name        Json
+
+  /// Normalised name, for duplicate detection. See lib/name-key.ts — this is
+  /// what makes "Mozzarella" and "mozzarella " the same thing to the software.
+  nameKey   String?
   description Json?
   photo       String?
   badge       Json?
@@ -427,6 +461,7 @@ model Combo {
 
   @@index([active, sortOrder])
   @@index([deletedAt])
+  @@index([nameKey])
 }
 
 model ComboSlot {
@@ -460,6 +495,10 @@ model ComboSlotOption {
 model Discount {
   id                  String       @id @default(cuid())
   name                Json
+
+  /// Normalised name, for duplicate detection. See lib/name-key.ts — this is
+  /// what makes "Mozzarella" and "mozzarella " the same thing to the software.
+  nameKey   String?
   type                DiscountType
   kindId              String? // replaces `type` once the reads have moved
   kind                DiscountKind? @relation(fields: [kindId], references: [id])
@@ -487,6 +526,7 @@ model Discount {
 
   @@index([type, active])
   @@index([kindId])
+  @@index([nameKey])
 }
 
 /// A discount kind the owner can add without a deployment.
@@ -624,6 +664,10 @@ model Verification {
 model Employee {
   id       String  @id @default(cuid())
   name     String
+
+  /// Normalised name, for duplicate detection. See lib/name-key.ts — this is
+  /// what makes "Mozzarella" and "mozzarella " the same thing to the software.
+  nameKey   String?
   phone    String? @unique
   email    String? @unique
   photoURL String?
@@ -654,6 +698,7 @@ model Employee {
   @@index([deletedAt])
 
   @@index([role, active])
+  @@index([nameKey])
 }
 
 model EmployeeBranch {
@@ -901,12 +946,73 @@ model StockLocation {
   @@index([deletedAt])
 }
 
+/// ვისგან ყიდულობ. იდენტობისთვის და შესყიდვის ისტორიისთვის.
+///
+/// A supplier exists here for one narrow reason: most kitchen ingredients have
+/// no barcode, and for those the only identifier that is not a typed name is
+/// "the code this supplier uses for it". A sack of flour from the same mill with
+/// the same order code is the same flour, whatever anybody typed in the name box.
+model Supplier {
+  id   String @id @default(cuid())
+  name String
+
+  /// Normalised name, for duplicate detection. See lib/name-key.ts.
+  nameKey String?
+
+  /// Your own short code for them, if you use one. Unique when set.
+  code String? @unique
+
+  phone   String?
+  email   String?
+  contact String?
+  note    String?
+
+  active    Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  items StockItem[]
+
+  @@index([active])
+  @@index([deletedAt])
+  @@index([nameKey])
+}
+
 /// საწყობის ერთეული — ის, რასაც ინახავ (და არა ის, რასაც ყიდი).
 /// მოცარელა კგ-ობით, კოკა-კოლა ცალობით, ფქვილი კგ-ობით.
 model StockItem {
   id   String    @id @default(cuid())
   sku  String?   @unique
   name Json
+
+  /// The barcode printed on the packaging, stored as GTIN-14 (zero-padded), so
+  /// that the UPC-A on an American can and the EAN-13 on the same can in Europe
+  /// are one value and not two rows. See lib/gtin.ts.
+  ///
+  /// Unique because a GTIN identifies a product globally — if two rows claim the
+  /// same one, one of them is wrong. This is the only identity constraint in the
+  /// schema strong enough to enforce at the database, because it is the only one
+  /// a human did not invent.
+  barcode String? @unique
+
+  /// What one purchased pack contains: 500 + g, 1.5 + l, 12 + pcs.
+  ///
+  /// This is what stops the duplicate check crying wolf. "Coca-Cola 330 ml" and
+  /// "Coca-Cola 1.5 L" share a name and are two real, different items; without a
+  /// pack size the software has no way to know that and warns about both.
+  packSize Decimal?   @db.Decimal(14, 3)
+  packUnit StockUnit?
+
+  /// Who it is bought from, and their code for it. For everything that arrives
+  /// in an unlabelled sack and has no barcode at all — which in a kitchen is
+  /// most of it.
+  supplierId   String?
+  supplierCode String?
+
+  /// Normalised name, for duplicate detection. See lib/name-key.ts — this is
+  /// what makes "Mozzarella" and "mozzarella " the same thing to the software.
+  nameKey   String?
   unit StockUnit
 
   category String? /// "dairy" | "meat" | "veg" | "packaging" | "drink"
@@ -932,8 +1038,13 @@ model StockItem {
   recipeInputs  RecipeLine[]
   productionLines ProductionLine[]
 
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+
+  @@unique([supplierId, supplierCode])
   @@index([active, category])
   @@index([deletedAt])
+  @@index([nameKey])
+  @@index([supplierId])
 }
 
 /// მიმდინარე ნაშთი ლოკაციაზე. `qty` მოძრაობების ჯამის ქეშია —
@@ -1102,6 +1213,10 @@ model Recipe {
   id   String @id @default(cuid())
   name Json
 
+  /// Normalised name, for duplicate detection. See lib/name-key.ts — this is
+  /// what makes "Mozzarella" and "mozzarella " the same thing to the software.
+  nameKey   String?
+
   outputItemId String
   outputQty    Decimal @db.Decimal(14, 3)
 
@@ -1118,6 +1233,7 @@ model Recipe {
 
   @@index([active])
   @@index([deletedAt])
+  @@index([nameKey])
 }
 
 model RecipeLine {

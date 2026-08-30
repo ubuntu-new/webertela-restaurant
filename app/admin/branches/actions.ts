@@ -6,27 +6,33 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { ActionError, failTo, formAction, isConfirmed } from "@/lib/action-state";
+import { guardDuplicate } from "@/lib/dup";
+import { nameKey } from "@/lib/name-key";
 
-export async function createBranch(fd: FormData) {
+export const createBranch = formAction(async (fd: FormData) => {
   const session = await requirePermission("can_edit_menu");
   const t = await tr();
 
   const code = fdStr(fd, "code").toUpperCase();
   const nameEn = fdStr(fd, "name_en");
-  if (!code) throw new Error(t("A branch code is required"));
-  if (!nameEn) throw new Error(t("The English name is required"));
+  if (!code) throw new ActionError(t("A branch code is required"), "code");
+  if (!nameEn) throw new ActionError(t("The English name is required"), "name_en");
 
   const clash = await db.branch.findUnique({ where: { code } });
-  if (clash) throw new Error(`${t("Code")} "${code}" ${t("is already in use")}`);
+  if (clash) throw new ActionError(`${t("Code")} "${code}" ${t("is already in use")}`, "code");
 
   const org = await db.organization.findFirst();
-  if (!org) throw new Error(t("Organization not found"));
+  if (!org) throw new ActionError(t("Organization not found"));
+
+  await guardDuplicate("branch", nameEn, { confirmed: isConfirmed(fd), t });
 
   const b = await db.branch.create({
     data: {
       orgId: org.id,
       code,
       name: { en: nameEn, ka: fdStr(fd, "name_ka") || nameEn },
+      nameKey: nameKey(nameEn),
       address: { en: fdStr(fd, "address_en"), ka: fdStr(fd, "address_ka") || fdStr(fd, "address_en") },
       phone: fdStr(fd, "phone") || null,
       active: false,
@@ -53,27 +59,30 @@ export async function createBranch(fd: FormData) {
 
   revalidatePath("/admin/branches");
   redirect(`/admin/branches/${b.id}`);
-}
+}, tr);
 
-export async function updateBranch(id: string, fd: FormData) {
+export const updateBranch = formAction(async (fd: FormData, id: string) => {
   const session = await requirePermission("can_edit_menu");
   const t = await tr();
 
   const code = fdStr(fd, "code").toUpperCase();
   const nameEn = fdStr(fd, "name_en");
-  if (!code) throw new Error(t("A branch code is required"));
-  if (!nameEn) throw new Error(t("The English name is required"));
+  if (!code) throw new ActionError(t("A branch code is required"), "code");
+  if (!nameEn) throw new ActionError(t("The English name is required"), "name_en");
 
   const clash = await db.branch.findFirst({ where: { code, NOT: { id } } });
-  if (clash) throw new Error(`${t("Code")} "${code}" ${t("is already used by another branch")}`);
+  if (clash) throw new ActionError(`${t("Code")} "${code}" ${t("is already used by another branch")}`, "code");
 
   const hoursText = fdStr(fd, "hours");
+
+  await guardDuplicate("branch", nameEn, { excludeId: id, confirmed: isConfirmed(fd), t });
 
   await db.branch.update({
     where: { id },
     data: {
       code,
       name: { en: nameEn, ka: fdStr(fd, "name_ka") || nameEn },
+      nameKey: nameKey(nameEn),
       address: { en: fdStr(fd, "address_en"), ka: fdStr(fd, "address_ka") || fdStr(fd, "address_en") },
       phone: fdStr(fd, "phone") || null,
       hours: hoursText ? { display: { en: hoursText, ka: fdStr(fd, "hours_ka") || hoursText } } : undefined,
@@ -115,7 +124,7 @@ export async function updateBranch(id: string, fd: FormData) {
 
   revalidatePath("/admin/branches");
   redirect("/admin/branches?saved=1");
-}
+}, tr);
 
 export async function addTerminal(branchId: string) {
   await requirePermission("can_edit_menu");
@@ -125,7 +134,7 @@ export async function addTerminal(branchId: string) {
     where: { id: branchId },
     include: { terminals: true },
   });
-  if (!branch) throw new Error(t("Branch not found"));
+  if (!branch) failTo("/admin/branches", t("Branch not found"));
 
   // თავისუფალი ნომერი — უკვე წაშლილების გამო რაოდენობა არ გამოდგება
   let n = branch.terminals.length + 1;

@@ -14,6 +14,8 @@ import ArchiveButton from "../../_components/ArchiveButton";
 import { PERMISSIONS } from "@/lib/permissions";
 import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
+import AdminForm from "@/app/admin/_components/AdminForm";
+import NameField from "@/app/admin/_components/NameField";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +34,7 @@ export default async function EmployeeEdit({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ pw?: string; pin?: string }>;
+  searchParams: Promise<{ pw?: string; pin?: string; error?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -85,18 +87,29 @@ export default async function EmployeeEdit({
         </Link>
       </div>
 
+      {sp.error && <div className="alert alert-error">{sp.error}</div>}
       {sp.pw && <div className="alert alert-ok">{t("Password changed.")}</div>}
       {sp.pin && <div className="alert alert-ok">{t("PIN changed.")}</div>}
 
-      <form className="admin-form" action={save} style={{ maxWidth: 880 }}>
+      <AdminForm
+        className="admin-form"
+        style={{ maxWidth: 880 }}
+        action={save}
+        submitLabel={t("Save")}
+        cancelHref="/admin/employees"
+      >
         <div className="admin-panel">
           <h2>{t("Basics")}</h2>
 
           <div className="field-row">
-            <div className="field">
-              <label htmlFor="name">{t("Full name")}</label>
-              <input id="name" name="name" type="text" defaultValue={e.name} required />
-            </div>
+            <NameField
+              model="employee"
+              name="name"
+              label={t("Full name")}
+              defaultValue={e.name}
+              excludeId={id}
+              required
+            />
             <div className="field">
               <label htmlFor="title">{t("Job title")}</label>
               <input id="title" name="title" type="text" defaultValue={e.title ?? ""} />
@@ -194,18 +207,15 @@ export default async function EmployeeEdit({
           </p>
         </div>
 
-        <div className="form-actions">
-          <button className="btn" type="submit">
-            {t("Save")}
-          </button>
-          <Link className="btn btn-ghost" href="/admin/employees">
-            {t("Cancel")}
-          </Link>
-        </div>
-      </form>
+      </AdminForm>
 
       {/* ── პაროლი ── */}
-      <form className="admin-panel admin-form" action={savePw} style={{ maxWidth: 880, marginTop: 20 }}>
+      <AdminForm
+        className="admin-panel admin-form"
+        style={{ maxWidth: 880, marginTop: 20 }}
+        action={savePw}
+        submitLabel={t("Set password")}
+      >
         <h2>{t("Admin password")}</h2>
         <p className="hint" style={{ marginTop: -8 }}>
           {e.passwordHash
@@ -217,15 +227,15 @@ export default async function EmployeeEdit({
           <input id="newPassword" name="newPassword" type="text" placeholder={t("at least 10 characters")} />
           <span className="hint">{t("Write it down and hand it over — you will not see it again after saving.")}</span>
         </div>
-        <div className="form-actions">
-          <button className="btn btn-ghost" type="submit">
-            {t("Set password")}
-          </button>
-        </div>
-      </form>
+      </AdminForm>
 
       {/* ── POS PIN ── */}
-      <form className="admin-panel admin-form" action={savePin} style={{ maxWidth: 880 }}>
+      <AdminForm
+        className="admin-panel admin-form"
+        style={{ maxWidth: 880 }}
+        action={savePin}
+        submitLabel={t("Set PIN")}
+      >
         <h2>POS PIN</h2>
         <p className="hint" style={{ marginTop: -8 }}>
           {e.posPinHash ? t("Set.") : t("Not set yet — they cannot sign in to the POS.")}
@@ -235,12 +245,7 @@ export default async function EmployeeEdit({
           <input id="newPin" name="newPin" type="text" inputMode="numeric" placeholder={t("4–8 digits")} />
           <span className="hint">{t("It must be unique — a repeat will be rejected.")}</span>
         </div>
-        <div className="form-actions">
-          <button className="btn btn-ghost" type="submit">
-            {t("Set PIN")}
-          </button>
-        </div>
-      </form>
+      </AdminForm>
 
       {e.posPinHash && (
         <form action={dropPin} style={{ maxWidth: 880, marginTop: -8 }}>

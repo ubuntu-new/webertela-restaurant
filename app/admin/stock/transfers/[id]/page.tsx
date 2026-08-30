@@ -7,6 +7,7 @@ import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
 import { approveTransfer, sendTransfer, receiveTransfer, cancelTransfer } from "../actions";
 import { STATUS } from "../status";
+import AdminForm from "@/app/admin/_components/AdminForm";
 
 export const dynamic = "force-dynamic";
 
@@ -182,7 +183,13 @@ export default async function TransferDetail({
 
       {/* ── მოქმედებები ── */}
       {t.status === "requested" && (
-        <form className="admin-panel admin-form" action={approve} style={{ maxWidth: "none" }}>
+        <AdminForm
+          className="admin-panel admin-form"
+          style={{ maxWidth: "none" }}
+          action={approve}
+          submitLabel={tx("Approve")}
+          pendingLabel={tx("Approving…")}
+        >
           <h2>{tx("Approve")}</h2>
           <p className="hint" style={{ marginTop: -8 }}>
             {tx("You can change the quantities — requested and approved are stored separately.")}
@@ -211,16 +218,17 @@ export default async function TransferDetail({
               ))}
             </tbody>
           </table>
-          <div className="form-actions" style={{ marginTop: 14 }}>
-            <button className="btn" type="submit">
-              {tx("Approve")}
-            </button>
-          </div>
-        </form>
+        </AdminForm>
       )}
 
       {t.status === "approved" && (
-        <form className="admin-panel admin-form" action={send} style={{ maxWidth: "none" }}>
+        <AdminForm
+          className="admin-panel admin-form"
+          style={{ maxWidth: "none" }}
+          action={send}
+          submitLabel={tx("Send")}
+          pendingLabel={tx("Sending…")}
+        >
           <h2>{tx("Send")}</h2>
           <p className="hint" style={{ marginTop: -8 }}>
             {tx("This button")} <b>{tx("takes the stock off the source")}</b>.{" "}
@@ -250,16 +258,17 @@ export default async function TransferDetail({
               ))}
             </tbody>
           </table>
-          <div className="form-actions" style={{ marginTop: 14 }}>
-            <button className="btn" type="submit">
-              {tx("Send")}
-            </button>
-          </div>
-        </form>
+        </AdminForm>
       )}
 
       {t.status === "sent" && (
-        <form className="admin-panel admin-form" action={receive} style={{ maxWidth: "none" }}>
+        <AdminForm
+          className="admin-panel admin-form"
+          style={{ maxWidth: "none" }}
+          action={receive}
+          submitLabel={tx("Confirm receipt")}
+          pendingLabel={tx("Confirming…")}
+        >
           <h2>{tx("Receive")}</h2>
           <p className="hint" style={{ marginTop: -8 }}>
             {tx("Write down how much")} <b>{tx("actually")}</b>{" "}
@@ -289,12 +298,7 @@ export default async function TransferDetail({
               ))}
             </tbody>
           </table>
-          <div className="form-actions" style={{ marginTop: 14 }}>
-            <button className="btn" type="submit">
-              {tx("Confirm receipt")}
-            </button>
-          </div>
-        </form>
+        </AdminForm>
       )}
 
       {!["received", "cancelled"].includes(t.status) && (

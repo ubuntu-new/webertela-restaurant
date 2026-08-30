@@ -9,6 +9,9 @@ import { hashPin, isValidPin } from "@/lib/pin";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
 import { PERMISSIONS } from "@/lib/permissions";
 import { tr } from "@/lib/admin-i18n";
+import { ActionError, failTo, formAction, isConfirmed } from "@/lib/action-state";
+import { guardDuplicate } from "@/lib/dup";
+import { nameKey } from "@/lib/name-key";
 void PERMISSIONS;
 
 const ROLES = ["super_admin", "branch_manager", "cashier", "kitchen", "driver"] as const;
@@ -24,16 +27,16 @@ async function guardRole(target: Role) {
   const t = await tr();
   const s = await getSession();
   if (target === "super_admin" && s?.role !== "super_admin") {
-    throw new Error(t("Only a super_admin can assign the super_admin role"));
+    throw new ActionError(t("Only a super_admin can assign the super_admin role"), "role");
   }
 }
 
-export async function createEmployee(fd: FormData) {
+export const createEmployee = formAction(async (fd: FormData) => {
   const session = await requirePermission("can_manage_staff");
   const t = await tr();
 
   const name = fdStr(fd, "name");
-  if (!name) throw new Error(t("A name is required"));
+  if (!name) throw new ActionError(t("A name is required"), "name");
 
   const role = roleOf(fdStr(fd, "role"));
   await guardRole(role);
@@ -41,12 +44,17 @@ export async function createEmployee(fd: FormData) {
   const email = fdStr(fd, "email").toLowerCase() || null;
   const password = fdStr(fd, "password");
   if (email && password && password.length < 10) {
-    throw new Error(t("The password must be at least 10 characters"));
+    throw new ActionError(t("The password must be at least 10 characters"), "password");
   }
+
+  // A second "John" is not a costing error — it is a payroll error, and the
+  // one thing worse than paying someone twice is paying the wrong one.
+  await guardDuplicate("employee", name, { confirmed: isConfirmed(fd), t });
 
   const emp = await db.employee.create({
     data: {
       name,
+      nameKey: nameKey(name),
       email,
       phone: fdStr(fd, "phone") || null,
       passwordHash: email && password ? await bcrypt.hash(password, 12) : null,
@@ -70,20 +78,20 @@ export async function createEmployee(fd: FormData) {
 
   revalidatePath("/admin/employees");
   redirect(`/admin/employees/${emp.id}`);
-}
+}, tr);
 
-export async function updateEmployee(id: string, fd: FormData) {
+export const updateEmployee = formAction(async (fd: FormData, id: string) => {
   const session = await requirePermission("can_manage_staff");
   const t = await tr();
 
   const name = fdStr(fd, "name");
-  if (!name) throw new Error(t("A name is required"));
+  if (!name) throw new ActionError(t("A name is required"), "name");
 
   const role = roleOf(fdStr(fd, "role"));
   await guardRole(role);
 
   const current = await db.employee.findUnique({ where: { id } });
-  if (!current) throw new Error(t("Employee not found"));
+  if (!current) throw new ActionError(t("Employee not found"));
   if (current.role === "super_admin") await guardRole("super_admin");
 
   const email = fdStr(fd, "email").toLowerCase() || null;
@@ -94,13 +102,16 @@ export async function updateEmployee(id: string, fd: FormData) {
     const others = await db.employee.count({
       where: { role: "super_admin", active: true, deletedAt: null, NOT: { id } },
     });
-    if (others === 0) throw new Error(t("This is the only active super_admin — appoint another one first"));
+    if (others === 0) throw new ActionError(t("This is the only active super_admin — appoint another one first"));
   }
+
+  await guardDuplicate("employee", name, { excludeId: id, confirmed: isConfirmed(fd), t });
 
   await db.employee.update({
     where: { id },
     data: {
       name,
+      nameKey: nameKey(name),
       email,
       phone: fdStr(fd, "phone") || null,
       role,
@@ -132,18 +143,18 @@ export async function updateEmployee(id: string, fd: FormData) {
 
   revalidatePath("/admin/employees");
   redirect("/admin/employees?saved=1");
-}
+}, tr);
 
 /** ადმინ-პანელის პაროლის დაყენება/შეცვლა. */
-export async function setPassword(id: string, fd: FormData) {
+export const setPassword = formAction(async (fd: FormData, id: string) => {
   const session = await requirePermission("can_manage_staff");
   const t = await tr();
 
   const password = fdStr(fd, "newPassword");
-  if (password.length < 10) throw new Error(t("The password must be at least 10 characters"));
+  if (password.length < 10) throw new ActionError(t("The password must be at least 10 characters"), "password");
 
   const emp = await db.employee.findUnique({ where: { id } });
-  if (!emp?.email) throw new Error(t("Add an email first — without one they cannot sign in"));
+  if (!emp?.email) throw new ActionError(t("Add an email first — without one they cannot sign in"), "email");
 
   await db.employee.update({ where: { id }, data: { passwordHash: await bcrypt.hash(password, 12) } });
 
@@ -153,19 +164,19 @@ export async function setPassword(id: string, fd: FormData) {
 
   revalidatePath(`/admin/employees/${id}`);
   redirect(`/admin/employees/${id}?pw=1`);
-}
+}, tr);
 
 /** POS PIN. */
-export async function setPin(id: string, fd: FormData) {
+export const setPin = formAction(async (fd: FormData, id: string) => {
   const session = await requirePermission("can_manage_staff");
   const t = await tr();
 
   const pin = fdStr(fd, "newPin");
-  if (!isValidPin(pin)) throw new Error(t("The PIN must be 4–8 digits"));
+  if (!isValidPin(pin)) throw new ActionError(t("The PIN must be 4–8 digits"), "pin");
 
   const hash = hashPin(pin);
   const clash = await db.employee.findFirst({ where: { posPinHash: hash, NOT: { id } } });
-  if (clash) throw new Error(t("Another employee already has this PIN — pick a different one"));
+  if (clash) throw new ActionError(t("Another employee already has this PIN — pick a different one"), "pin");
 
   await db.employee.update({ where: { id }, data: { posPinHash: hash } });
 
@@ -175,7 +186,7 @@ export async function setPin(id: string, fd: FormData) {
 
   revalidatePath(`/admin/employees/${id}`);
   redirect(`/admin/employees/${id}?pin=1`);
-}
+}, tr);
 
 export async function clearPin(id: string) {
   await requirePermission("can_manage_staff");
@@ -192,9 +203,10 @@ export async function archiveEmployee(id: string) {
     const others = await db.employee.count({
       where: { role: "super_admin", active: true, deletedAt: null, NOT: { id } },
     });
-    if (others === 0) throw new Error(t("This is the only active super_admin — it cannot be archived"));
+    if (others === 0)
+      failTo(`/admin/employees/${id}`, t("This is the only active super_admin — it cannot be archived"));
   }
-  if (session.sub === id) throw new Error(t("You cannot archive yourself"));
+  if (session.sub === id) failTo(`/admin/employees/${id}`, t("You cannot archive yourself"));
 
   await db.employee.update({ where: { id }, data: { deletedAt: new Date(), posPinHash: null } });
 

@@ -11,6 +11,7 @@ import { computeConsumption, locationForBranch } from "@/lib/consumption";
 import { applyOutgoingCost } from "@/lib/costing";
 import { logAction } from "@/lib/audit";
 import { tr } from "@/lib/admin-i18n";
+import { ActionError, failTo, formAction } from "@/lib/action-state";
 
 const FLOW = ["new", "confirmed", "preparing", "ready", "delivering", "completed", "cancelled"] as const;
 type Status = (typeof FLOW)[number];
@@ -22,12 +23,16 @@ export async function setOrderStatus(id: string, status: string) {
   const session = await getSession();
   const t = await tr();
 
-  if (!(FLOW as readonly string[]).includes(status)) throw new Error(t("Unknown status"));
+  // A button, not a form — there is no state to return to, so the refusal
+  // travels in the URL and the order page shows it.
+  const fail = (msg: string) => failTo(`/admin/orders/${id}`, msg);
+
+  if (!(FLOW as readonly string[]).includes(status)) fail(t("Unknown status"));
 
   const order = await db.order.findUnique({ where: { id }, select: { statusHistory: true, status: true } });
-  if (!order) throw new Error(t("Order not found"));
+  if (!order) fail(t("Order not found"));
   if (order.status === "completed" || order.status === "cancelled") {
-    throw new Error(t("A finished or cancelled order cannot change status"));
+    fail(t("A finished or cancelled order cannot change status"));
   }
 
   const history = Array.isArray(order.statusHistory) ? (order.statusHistory as unknown[]) : [];
@@ -87,9 +92,9 @@ export async function setOrderStatus(id: string, status: string) {
  * პროდუქტს ერთსა და იმავე ფასად უნდა ყიდდეს, თორემ ჩეკები და რეპორტები
  * ერთმანეთს დაშორდება.
  */
-export async function createManualOrder(fd: FormData) {
+export const createManualOrder = formAction(async (fd: FormData) => {
   const session = await getSession();
-  if (!session) throw new Error("Not signed in");
+  if (!session) throw new ActionError("Not signed in");
 
   const branchId = String(fd.get("branchId") ?? "");
   const fulfillment = fd.get("fulfillment") === "pickup" ? "pickup" : "delivery";
@@ -98,7 +103,13 @@ export async function createManualOrder(fd: FormData) {
   const address = String(fd.get("address") ?? "").trim();
   const notes = String(fd.get("notes") ?? "").trim();
 
-  const fail = (msg: string) => redirect(`/admin/orders/new?error=${encodeURIComponent(msg)}`);
+  // This used to redirect back with the message in the URL, which threw away
+  // everything already typed — on a manual order that is a customer name, a
+  // phone number, an address and every line. Now the form stays where it is and
+  // the message appears above it.
+  const fail = (msg: string): never => {
+    throw new ActionError(msg);
+  };
 
   if (!customerName || !customerPhone) fail("Name and phone are required");
   if (fulfillment === "delivery" && !address) fail("Delivery needs an address");
@@ -152,7 +163,7 @@ export async function createManualOrder(fd: FormData) {
   }
 
   const org = await db.organization.findFirst();
-  if (!org) throw new Error("Organization not found");
+  if (!org) throw new ActionError("Organization not found");
 
   const order = await db.order.create({
     data: {
@@ -228,4 +239,4 @@ export async function createManualOrder(fd: FormData) {
 
   revalidatePath("/admin/orders");
   redirect(`/admin/orders/${order.id}`);
-}
+}, tr);

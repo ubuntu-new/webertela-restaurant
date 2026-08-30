@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createBranch } from "../actions";
 import { tr } from "@/lib/admin-i18n";
+import AdminForm from "@/app/admin/_components/AdminForm";
+import NameField from "@/app/admin/_components/NameField";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +21,12 @@ export default async function NewBranch() {
         </Link>
       </div>
 
-      <form className="admin-panel admin-form" action={createBranch}>
+      <AdminForm
+        className="admin-panel admin-form"
+        action={createBranch}
+        submitLabel={t("Create and edit")}
+        cancelHref="/admin/branches"
+      >
         <div className="field-row">
           <div className="field">
             <label htmlFor="code">{t("Branch code")}</label>
@@ -33,10 +40,12 @@ export default async function NewBranch() {
         </div>
 
         <div className="field-row">
-          <div className="field">
-            <label htmlFor="name_en">{t("Name (EN)")}</label>
-            <input id="name_en" name="name_en" type="text" required />
-          </div>
+          <NameField
+            model="branch"
+            name="name_en"
+            label={t("Name (EN)")}
+            required
+          />
           <div className="field">
             <label htmlFor="name_ka">{t("Name (KA)")}</label>
             <input id="name_ka" name="name_ka" type="text" />
@@ -63,15 +72,7 @@ export default async function NewBranch() {
           {t("A new branch starts closed — it takes no orders until you open it.")}
         </div>
 
-        <div className="form-actions">
-          <button className="btn" type="submit">
-            {t("Create and edit")}
-          </button>
-          <Link className="btn btn-ghost" href="/admin/branches">
-            {t("Cancel")}
-          </Link>
-        </div>
-      </form>
+      </AdminForm>
     </>
   );
 }

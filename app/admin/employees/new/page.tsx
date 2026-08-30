@@ -5,6 +5,8 @@ import { createEmployee } from "../actions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
+import AdminForm from "@/app/admin/_components/AdminForm";
+import NameField from "@/app/admin/_components/NameField";
 
 export const dynamic = "force-dynamic";
 
@@ -27,14 +29,23 @@ export default async function NewEmployee() {
         </Link>
       </div>
 
-      <form className="admin-form" action={createEmployee} style={{ maxWidth: 880 }}>
+      <AdminForm
+        className="admin-form"
+        style={{ maxWidth: 880 }}
+        action={createEmployee}
+        submitLabel={t("Create")}
+        cancelHref="/admin/employees"
+      >
         <div className="admin-panel">
           <h2>{t("Basics")}</h2>
           <div className="field-row">
-            <div className="field">
-              <label htmlFor="name">{t("Full name")}</label>
-              <input id="name" name="name" type="text" required autoFocus />
-            </div>
+            <NameField
+              model="employee"
+              name="name"
+              label={t("Full name")}
+              required
+              autoFocus
+            />
             <div className="field">
               <label htmlFor="title">{t("Job title")}</label>
               <input id="title" name="title" type="text" />
@@ -116,15 +127,7 @@ export default async function NewEmployee() {
           </div>
         </div>
 
-        <div className="form-actions">
-          <button className="btn" type="submit">
-            {t("Create")}
-          </button>
-          <Link className="btn btn-ghost" href="/admin/employees">
-            {t("Cancel")}
-          </Link>
-        </div>
-      </form>
+      </AdminForm>
     </>
   );
 }

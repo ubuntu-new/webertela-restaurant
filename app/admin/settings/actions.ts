@@ -3,10 +3,11 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { clearLangCache } from "@/lib/admin-i18n";
+import { clearLangCache, tr } from "@/lib/admin-i18n";
 import { getSession } from "@/lib/admin-auth";
 import { requirePermission } from "@/lib/admin-auth";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
+import { ActionError, formAction } from "@/lib/action-state";
 
 async function put(key: string, value: object, employeeId: string) {
   await db.setting.upsert({
@@ -20,7 +21,7 @@ async function put(key: string, value: object, employeeId: string) {
   revalidatePath("/admin/settings");
 }
 
-export async function saveOrderSettings(fd: FormData) {
+export const saveOrderSettings = formAction(async (fd: FormData) => {
   const s = await requirePermission("can_edit_menu");
   await put(
     "order",
@@ -34,9 +35,9 @@ export async function saveOrderSettings(fd: FormData) {
     s.sub,
   );
   redirect("/admin/settings?saved=order");
-}
+}, tr);
 
-export async function saveLoyaltySettings(fd: FormData) {
+export const saveLoyaltySettings = formAction(async (fd: FormData) => {
   const s = await requirePermission("can_discount");
   await put(
     "loyalty",
@@ -49,9 +50,9 @@ export async function saveLoyaltySettings(fd: FormData) {
     s.sub,
   );
   redirect("/admin/settings?saved=loyalty");
-}
+}, tr);
 
-export async function saveEmployeeDiscount(fd: FormData) {
+export const saveEmployeeDiscount = formAction(async (fd: FormData) => {
   const s = await requirePermission("can_discount");
   await put(
     "employeeDiscount",
@@ -64,9 +65,9 @@ export async function saveEmployeeDiscount(fd: FormData) {
     s.sub,
   );
   redirect("/admin/settings?saved=employeeDiscount");
-}
+}, tr);
 
-export async function saveDiscountRules(fd: FormData) {
+export const saveDiscountRules = formAction(async (fd: FormData) => {
   const s = await requirePermission("can_discount");
   await put(
     "discountRules",
@@ -79,15 +80,15 @@ export async function saveDiscountRules(fd: FormData) {
   );
   await put("discountVerification", { mode: fdStr(fd, "verification") || "manual" }, s.sub);
   redirect("/admin/settings?saved=discountRules");
-}
+}, tr);
 
-export async function saveTax(fd: FormData) {
+export const saveTax = formAction(async (fd: FormData) => {
   const s = await requirePermission("can_edit_menu");
   await put("tax", { rate: fdNum(fd, "rate") ?? 0, inclusive: fdBool(fd, "inclusive") }, s.sub);
   redirect("/admin/settings?saved=tax");
-}
+}, tr);
 
-export async function saveSocial(fd: FormData) {
+export const saveSocial = formAction(async (fd: FormData) => {
   const s = await requirePermission("can_edit_menu");
 
   const current = await db.setting.findUnique({ where: { key: "social" } });
@@ -105,9 +106,9 @@ export async function saveSocial(fd: FormData) {
 
   await put("social", next as unknown as object, s.sub);
   redirect("/admin/settings?saved=social");
-}
+}, tr);
 
-export async function saveTelegram(fd: FormData) {
+export const saveTelegram = formAction(async (fd: FormData) => {
   const s = await requirePermission("can_edit_menu");
   await put(
     "telegram",
@@ -124,9 +125,9 @@ export async function saveTelegram(fd: FormData) {
     s.sub,
   );
   redirect("/admin/settings?saved=telegram");
-}
+}, tr);
 
-export async function saveFixedCosts(fd: FormData) {
+export const saveFixedCosts = formAction(async (fd: FormData) => {
   const s = await requirePermission("can_view_reports");
   await put(
     "fixedCosts",
@@ -138,13 +139,13 @@ export async function saveFixedCosts(fd: FormData) {
     s.sub,
   );
   redirect("/admin/settings?saved=fixedCosts");
-}
+}, tr);
 
 /** ინტერფეისის ენა — მხოლოდ super_admin ცვლის. */
-export async function saveAdminLanguage(fd: FormData) {
+export const saveAdminLanguage = formAction(async (fd: FormData) => {
   const session = await getSession();
   if (session?.role !== "super_admin") {
-    throw new Error("Only a super admin can change the interface language");
+    throw new ActionError("Only a super admin can change the interface language");
   }
 
   const lang = fdStr(fd, "lang") === "ka" ? "ka" : "en";
@@ -152,4 +153,4 @@ export async function saveAdminLanguage(fd: FormData) {
   clearLangCache();
 
   redirect("/admin/settings?saved=language");
-}
+}, tr);

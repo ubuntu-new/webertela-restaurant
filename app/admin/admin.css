@@ -402,3 +402,90 @@
   .advice-item { flex-direction: column; gap: 10px; }
   .advice-do { align-self: flex-start; }
 }
+
+/* ── Duplicate warning ──────────────────────────────────────────────
+   Shown by AdminForm when something with this name already exists, and by
+   NameField live as the name is typed. Amber rather than red on purpose: this
+   is a question, not a refusal. Red would say "you have done something wrong";
+   the user has usually done something reasonable and simply forgotten. */
+.dup-warn {
+  background: #fdf6e3;
+  border: 1px solid #ecd9a0;
+  border-left: 3px solid #c8942e;
+  border-radius: 10px;
+  padding: 13px 15px;
+  margin-bottom: 16px;
+}
+.dup-warn-head b { display: block; font-size: 15px; margin-bottom: 3px; }
+.dup-warn-head p { margin: 0; font-size: 13.5px; color: #6b5c38; line-height: 1.55; }
+
+.dup-hits { list-style: none; margin: 11px 0 0; padding: 0; }
+.dup-hits li {
+  font-size: 13.5px; padding: 7px 0; border-top: 1px solid #ecd9a0;
+}
+.dup-hits li a { color: var(--a-orange); font-weight: 600; text-decoration: none; }
+.dup-hits li a:hover { text-decoration: underline; }
+.dup-hits li span { color: #6b5c38; }
+.dup-hits li em { color: #8a7a52; font-style: normal; }
+
+.dup-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.btn-warn { background: #c8942e; color: #fff; border: 0; }
+.btn-warn:hover { background: #b3831f; }
+
+/* the live version, sitting under the name field as you type */
+.dup-live {
+  margin-top: 7px; font-size: 13px; line-height: 1.5;
+  background: #fdf6e3; border: 1px solid #ecd9a0; border-radius: 8px;
+  padding: 8px 11px; color: #6b5c38;
+}
+.dup-live b { color: var(--a-ink); }
+.dup-live a { color: var(--a-orange); font-weight: 600; text-decoration: none; }
+.dup-live a:hover { text-decoration: underline; }
+.dup-live.checking { background: #faf9f7; border-color: var(--a-line); color: var(--a-muted); }
+
+/* ── Merge screen ── */
+.merge-group {
+  background: var(--a-panel); border: 1px solid var(--a-line);
+  border-radius: var(--a-radius); padding: 15px 17px; margin-bottom: 12px;
+}
+.merge-group h3 { margin: 0 0 3px; font-size: 16px; }
+.merge-group > p { margin: 0 0 11px; font-size: 13.5px; color: var(--a-muted); }
+.merge-row {
+  display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center;
+  padding: 8px 0; border-top: 1px solid var(--a-line); font-size: 14px;
+}
+.merge-row .m-use { font-size: 12.5px; color: var(--a-muted); }
+.merge-note {
+  background: #f4f8f4; border-left: 3px solid var(--a-ok); border-radius: 0 8px 8px 0;
+  padding: 11px 13px; font-size: 13.5px; color: #3d5c3d; margin: 12px 0;
+}
+
+/* A button that reads as a link — used inside the error banner to jump to the
+   field that was rejected. A real <button> because it does something on the
+   page rather than going somewhere. */
+.link-like {
+  background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
+  color: inherit; text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* Why the software thinks two things are the same. Colour carries the strength
+   of the claim: a barcode match is a fact and reads as one; a similar name is a
+   guess and reads as one. */
+.dup-why { font-style: normal; font-size: 12.5px; padding: 1px 7px; border-radius: 100px; }
+.dup-why-certain  { background: #f8e4e1; color: #a8291d; font-weight: 600; }
+.dup-why-strong   { background: #fdf0d9; color: #8a6a12; font-weight: 600; }
+.dup-why-probable { background: #f0efe9; color: #6b6459; }
+.dup-why-possible { background: #f0efe9; color: #7b817c; }
+
+/* ── Barcode field ── */
+.barcode-row { display: flex; gap: 8px; align-items: stretch; }
+.barcode-row input { flex: 1; font-family: ui-monospace, "JetBrains Mono", monospace; letter-spacing: .04em; }
+.barcode-row .btn { white-space: nowrap; }
+
+/* The camera preview. Capped in height because a full-bleed video pushes the
+   rest of the form off a phone screen, and the person needs to see the field
+   fill in. */
+.barcode-cam {
+  width: 100%; max-height: 240px; margin-top: 9px;
+  border-radius: 10px; background: #000; object-fit: cover;
+}

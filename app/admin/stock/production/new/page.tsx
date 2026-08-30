@@ -4,6 +4,7 @@ import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
 import { tr } from "@/lib/admin-i18n";
 import { startProduction } from "../actions";
+import AdminForm from "@/app/admin/_components/AdminForm";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,12 @@ export default async function NewProduction() {
         </div>
       ) : (
         <>
-          <form className="admin-panel admin-form" action={startProduction}>
+          <AdminForm
+            className="admin-panel admin-form"
+            action={startProduction}
+            submitLabel={t("Start")}
+            cancelHref="/admin/stock/production"
+          >
             <div className="field-row">
               <div className="field">
                 <label htmlFor="recipeId">{t("Recipe")}</label>
@@ -82,15 +88,7 @@ export default async function NewProduction() {
               <input id="note" name="note" type="text" />
             </div>
 
-            <div className="form-actions">
-              <button className="btn" type="submit">
-                {t("Start")}
-              </button>
-              <Link className="btn btn-ghost" href="/admin/stock/production">
-                {t("Cancel")}
-              </Link>
-            </div>
-          </form>
+          </AdminForm>
 
           <div className="admin-panel">
             <h2>{t("Recipes and what is on hand")}</h2>

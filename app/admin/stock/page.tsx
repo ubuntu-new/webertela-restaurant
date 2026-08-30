@@ -5,6 +5,7 @@ import { fmtQty } from "@/lib/stock";
 import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
 import { addMovement } from "./actions";
+import AdminForm from "../_components/AdminForm";
 
 export const dynamic = "force-dynamic";
 
@@ -163,7 +164,13 @@ export default async function StockPage({
           </div>
 
           {/* ── ხელით მოძრაობა ── */}
-          <form className="admin-panel admin-form" action={addMovement} style={{ maxWidth: "none" }}>
+          <AdminForm
+            className="admin-panel admin-form"
+            style={{ maxWidth: "none" }}
+            action={addMovement}
+            submitLabel={t("Record")}
+            pendingLabel={t("Recording…")}
+          >
             <h2>{t("Add movement")}</h2>
             <input type="hidden" name="locationId" value={locId} />
 
@@ -212,12 +219,7 @@ export default async function StockPage({
               {t("— enter what you actually counted, the system works out the difference.")}
             </p>
 
-            <div className="form-actions">
-              <button className="btn" type="submit">
-                {t("Record")}
-              </button>
-            </div>
-          </form>
+          </AdminForm>
         </>
       )}
 

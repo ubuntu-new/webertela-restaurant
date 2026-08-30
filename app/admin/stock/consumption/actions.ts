@@ -6,9 +6,10 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
 import { tr } from "@/lib/admin-i18n";
 import { fdNum, fdStr } from "@/lib/admin-utils";
+import { ActionError, formAction } from "@/lib/action-state";
 
 /** ახალი წესი — ან პროდუქტზე, ან ტოპინგზე. */
-export async function addRule(fd: FormData) {
+export const addRule = formAction(async (fd: FormData) => {
   const s = await requirePermission("can_edit_menu");
   const t = await tr();
 
@@ -17,8 +18,8 @@ export async function addRule(fd: FormData) {
   const qty = fdNum(fd, "qty");
   const sizeKey = fdStr(fd, "sizeKey") || null;
 
-  if (!owner || !itemId) throw new Error(t("Pick a menu item and a stock item"));
-  if (qty === null || qty <= 0) throw new Error(t("Quantity must be greater than zero"));
+  if (!owner || !itemId) throw new ActionError(t("Pick a menu item and a stock item"));
+  if (qty === null || qty <= 0) throw new ActionError(t("Quantity must be greater than zero"));
 
   const [kind, id] = owner.split(":");
   const productId = kind === "product" ? id : null;
@@ -41,10 +42,10 @@ export async function addRule(fd: FormData) {
 
   revalidatePath("/admin/stock/consumption");
   redirect(`/admin/stock/consumption?saved=1&owner=${encodeURIComponent(owner)}`);
-}
+}, tr);
 
 /** არსებულების რედაქტირება/წაშლა — ერთი შენახვით. */
-export async function saveRules(fd: FormData) {
+export const saveRules = formAction(async (fd: FormData) => {
   const s = await requirePermission("can_edit_menu");
 
   const ids = fd.getAll("rule").map(String);
@@ -70,4 +71,4 @@ export async function saveRules(fd: FormData) {
 
   revalidatePath("/admin/stock/consumption");
   redirect(`/admin/stock/consumption?saved=${changed}`);
-}
+}, tr);

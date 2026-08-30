@@ -6,6 +6,8 @@ import { updateDiscount, archiveDiscount } from "../actions";
 import ArchiveButton from "../../_components/ArchiveButton";
 import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
+import AdminForm from "@/app/admin/_components/AdminForm";
+import NameField from "@/app/admin/_components/NameField";
 
 export const dynamic = "force-dynamic";
 
@@ -83,14 +85,24 @@ export default async function DiscountEdit({ params }: { params: Promise<{ id: s
         </Link>
       </div>
 
-      <form className="admin-form" action={save} style={{ maxWidth: 900 }}>
+      <AdminForm
+        className="admin-form"
+        style={{ maxWidth: 900 }}
+        action={save}
+        submitLabel={t("Save")}
+        cancelHref="/admin/discounts"
+      >
         <div className="admin-panel">
           <h2>{t("Basics")}</h2>
           <div className="field-row">
-            <div className="field">
-              <label htmlFor="name_en">{t("Name (EN)")}</label>
-              <input id="name_en" name="name_en" type="text" defaultValue={name.en} required />
-            </div>
+            <NameField
+              model="discount"
+              name="name_en"
+              label={t("Name (EN)")}
+              defaultValue={name.en}
+              excludeId={id}
+              required
+            />
             <div className="field">
               <label htmlFor="name_ka">{t("Name (KA)")}</label>
               <input id="name_ka" name="name_ka" type="text" defaultValue={name.ka} />
@@ -252,15 +264,7 @@ export default async function DiscountEdit({ params }: { params: Promise<{ id: s
           </div>
         </div>
 
-        <div className="form-actions">
-          <button className="btn" type="submit">
-            {t("Save")}
-          </button>
-          <Link className="btn btn-ghost" href="/admin/discounts">
-            {t("Cancel")}
-          </Link>
-        </div>
-      </form>
+      </AdminForm>
 
       <div className="admin-panel" style={{ maxWidth: 900, marginTop: 20 }}>
         <h2>{t("Archive")}</h2>

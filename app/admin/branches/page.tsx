@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function BranchesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; archived?: string }>;
+  searchParams: Promise<{ saved?: string; archived?: string; error?: string }>;
 }) {
   const sp = await searchParams;
   const t = await tr();
@@ -34,6 +34,7 @@ export default async function BranchesPage({
         </Link>
       </div>
 
+      {sp.error && <div className="alert alert-error">{sp.error}</div>}
       {sp.saved && <div className="alert alert-ok">{t("Saved.")}</div>}
       {sp.archived && (
         <div className="alert alert-ok">{t("Moved to the archive. Restore it from the Archive page.")}</div>

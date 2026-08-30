@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
 import { addRule, saveRules } from "./actions";
+import AdminForm from "@/app/admin/_components/AdminForm";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +97,12 @@ export default async function ConsumptionPage({
       </div>
 
       {/* ── ახალი წესი ── */}
-      <form className="admin-panel admin-form" action={addRule} style={{ maxWidth: "none" }}>
+      <AdminForm
+        className="admin-panel admin-form"
+        style={{ maxWidth: "none" }}
+        action={addRule}
+        submitLabel={t("Add")}
+      >
         <h2>{t("Add a rule")}</h2>
 
         <div className="field-row" style={{ gridTemplateColumns: "2fr 2fr 1fr 1fr" }}>
@@ -149,15 +155,17 @@ export default async function ConsumptionPage({
           </div>
         </div>
 
-        <div className="form-actions">
-          <button className="btn" type="submit">
-            {t("Add")}
-          </button>
-        </div>
-      </form>
+      </AdminForm>
 
       {/* ── არსებული წესები ── */}
-      <form action={saveRules}>
+      {/* A form with a Save button and nothing to save is a button that lies.
+          When there are no rules yet, the panels are shown without one. */}
+      <AdminForm
+        className=""
+        action={saveRules}
+        submitLabel={rules.length > 0 ? t("Save changes") : ""}
+        hideSubmit={rules.length === 0}
+      >
         <div className="admin-panel">
           <h2>
             {t("Toppings")} ({toppingRules.length})
@@ -260,14 +268,7 @@ export default async function ConsumptionPage({
           )}
         </div>
 
-        {rules.length > 0 && (
-          <div className="form-actions">
-            <button className="btn" type="submit">
-              {t("Save changes")}
-            </button>
-          </div>
-        )}
-      </form>
+      </AdminForm>
     </>
   );
 }

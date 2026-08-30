@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/admin-auth";
 import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
+import AdminForm from "../_components/AdminForm";
 import {
   saveOrderSettings,
   saveLoyaltySettings,
@@ -69,36 +70,45 @@ export default async function SettingsPage({
         </div>
       )}
 
-      {/* language */}
-      <form className="admin-panel admin-form" action={saveAdminLanguage} style={{ maxWidth: "none" }}>
-        <h2>Interface language</h2>
-        {session?.role === "super_admin" ? (
-          <>
-            <p className="hint" style={{ marginTop: -8 }}>
-              English is the source language — new screens appear in English first.
-              Changing this affects every admin user.
-            </p>
-            <div className="field" style={{ maxWidth: 320 }}>
-              <label htmlFor="lang">Language</label>
-              <select id="lang" name="lang" defaultValue={String(lang.lang ?? "en")}>
-                <option value="en">English</option>
-                <option value="ka">{t("Georgian")}</option>
-              </select>
-            </div>
-            <div className="form-actions">
-              <button className="btn" type="submit">Save</button>
-            </div>
-          </>
-        ) : (
+      {/* language — the form only exists for someone who can actually save it,
+          rather than a form with its own disabled button inside it */}
+      {session?.role === "super_admin" ? (
+        <AdminForm
+          className="admin-panel admin-form"
+          style={{ maxWidth: "none" }}
+          action={saveAdminLanguage}
+          submitLabel="Save"
+        >
+          <h2>Interface language</h2>
+          <p className="hint" style={{ marginTop: -8 }}>
+            English is the source language — new screens appear in English first. Changing this
+            affects every admin user.
+          </p>
+          <div className="field" style={{ maxWidth: 320 }}>
+            <label htmlFor="lang">Language</label>
+            <select id="lang" name="lang" defaultValue={String(lang.lang ?? "en")}>
+              <option value="en">English</option>
+              <option value="ka">{t("Georgian")}</option>
+            </select>
+          </div>
+        </AdminForm>
+      ) : (
+        <div className="admin-panel">
+          <h2>Interface language</h2>
           <p className="hint" style={{ margin: 0 }}>
             Current: <b>{String(lang.lang ?? "en") === "ka" ? t("Georgian") : "English"}</b> — only a
             super admin can change this.
           </p>
-        )}
-      </form>
+        </div>
+      )}
 
       {/* ── შეკვეთა ── */}
-      <form className="admin-panel admin-form" action={saveOrderSettings} style={{ maxWidth: "none" }}>
+      <AdminForm
+        className="admin-panel admin-form"
+        style={{ maxWidth: "none" }}
+        action={saveOrderSettings}
+        submitLabel={t("Save")}
+      >
         <h2>{t("Orders and delivery")}</h2>
         <div className="field-row">
           <div className="field">
@@ -124,13 +134,15 @@ export default async function SettingsPage({
           <label htmlFor="currency">{t("Currency")}</label>
           <input id="currency" name="currency" type="text" defaultValue={String(order.currency ?? "GEL")} />
         </div>
-        <div className="form-actions">
-          <button className="btn" type="submit">{t("Save")}</button>
-        </div>
-      </form>
+      </AdminForm>
 
       {/* ── ლოიალობა ── */}
-      <form className="admin-panel admin-form" action={saveLoyaltySettings} style={{ maxWidth: "none" }}>
+      <AdminForm
+        className="admin-panel admin-form"
+        style={{ maxWidth: "none" }}
+        action={saveLoyaltySettings}
+        submitLabel={t("Save")}
+      >
         <h2>{t("Loyalty points")}</h2>
         <div className="field-check">
           <input id="l_enabled" name="enabled" type="checkbox" defaultChecked={b(loyalty.enabled, true)} />
@@ -154,13 +166,15 @@ export default async function SettingsPage({
             {f.money(n(loyalty.minRedeem, 100) * n(loyalty.redeemRate, 0.1))}
           </span>
         </div>
-        <div className="form-actions">
-          <button className="btn" type="submit">{t("Save")}</button>
-        </div>
-      </form>
+      </AdminForm>
 
       {/* ── თანამშრომლის ფასდაკლება ── */}
-      <form className="admin-panel admin-form" action={saveEmployeeDiscount} style={{ maxWidth: "none" }}>
+      <AdminForm
+        className="admin-panel admin-form"
+        style={{ maxWidth: "none" }}
+        action={saveEmployeeDiscount}
+        submitLabel={t("Save")}
+      >
         <h2>{t("Staff discount")}</h2>
         <div className="field-check">
           <input id="e_enabled" name="enabled" type="checkbox" defaultChecked={b(emp.enabled, true)} />
@@ -183,13 +197,15 @@ export default async function SettingsPage({
           <input id="appliesEverywhere" name="appliesEverywhere" type="checkbox" defaultChecked={b(emp.appliesEverywhere, true)} />
           <label htmlFor="appliesEverywhere">{t("Applies at every branch")}</label>
         </div>
-        <div className="form-actions">
-          <button className="btn" type="submit">{t("Save")}</button>
-        </div>
-      </form>
+      </AdminForm>
 
       {/* ── ფასდაკლების წესები ── */}
-      <form className="admin-panel admin-form" action={saveDiscountRules} style={{ maxWidth: "none" }}>
+      <AdminForm
+        className="admin-panel admin-form"
+        style={{ maxWidth: "none" }}
+        action={saveDiscountRules}
+        submitLabel={t("Save")}
+      >
         <h2>{t("Discount rules")}</h2>
         <div className="field-check">
           <input id="stackable" name="stackable" type="checkbox" defaultChecked={b(rules.stackable, false)} />
@@ -211,13 +227,15 @@ export default async function SettingsPage({
           </select>
           <span className="hint">{t("“Upload” needs file storage — we don't have it yet.")}</span>
         </div>
-        <div className="form-actions">
-          <button className="btn" type="submit">{t("Save")}</button>
-        </div>
-      </form>
+      </AdminForm>
 
       {/* fixed costs */}
-      <form className="admin-panel admin-form" action={saveFixedCosts} style={{ maxWidth: "none" }}>
+      <AdminForm
+        className="admin-panel admin-form"
+        style={{ maxWidth: "none" }}
+        action={saveFixedCosts}
+        submitLabel={t("Save")}
+      >
         <h2>
           {t("Fixed costs")} ({t("per month")})
         </h2>
@@ -238,13 +256,15 @@ export default async function SettingsPage({
             <input id="other" name="other" type="number" step="0.01" min="0" defaultValue={n(fc.other, 0)} />
           </div>
         </div>
-        <div className="form-actions">
-          <button className="btn" type="submit">{t("Save")}</button>
-        </div>
-      </form>
+      </AdminForm>
 
       {/* ── გადასახადი ── */}
-      <form className="admin-panel admin-form" action={saveTax} style={{ maxWidth: "none" }}>
+      <AdminForm
+        className="admin-panel admin-form"
+        style={{ maxWidth: "none" }}
+        action={saveTax}
+        submitLabel={t("Save")}
+      >
         <h2>{t("Tax")}</h2>
         <div className="field-row">
           <div className="field">
@@ -258,13 +278,15 @@ export default async function SettingsPage({
             </div>
           </div>
         </div>
-        <div className="form-actions">
-          <button className="btn" type="submit">{t("Save")}</button>
-        </div>
-      </form>
+      </AdminForm>
 
       {/* ── Telegram ── */}
-      <form className="admin-panel admin-form" action={saveTelegram} style={{ maxWidth: "none" }}>
+      <AdminForm
+        className="admin-panel admin-form"
+        style={{ maxWidth: "none" }}
+        action={saveTelegram}
+        submitLabel={t("Save")}
+      >
         <h2>Telegram {t("notifications")}</h2>
         <p className="hint" style={{ marginTop: -8 }}>
           {t("The bot token lives in")} <code>.env</code> (<code>TELEGRAM_BOT_TOKEN</code>) —{" "}
@@ -305,13 +327,15 @@ export default async function SettingsPage({
           </span>
         </div>
 
-        <div className="form-actions">
-          <button className="btn" type="submit">{t("Save")}</button>
-        </div>
-      </form>
+      </AdminForm>
 
       {/* ── სოც. ქსელები ── */}
-      <form className="admin-panel admin-form" action={saveSocial} style={{ maxWidth: "none" }}>
+      <AdminForm
+        className="admin-panel admin-form"
+        style={{ maxWidth: "none" }}
+        action={saveSocial}
+        submitLabel={t("Save")}
+      >
         <h2>{t("Social links (footer)")}</h2>
         <table className="admin-table">
           <thead>
@@ -344,10 +368,7 @@ export default async function SettingsPage({
             })}
           </tbody>
         </table>
-        <div className="form-actions" style={{ marginTop: 14 }}>
-          <button className="btn" type="submit">{t("Save")}</button>
-        </div>
-      </form>
+      </AdminForm>
     </>
   );
 }

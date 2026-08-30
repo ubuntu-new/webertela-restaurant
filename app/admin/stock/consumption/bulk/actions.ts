@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
 import { logAction } from "@/lib/audit";
 import { fdNum, fdStr } from "@/lib/admin-utils";
+import { nameKey, nameKeyOfI18n } from "@/lib/name-key";
 
 /**
  * ტოპინგებიდან საწყობის ერთეულების შექმნა.
@@ -23,31 +24,47 @@ export async function createItemsFromToppings() {
     db.stockItem.findMany({ where: { deletedAt: null }, select: { name: true } }),
   ]);
 
-  const existing = new Set(
-    items.map((i) => String((i.name as Record<string, unknown>)?.en ?? "").toLowerCase()),
-  );
+  // This was the only duplicate check in the codebase, and it used its own
+  // rule: lower-case the English name. That missed "Mozzarella" against
+  // "mozzarella cheese" and against a trailing space, so it could still make a
+  // second row for something already on the shelf. It now uses the same
+  // normalisation as everything else — one rule, one behaviour.
+  const existing = new Set(items.map((i) => nameKeyOfI18n(i.name)).filter(Boolean));
 
   let made = 0;
+  let skipped = 0;
+
   for (const t of toppings) {
     const n = t.name as Record<string, unknown>;
     const en = String(n?.en ?? "").trim();
-    if (!en || existing.has(en.toLowerCase())) continue;
+    if (!en) continue;
+
+    const key = nameKey(en);
+    if (existing.has(key)) {
+      skipped++;
+      continue;
+    }
 
     await db.stockItem.create({
       data: {
         name: { en, ka: String(n?.ka ?? en) },
+        nameKey: key,
         unit: "kg", // ტოპინგები წონით იზომება; ცალობითს ხელით შეცვლი
         category: t.category ?? null,
         active: true,
       },
     });
+    // Two toppings can normalise to the same key ("Extra Cheese" twice, in
+    // different categories). Without this the second one creates the duplicate
+    // this whole function is trying to avoid.
+    existing.add(key);
     made++;
   }
 
   await logAction({
     action: "stockItem.bulkCreate",
     entityType: "StockItem",
-    after: { fromToppings: made },
+    after: { fromToppings: made, skippedAsDuplicates: skipped },
     employeeId: s.sub,
   });
 

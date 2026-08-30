@@ -9,6 +9,7 @@ import { logAction } from "@/lib/audit";
 import { notifyTransferRequest, notifyTransferSent } from "@/lib/telegram";
 import { fdNum, fdStr } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { ActionError, failTo, formAction } from "@/lib/action-state";
 
 /**
  * გადატანის ეტაპები.
@@ -31,17 +32,27 @@ const FLOW: Record<string, string[]> = {
   cancelled: [],
 };
 
-async function loadOrFail(id: string) {
+/**
+ * `button` says the caller is a button rather than a form. A form can show a
+ * returned message above its fields; a button has nowhere to put one, so its
+ * refusal travels in the URL instead of being redacted into "Application error".
+ */
+async function loadOrFail(id: string, button = false) {
   const tx = await tr();
   const t = await db.transfer.findUnique({ where: { id }, include: { lines: true } });
-  if (!t) throw new Error(tx("Transfer not found"));
+  if (!t) {
+    if (button) failTo("/admin/stock/transfers", tx("Transfer not found"));
+    throw new ActionError(tx("Transfer not found"));
+  }
   return t;
 }
 
-async function guard(from: string, to: string) {
+async function guard(from: string, to: string, backTo?: string) {
   if (!FLOW[from]?.includes(to)) {
     const tx = await tr();
-    throw new Error(`${tx("Status")} "${from}" → "${to}" ${tx("is not allowed")}`);
+    const msg = `${tx("Status")} "${from}" → "${to}" ${tx("is not allowed")}`;
+    if (backTo) failTo(backTo, msg);
+    throw new ActionError(msg);
   }
 }
 
@@ -49,14 +60,14 @@ async function guard(from: string, to: string) {
 // შექმნა
 // ─────────────────────────────────────────────
 
-export async function createTransfer(fd: FormData) {
+export const createTransfer = formAction(async (fd: FormData) => {
   const s = await requirePermission("can_transfer_branch");
   const tx = await tr();
 
   const fromLocationId = fdStr(fd, "fromLocationId");
   const toLocationId = fdStr(fd, "toLocationId");
-  if (!fromLocationId || !toLocationId) throw new Error(tx("Pick both locations"));
-  if (fromLocationId === toLocationId) throw new Error(tx("Source and destination cannot be the same"));
+  if (!fromLocationId || !toLocationId) throw new ActionError(tx("Pick both locations"));
+  if (fromLocationId === toLocationId) throw new ActionError(tx("Source and destination cannot be the same"));
 
   // მხოლოდ შევსებული სტრიქონები
   const lines: { itemId: string; qty: number }[] = [];
@@ -66,7 +77,7 @@ export async function createTransfer(fd: FormData) {
     if (!Number.isFinite(qty) || qty <= 0) continue;
     lines.push({ itemId: key.slice(4), qty });
   }
-  if (lines.length === 0) throw new Error(tx("Fill in at least one line"));
+  if (lines.length === 0) throw new ActionError(tx("Fill in at least one line"));
 
   const t = await db.transfer.create({
     data: {
@@ -107,13 +118,13 @@ export async function createTransfer(fd: FormData) {
 
   revalidatePath("/admin/stock/transfers");
   redirect(`/admin/stock/transfers/${t.id}`);
-}
+}, tr);
 
 // ─────────────────────────────────────────────
 // დამტკიცება — რაოდენობის შეცვლით
 // ─────────────────────────────────────────────
 
-export async function approveTransfer(id: string, fd: FormData) {
+export const approveTransfer = formAction(async (fd: FormData, id: string) => {
   const s = await requirePermission("can_transfer_branch");
   const tx = await tr();
   const t = await loadOrFail(id);
@@ -124,7 +135,7 @@ export async function approveTransfer(id: string, fd: FormData) {
   for (const l of t.lines) {
     const q = fdNum(fd, `approve_${l.id}`);
     const approved = q === null ? Number(l.qtyRequested) : q;
-    if (approved < 0) throw new Error(tx("Quantity cannot be negative"));
+    if (approved < 0) throw new ActionError(tx("Quantity cannot be negative"));
 
     await db.transferLine.update({ where: { id: l.id }, data: { qtyApproved: approved } });
 
@@ -148,13 +159,13 @@ export async function approveTransfer(id: string, fd: FormData) {
 
   revalidatePath("/admin/stock/transfers");
   redirect(`/admin/stock/transfers/${id}?ok=approved`);
-}
+}, tr);
 
 // ─────────────────────────────────────────────
 // გაგზავნა — წყაროს აკლდება
 // ─────────────────────────────────────────────
 
-export async function sendTransfer(id: string, fd: FormData) {
+export const sendTransfer = formAction(async (fd: FormData, id: string) => {
   const s = await requirePermission("can_transfer_branch");
   const tx = await tr();
   const t = await loadOrFail(id);
@@ -167,7 +178,7 @@ export async function sendTransfer(id: string, fd: FormData) {
     const fallback = l.qtyApproved != null ? Number(l.qtyApproved) : Number(l.qtyRequested);
     const q = fdNum(fd, `send_${l.id}`);
     const qty = q === null ? fallback : q;
-    if (qty < 0) throw new Error(tx("Quantity cannot be negative"));
+    if (qty < 0) throw new ActionError(tx("Quantity cannot be negative"));
 
     await db.transferLine.update({ where: { id: l.id }, data: { qtySent: qty } });
     if (qty === 0) continue;
@@ -219,13 +230,13 @@ export async function sendTransfer(id: string, fd: FormData) {
   revalidatePath("/admin/stock");
   revalidatePath("/admin/stock/transfers");
   redirect(`/admin/stock/transfers/${id}?ok=sent`);
-}
+}, tr);
 
 // ─────────────────────────────────────────────
 // მიღება — დანიშნულებას ემატება
 // ─────────────────────────────────────────────
 
-export async function receiveTransfer(id: string, fd: FormData) {
+export const receiveTransfer = formAction(async (fd: FormData, id: string) => {
   const s = await requirePermission("can_transfer_branch");
   const tx = await tr();
   const t = await loadOrFail(id);
@@ -239,7 +250,7 @@ export async function receiveTransfer(id: string, fd: FormData) {
     const sentQty = l.qtySent != null ? Number(l.qtySent) : 0;
     const q = fdNum(fd, `receive_${l.id}`);
     const qty = q === null ? sentQty : q;
-    if (qty < 0) throw new Error(tx("Quantity cannot be negative"));
+    if (qty < 0) throw new ActionError(tx("Quantity cannot be negative"));
 
     await db.transferLine.update({ where: { id: l.id }, data: { qtyReceived: qty } });
     if (qty !== sentQty) gaps[l.itemId] = { sent: sentQty, received: qty };
@@ -276,7 +287,7 @@ export async function receiveTransfer(id: string, fd: FormData) {
   revalidatePath("/admin/stock");
   revalidatePath("/admin/stock/transfers");
   redirect(`/admin/stock/transfers/${id}?ok=received`);
-}
+}, tr);
 
 // ─────────────────────────────────────────────
 // გაუქმება
@@ -286,8 +297,8 @@ export async function cancelTransfer(id: string) {
   const s = await requirePermission("can_transfer_branch");
   const tx = await tr();
   const session = await getSession();
-  const t = await loadOrFail(id);
-  await guard(t.status, "cancelled");
+  const t = await loadOrFail(id, true);
+  await guard(t.status, "cancelled", `/admin/stock/transfers/${id}`);
 
   // თუ უკვე გაგზავნილი იყო, საქონელი წყაროს უბრუნდება
   if (t.status === "sent") {

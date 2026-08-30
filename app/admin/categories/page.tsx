@@ -3,6 +3,8 @@ import { i18nOf } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
 import { saveCategories, createCategory, createSubcategory, archiveCategory } from "./actions";
 import ArchiveButton from "../_components/ArchiveButton";
+import AdminForm from "../_components/AdminForm";
+import NameField from "../_components/NameField";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +51,7 @@ export default async function CategoriesPage({
         </div>
       )}
 
-      <form action={saveCategories}>
+      <AdminForm action={saveCategories} className="" submitLabel={t("Save all")}>
         {cats.map((c) => {
           const n = i18nOf(c.name);
           return (
@@ -138,12 +140,7 @@ export default async function CategoriesPage({
           );
         })}
 
-        <div className="form-actions">
-          <button className="btn" type="submit">
-            {t("Save all")}
-          </button>
-        </div>
-      </form>
+      </AdminForm>
 
       {/* ── ქვე-კატეგორიის დამატება ── */}
       <div className="admin-panel" style={{ marginTop: 24 }}>
@@ -152,7 +149,13 @@ export default async function CategoriesPage({
           const add = createSubcategory.bind(null, c.id);
           const n = i18nOf(c.name);
           return (
-            <form key={c.id} action={add} style={{ display: "flex", gap: 10, alignItems: "flex-end", marginBottom: 10 }}>
+            <AdminForm
+              key={c.id}
+              className=""
+              style={{ display: "flex", gap: 10, alignItems: "flex-end", marginBottom: 10, flexWrap: "wrap" }}
+              action={add}
+              submitLabel={`+ ${t("Add")}`}
+            >
               <div className="field" style={{ minWidth: 150 }}>
                 <label>{n.ka || n.en}</label>
                 <input name="sub_name_en" type="text" placeholder="EN" style={inp} />
@@ -161,22 +164,21 @@ export default async function CategoriesPage({
                 <label>&nbsp;</label>
                 <input name="sub_name_ka" type="text" placeholder="KA" style={inp} />
               </div>
-              <button className="btn btn-ghost" type="submit">
-                + {t("Add")}
-              </button>
-            </form>
+            </AdminForm>
           );
         })}
       </div>
 
       {/* ── ახალი კატეგორია ── */}
-      <form className="admin-panel admin-form" action={createCategory} style={{ marginTop: 24 }}>
+      <AdminForm
+        className="admin-panel admin-form"
+        style={{ marginTop: 24 }}
+        action={createCategory}
+        submitLabel={t("Create")}
+      >
         <h2>{t("New category")}</h2>
         <div className="field-row">
-          <div className="field">
-            <label htmlFor="name_en">{t("Name")} (EN)</label>
-            <input id="name_en" name="name_en" type="text" required />
-          </div>
+          <NameField model="category" name="name_en" label={`${t("Name")} (EN)`} required />
           <div className="field">
             <label htmlFor="name_ka">{t("Name")} (KA)</label>
             <input id="name_ka" name="name_ka" type="text" />
@@ -195,12 +197,7 @@ export default async function CategoriesPage({
             </select>
           </div>
         </div>
-        <div className="form-actions">
-          <button className="btn" type="submit">
-            {t("Create")}
-          </button>
-        </div>
-      </form>
+      </AdminForm>
 
       {/* ── არქივი ── */}
       <div className="admin-panel" style={{ marginTop: 24 }}>

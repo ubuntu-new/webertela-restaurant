@@ -7,6 +7,8 @@ import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
 import ImageField from "../../_components/ImageField";
 import ArchiveButton from "../../_components/ArchiveButton";
+import AdminForm from "@/app/admin/_components/AdminForm";
+import NameField from "@/app/admin/_components/NameField";
 
 export const dynamic = "force-dynamic";
 
@@ -79,14 +81,24 @@ export default async function ComboEdit({ params }: { params: Promise<{ id: stri
         </Link>
       </div>
 
-      <form className="admin-form" action={save} style={{ maxWidth: 900 }}>
+      <AdminForm
+        className="admin-form"
+        style={{ maxWidth: 900 }}
+        action={save}
+        submitLabel={t("Save")}
+        cancelHref="/admin/combos"
+      >
         <div className="admin-panel">
           <h2>{t("Basics")}</h2>
           <div className="field-row">
-            <div className="field">
-              <label htmlFor="name_en">{t("Name")} (EN)</label>
-              <input id="name_en" name="name_en" type="text" defaultValue={name.en} required />
-            </div>
+            <NameField
+              model="combo"
+              name="name_en"
+              label={`${t("Name")} (EN)`}
+              defaultValue={name.en}
+              excludeId={id}
+              required
+            />
             <div className="field">
               <label htmlFor="name_ka">{t("Name")} (KA)</label>
               <input id="name_ka" name="name_ka" type="text" defaultValue={name.ka} />
@@ -256,15 +268,7 @@ export default async function ComboEdit({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        <div className="form-actions">
-          <button className="btn" type="submit">
-            {t("Save")}
-          </button>
-          <Link className="btn btn-ghost" href="/admin/combos">
-            {t("Cancel")}
-          </Link>
-        </div>
-      </form>
+      </AdminForm>
 
       <form action={addSlot} style={{ marginTop: 16 }}>
         <button className="btn btn-ghost" type="submit">

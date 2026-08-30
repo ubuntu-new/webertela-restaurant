@@ -2,6 +2,8 @@ import Link from "next/link";
 import { createCombo } from "../actions";
 import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
+import AdminForm from "@/app/admin/_components/AdminForm";
+import NameField from "@/app/admin/_components/NameField";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +23,20 @@ export default async function NewCombo() {
         </Link>
       </div>
 
-      <form className="admin-panel admin-form" action={createCombo}>
+      <AdminForm
+        className="admin-panel admin-form"
+        action={createCombo}
+        submitLabel={t("Create and edit")}
+        cancelHref="/admin/combos"
+      >
         <div className="field-row">
-          <div className="field">
-            <label htmlFor="name_en">{t("Name")} (EN)</label>
-            <input id="name_en" name="name_en" type="text" required autoFocus />
-          </div>
+          <NameField
+            model="combo"
+            name="name_en"
+            label={`${t("Name")} (EN)`}
+            required
+            autoFocus
+          />
           <div className="field">
             <label htmlFor="name_ka">{t("Name")} (KA)</label>
             <input id="name_ka" name="name_ka" type="text" />
@@ -62,15 +72,7 @@ export default async function NewCombo() {
           <b>{t("A new combo is created disabled")}</b>.
         </div>
 
-        <div className="form-actions">
-          <button className="btn" type="submit">
-            {t("Create and edit")}
-          </button>
-          <Link className="btn btn-ghost" href="/admin/combos">
-            {t("Cancel")}
-          </Link>
-        </div>
-      </form>
+      </AdminForm>
     </>
   );
 }

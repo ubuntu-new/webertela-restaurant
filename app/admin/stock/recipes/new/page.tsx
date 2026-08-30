@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
 import { createRecipe } from "../actions";
+import AdminForm from "@/app/admin/_components/AdminForm";
+import NameField from "@/app/admin/_components/NameField";
 
 export const dynamic = "force-dynamic";
 
@@ -34,12 +36,21 @@ export default async function NewRecipe() {
           </p>
         </div>
       ) : (
-        <form className="admin-panel admin-form" action={createRecipe}>
+        <AdminForm
+          className="admin-panel admin-form"
+          action={createRecipe}
+          submitLabel={t("Create")}
+          cancelHref="/admin/stock/recipes"
+        >
           <div className="field-row">
-            <div className="field">
-              <label htmlFor="name_en">{t("Name")} (EN)</label>
-              <input id="name_en" name="name_en" type="text" required autoFocus placeholder="Dough batch" />
-            </div>
+            <NameField
+              model="recipe"
+              name="name_en"
+              label={`${t("Name")} (EN)`}
+              required
+              autoFocus
+              placeholder="Dough batch"
+            />
             <div className="field">
               <label htmlFor="name_ka">{t("Name")} (KA)</label>
               <input id="name_ka" name="name_ka" type="text" placeholder={t("Dough batch")} />
@@ -74,15 +85,7 @@ export default async function NewRecipe() {
             <input id="note" name="note" type="text" placeholder={t("Method, temperature…")} />
           </div>
 
-          <div className="form-actions">
-            <button className="btn" type="submit">
-              {t("Create")}
-            </button>
-            <Link className="btn btn-ghost" href="/admin/stock/recipes">
-              {t("Cancel")}
-            </Link>
-          </div>
-        </form>
+        </AdminForm>
       )}
     </>
   );

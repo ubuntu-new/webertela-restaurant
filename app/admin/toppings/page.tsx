@@ -4,6 +4,7 @@ import { i18nText, money } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
 import { saveToppingPrices } from "./actions";
+import AdminForm from "../_components/AdminForm";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ export default async function ToppingsPage({
         </div>
       )}
 
-      <form action={saveToppingPrices}>
+      <AdminForm className="" action={saveToppingPrices} submitLabel={t("Save all")}>
         <div className="admin-panel">
           <h2>{t("Prices and status")}</h2>
           <p className="hint" style={{ marginTop: -8, marginBottom: 14 }}>
@@ -123,13 +124,8 @@ export default async function ToppingsPage({
             </tbody>
           </table>
 
-          <div className="form-actions" style={{ marginTop: 18 }}>
-            <button className="btn" type="submit">
-              {t("Save all")}
-            </button>
-          </div>
         </div>
-      </form>
+      </AdminForm>
     </>
   );
 }

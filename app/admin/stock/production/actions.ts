@@ -8,6 +8,7 @@ import { recordMovements } from "@/lib/stock";
 import { logAction } from "@/lib/audit";
 import { fdNum, fdStr } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { ActionError, failTo, formAction } from "@/lib/action-state";
 
 /**
  * პარტიის დაწყება.
@@ -16,7 +17,7 @@ import { tr } from "@/lib/admin-i18n";
  * თუ შუა პროცესში გაუქმდა, ჟურნალში ნაგავი არ რჩება. ნედლეული
  * დასრულებისას ჩამოიწერება, ფაქტობრივი რაოდენობით.
  */
-export async function startProduction(fd: FormData) {
+export const startProduction = formAction(async (fd: FormData) => {
   const s = await requirePermission("can_transfer_branch");
   const t = await tr();
 
@@ -24,12 +25,12 @@ export async function startProduction(fd: FormData) {
   const locationId = fdStr(fd, "locationId");
   const batches = fdNum(fd, "batches");
 
-  if (!recipeId || !locationId) throw new Error(t("Pick a recipe and a location"));
-  if (batches === null || batches <= 0) throw new Error(t("Number of runs must be greater than zero"));
+  if (!recipeId || !locationId) throw new ActionError(t("Pick a recipe and a location"));
+  if (batches === null || batches <= 0) throw new ActionError(t("Number of runs must be greater than zero"));
 
   const recipe = await db.recipe.findUnique({ where: { id: recipeId }, include: { lines: true } });
-  if (!recipe) throw new Error(t("Recipe not found"));
-  if (recipe.lines.length === 0) throw new Error(t("This recipe has no ingredients"));
+  if (!recipe) throw new ActionError(t("Recipe not found"));
+  if (recipe.lines.length === 0) throw new ActionError(t("This recipe has no ingredients"));
 
   const plannedQty = Number(recipe.outputQty) * batches;
 
@@ -62,14 +63,14 @@ export async function startProduction(fd: FormData) {
 
   revalidatePath("/admin/stock/production");
   redirect(`/admin/stock/production/${order.id}`);
-}
+}, tr);
 
 /**
  * დასრულება — აქ ხდება მთელი მოძრაობა.
  *   ნედლეული  → production_out (ფაქტობრივად დახარჯული)
  *   პროდუქტი  → production_in  (ფაქტობრივად გამოსული)
  */
-export async function finishProduction(id: string, fd: FormData) {
+export const finishProduction = formAction(async (fd: FormData, id: string) => {
   const s = await requirePermission("can_transfer_branch");
   const t = await tr();
 
@@ -77,11 +78,11 @@ export async function finishProduction(id: string, fd: FormData) {
     where: { id },
     include: { lines: true, recipe: true },
   });
-  if (!order) throw new Error(t("Batch not found"));
-  if (order.status !== "in_progress") throw new Error(t("This batch is already closed"));
+  if (!order) throw new ActionError(t("Batch not found"));
+  if (order.status !== "in_progress") throw new ActionError(t("This batch is already closed"));
 
   const actualQty = fdNum(fd, "actualQty");
-  if (actualQty === null || actualQty < 0) throw new Error(t("Enter the actual output"));
+  if (actualQty === null || actualQty < 0) throw new ActionError(t("Enter the actual output"));
 
   const moves = [];
   const usedLog: Record<string, number> = {};
@@ -90,7 +91,7 @@ export async function finishProduction(id: string, fd: FormData) {
     const planned = Number(l.qtyPlanned);
     const q = fdNum(fd, `used_${l.id}`);
     const used = q === null ? planned : q;
-    if (used < 0) throw new Error(t("Used amount cannot be negative"));
+    if (used < 0) throw new ActionError(t("Used amount cannot be negative"));
 
     await db.productionLine.update({ where: { id: l.id }, data: { qtyUsed: used } });
     if (used === 0) continue;
@@ -142,15 +143,17 @@ export async function finishProduction(id: string, fd: FormData) {
   revalidatePath("/admin/stock");
   revalidatePath("/admin/stock/production");
   redirect(`/admin/stock/production/${id}?ok=1`);
-}
+}, tr);
 
 export async function cancelProduction(id: string) {
   const s = await requirePermission("can_transfer_branch");
   const t = await tr();
 
   const order = await db.productionOrder.findUnique({ where: { id } });
-  if (!order) throw new Error(t("Batch not found"));
-  if (order.status !== "in_progress") throw new Error(t("This batch is already closed"));
+  // Button, not a form: the message goes back on the batch page.
+  if (!order) failTo("/admin/stock/production", t("Batch not found"));
+  if (order.status !== "in_progress")
+    failTo(`/admin/stock/production/${id}`, t("This batch is already closed"));
 
   // მარაგი ჯერ არ შეცვლილა — დასაბრუნებელი არაფერია
   await db.productionOrder.update({

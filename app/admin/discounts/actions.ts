@@ -6,6 +6,9 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { ActionError, formAction, isConfirmed } from "@/lib/action-state";
+import { guardDuplicate } from "@/lib/dup";
+import { nameKey } from "@/lib/name-key";
 
 const TYPES = ["student", "diplomatic", "employee", "loyalty", "promo", "custom"] as const;
 type DType = (typeof TYPES)[number];
@@ -14,16 +17,20 @@ function typeOf(v: string): DType {
   return (TYPES as readonly string[]).includes(v) ? (v as DType) : "custom";
 }
 
-export async function createDiscount(fd: FormData) {
+export const createDiscount = formAction(async (fd: FormData) => {
   const session = await requirePermission("can_discount");
   const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error(t("The English name is required"));
+  if (!nameEn) throw new ActionError(t("The English name is required"), "name_en");
+
+  // Two live discounts with one name is how a promo ends up applied twice.
+  await guardDuplicate("discount", nameEn, { confirmed: isConfirmed(fd), t });
 
   const d = await db.discount.create({
     data: {
       name: { en: nameEn, ka: fdStr(fd, "name_ka") || nameEn },
+      nameKey: nameKey(nameEn),
       type: typeOf(fdStr(fd, "type")),
       defaultMode: fdStr(fd, "defaultMode") === "fixed" ? "fixed" : "percent",
       defaultValue: fdNum(fd, "defaultValue") ?? 0,
@@ -38,22 +45,25 @@ export async function createDiscount(fd: FormData) {
 
   revalidatePath("/admin/discounts");
   redirect(`/admin/discounts/${d.id}`);
-}
+}, tr);
 
-export async function updateDiscount(id: string, fd: FormData) {
+export const updateDiscount = formAction(async (fd: FormData, id: string) => {
   const session = await requirePermission("can_discount");
   const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error(t("The English name is required"));
+  if (!nameEn) throw new ActionError(t("The English name is required"), "name_en");
 
   const validFrom = fdStr(fd, "validFrom");
   const validTo = fdStr(fd, "validTo");
+
+  await guardDuplicate("discount", nameEn, { excludeId: id, confirmed: isConfirmed(fd), t });
 
   await db.discount.update({
     where: { id },
     data: {
       name: { en: nameEn, ka: fdStr(fd, "name_ka") || nameEn },
+      nameKey: nameKey(nameEn),
       type: typeOf(fdStr(fd, "type")),
       defaultMode: fdStr(fd, "defaultMode") === "fixed" ? "fixed" : "percent",
       defaultValue: fdNum(fd, "defaultValue") ?? 0,
@@ -103,7 +113,7 @@ export async function updateDiscount(id: string, fd: FormData) {
 
   revalidatePath("/admin/discounts");
   redirect("/admin/discounts?saved=1");
-}
+}, tr);
 
 export async function archiveDiscount(id: string) {
   const session = await requirePermission("can_discount");

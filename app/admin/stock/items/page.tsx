@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { fmtQty } from "@/lib/stock";
 import { tr } from "@/lib/admin-i18n";
+import { findExistingDuplicateGroups } from "@/lib/dup";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +15,14 @@ export default async function StockItemsPage({
   const sp = await searchParams;
   const t = await tr();
 
-  const items = await db.stockItem.findMany({
-    where: { deletedAt: null },
-    orderBy: [{ category: "asc" }, { createdAt: "asc" }],
-    include: { levels: true },
-  });
+  const [items, dupGroups] = await Promise.all([
+    db.stockItem.findMany({
+      where: { deletedAt: null },
+      orderBy: [{ category: "asc" }, { createdAt: "asc" }],
+      include: { levels: true },
+    }),
+    findExistingDuplicateGroups("stockItem"),
+  ]);
 
   return (
     <>
@@ -36,6 +40,32 @@ export default async function StockItemsPage({
 
       {sp.saved && <div className="alert alert-ok">{t("Saved.")}</div>}
       {sp.archived && <div className="alert alert-ok">{t("Moved to the archive.")}</div>}
+
+      {/* Not buried in a menu: a split ingredient is corrupting the food-cost
+          figure right now, and the person who can fix it is the one reading
+          this list. */}
+      {dupGroups.length > 0 && (
+        <div className="dup-warn">
+          <div className="dup-warn-head">
+            <b>
+              {dupGroups.length}{" "}
+              {dupGroups.length === 1
+                ? t("ingredient appears more than once")
+                : t("ingredients appear more than once")}
+            </b>
+            <p>
+              {t(
+                "Your stock for these is split across two rows, so recipes use one and deliveries land on the other. Food cost is understated until they are merged.",
+              )}
+            </p>
+          </div>
+          <div className="dup-actions">
+            <Link className="btn btn-warn" href="/admin/stock/duplicates">
+              {t("Review and merge")}
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="admin-panel">
         <p className="hint" style={{ marginTop: 0 }}>

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { i18nText } from "@/lib/admin-utils";
 import { fmt } from "@/lib/format";
 import { createManualOrder } from "../actions";
+import AdminForm from "@/app/admin/_components/AdminForm";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,13 @@ export default async function NewOrderPage({
 
       {sp.error && <div className="alert alert-error">{sp.error}</div>}
 
-      <form className="admin-form" action={createManualOrder} style={{ maxWidth: "none" }}>
+      <AdminForm
+        className="admin-form"
+        style={{ maxWidth: "none" }}
+        action={createManualOrder}
+        submitLabel={"Create order"}
+        cancelHref="/admin/orders"
+      >
         {/* ── customer ── */}
         <div className="admin-panel">
           <h2>Customer</h2>
@@ -191,15 +198,7 @@ export default async function NewOrderPage({
           </ul>
         </div>
 
-        <div className="form-actions">
-          <button className="btn" type="submit">
-            Create order
-          </button>
-          <Link className="btn btn-ghost" href="/admin/orders">
-            Cancel
-          </Link>
-        </div>
-      </form>
+      </AdminForm>
     </>
   );
 }

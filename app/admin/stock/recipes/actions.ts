@@ -7,8 +7,11 @@ import { requirePermission } from "@/lib/admin-auth";
 import { logAction } from "@/lib/audit";
 import { tr } from "@/lib/admin-i18n";
 import { fdNum, fdStr } from "@/lib/admin-utils";
+import { ActionError, formAction, isConfirmed } from "@/lib/action-state";
+import { guardDuplicate } from "@/lib/dup";
+import { nameKey } from "@/lib/name-key";
 
-export async function createRecipe(fd: FormData) {
+export const createRecipe = formAction(async (fd: FormData) => {
   const s = await requirePermission("can_edit_menu");
   const t = await tr();
 
@@ -16,13 +19,16 @@ export async function createRecipe(fd: FormData) {
   const outputItemId = fdStr(fd, "outputItemId");
   const outputQty = fdNum(fd, "outputQty");
 
-  if (!nameEn) throw new Error(t("The English name is required"));
-  if (!outputItemId) throw new Error(t("Pick what it produces"));
-  if (outputQty === null || outputQty <= 0) throw new Error(t("Yield must be greater than zero"));
+  if (!nameEn) throw new ActionError(t("The English name is required"), "name_en");
+  if (!outputItemId) throw new ActionError(t("Pick what it produces"), "outputItemId");
+  if (outputQty === null || outputQty <= 0) throw new ActionError(t("Yield must be greater than zero"), "outputQty");
+
+  await guardDuplicate("recipe", nameEn, { confirmed: isConfirmed(fd), t });
 
   const r = await db.recipe.create({
     data: {
       name: { en: nameEn, ka: fdStr(fd, "name_ka") || nameEn },
+      nameKey: nameKey(nameEn),
       outputItemId,
       outputQty,
       note: fdStr(fd, "note") || null,
@@ -40,21 +46,24 @@ export async function createRecipe(fd: FormData) {
 
   revalidatePath("/admin/stock/recipes");
   redirect(`/admin/stock/recipes/${r.id}`);
-}
+}, tr);
 
-export async function updateRecipe(id: string, fd: FormData) {
+export const updateRecipe = formAction(async (fd: FormData, id: string) => {
   const s = await requirePermission("can_edit_menu");
   const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
   const outputQty = fdNum(fd, "outputQty");
-  if (!nameEn) throw new Error(t("The English name is required"));
-  if (outputQty === null || outputQty <= 0) throw new Error(t("Yield must be greater than zero"));
+  if (!nameEn) throw new ActionError(t("The English name is required"), "name_en");
+  if (outputQty === null || outputQty <= 0) throw new ActionError(t("Yield must be greater than zero"), "outputQty");
+
+  await guardDuplicate("recipe", nameEn, { excludeId: id, confirmed: isConfirmed(fd), t });
 
   await db.recipe.update({
     where: { id },
     data: {
       name: { en: nameEn, ka: fdStr(fd, "name_ka") || nameEn },
+      nameKey: nameKey(nameEn),
       outputItemId: fdStr(fd, "outputItemId"),
       outputQty,
       note: fdStr(fd, "note") || null,
@@ -95,7 +104,7 @@ export async function updateRecipe(id: string, fd: FormData) {
 
   revalidatePath("/admin/stock/recipes");
   redirect(`/admin/stock/recipes/${id}?saved=1`);
-}
+}, tr);
 
 export async function archiveRecipe(id: string) {
   const s = await requirePermission("can_edit_menu");

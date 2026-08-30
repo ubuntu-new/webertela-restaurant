@@ -7,6 +7,9 @@ import { requirePermission } from "@/lib/admin-auth";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
+import { ActionError, formAction, isConfirmed } from "@/lib/action-state";
+import { guardDuplicate } from "@/lib/dup";
+import { nameKey } from "@/lib/name-key";
 
 const TYPES = ["pizza", "item", "sticks", "drink", "merch"] as const;
 type ProductType = (typeof TYPES)[number];
@@ -16,20 +19,26 @@ function typeOf(v: string): ProductType {
 }
 
 /** ახალი პროდუქტი — მინიმალური ველებით, მერე რედაქტირებაზე გადადის. */
-export async function createProduct(fd: FormData) {
+export const createProduct = formAction(async (fd: FormData) => {
   const session = await requirePermission("can_edit_menu");
   const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
   const categoryId = fdStr(fd, "categoryId");
-  if (!nameEn) throw new Error(t("The English name is required"));
-  if (!categoryId) throw new Error(t("Pick a category"));
+  if (!nameEn) throw new ActionError(t("The English name is required"), "name_en");
+  if (!categoryId) throw new ActionError(t("Pick a category"), "categoryId");
 
   const type = typeOf(fdStr(fd, "type"));
+
+  // Two products with one name is a smaller disaster than two stock items —
+  // nothing silently mis-costs — but the till shows both, the customer sees
+  // both, and nobody can tell which one the kitchen printed.
+  await guardDuplicate("product", nameEn, { confirmed: isConfirmed(fd), t });
 
   const product = await db.product.create({
     data: {
       name: { en: nameEn, ka: fdStr(fd, "name_ka") || nameEn },
+      nameKey: nameKey(nameEn),
       description: { en: "", ka: "" },
       categoryId,
       type,
@@ -58,15 +67,15 @@ export async function createProduct(fd: FormData) {
 
   revalidatePath("/admin/products");
   redirect(`/admin/products/${product.id}`);
-}
+}, tr);
 
 /** სრული რედაქტირება. */
-export async function updateProductFull(id: string, fd: FormData) {
+export const updateProductFull = formAction(async (fd: FormData, id: string) => {
   const session = await requirePermission("can_edit_menu");
   const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error(t("The English name is required"));
+  if (!nameEn) throw new ActionError(t("The English name is required"), "name_en");
 
   const badgeEn = fdStr(fd, "badge_en");
   const subcategoryId = fdStr(fd, "subcategoryId");
@@ -92,10 +101,13 @@ export async function updateProductFull(id: string, fd: FormData) {
     fdNum(fd, "fat") !== null ||
     allergens.length > 0;
 
+  await guardDuplicate("product", nameEn, { excludeId: id, confirmed: isConfirmed(fd), t });
+
   await db.product.update({
     where: { id },
     data: {
       name: { en: nameEn, ka: fdStr(fd, "name_ka") || nameEn },
+      nameKey: nameKey(nameEn),
       description: { en: fdStr(fd, "desc_en"), ka: fdStr(fd, "desc_ka") || fdStr(fd, "desc_en") },
       badge: badgeEn ? { en: badgeEn, ka: fdStr(fd, "badge_ka") || badgeEn } : undefined,
       categoryId: fdStr(fd, "categoryId"),
@@ -230,7 +242,7 @@ export async function updateProductFull(id: string, fd: FormData) {
   revalidatePath(`/admin/products/${id}`);
   revalidatePath("/", "layout"); // საიტის მენიუ მაშინვე განახლდეს
   redirect("/admin/products?saved=1");
-}
+}, tr);
 
 /** არქივში გადატანა — ფიზიკურად არაფერი იშლება, `active` უცვლელი რჩება. */
 export async function archiveProduct(id: string) {

@@ -7,6 +7,9 @@ import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
 import { updateStockItem, archiveStockItem } from "../../actions";
 import ArchiveButton from "../../../_components/ArchiveButton";
+import AdminForm from "@/app/admin/_components/AdminForm";
+import NameField from "@/app/admin/_components/NameField";
+import BarcodeField from "@/app/admin/_components/BarcodeField";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +29,7 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
   const t = await tr();
   const f = await fmt();
 
-  const [item, locations, movements] = await Promise.all([
+  const [item, locations, movements, suppliers] = await Promise.all([
     db.stockItem.findUnique({ where: { id }, include: { levels: true } }),
     db.stockLocation.findMany({ where: { deletedAt: null }, orderBy: [{ type: "asc" }, { createdAt: "asc" }] }),
     db.stockMovement.findMany({
@@ -34,6 +37,11 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
       orderBy: { at: "desc" },
       take: 25,
       include: { location: true },
+    }),
+    db.supplier.findMany({
+      where: { deletedAt: null, active: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
     }),
   ]);
   if (!item) notFound();
@@ -66,15 +74,26 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
         </Link>
       </div>
 
-      <form className="admin-form" action={save} style={{ maxWidth: 900 }}>
+      <AdminForm
+        className="admin-form"
+        style={{ maxWidth: 900 }}
+        action={save}
+        submitLabel={t("Save")}
+        cancelHref="/admin/stock/items"
+      >
         <div className="admin-panel">
           <h2>{t("Basics")}</h2>
 
           <div className="field-row">
-            <div className="field">
-              <label htmlFor="name_en">{t("Name")} (EN)</label>
-              <input id="name_en" name="name_en" type="text" defaultValue={name.en} required />
-            </div>
+            <NameField
+              model="stockItem"
+              name="name_en"
+              label={`${t("Name")} (EN)`}
+              defaultValue={name.en}
+              excludeId={id}
+              required
+              contextFields={{ barcode: "barcode", packSize: "packSize", packUnit: "packUnit", supplierId: "supplierId", supplierCode: "supplierCode" }}
+            />
             <div className="field">
               <label htmlFor="name_ka">{t("Name")} (KA)</label>
               <input id="name_ka" name="name_ka" type="text" defaultValue={name.ka} />
@@ -85,11 +104,22 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
             <div className="field">
               <label htmlFor="unit">{t("Unit")}</label>
               <select id="unit" name="unit" defaultValue={item.unit}>
-                <option value="kg">{t("Kilogram")}</option>
-                <option value="g">{t("Gram")}</option>
-                <option value="l">{t("Liter")}</option>
-                <option value="ml">{t("Milliliter")}</option>
-                <option value="pcs">{t("Each")}</option>
+                <optgroup label={t("Weight")}>
+                  <option value="kg">{t("Kilogram")}</option>
+                  <option value="g">{t("Gram")}</option>
+                  <option value="lb">{t("Pound")}</option>
+                  <option value="oz">{t("Ounce")}</option>
+                </optgroup>
+                <optgroup label={t("Volume")}>
+                  <option value="l">{t("Liter")}</option>
+                  <option value="ml">{t("Milliliter")}</option>
+                  <option value="gal">{t("Gallon")}</option>
+                  <option value="floz">{t("Fluid ounce")}</option>
+                </optgroup>
+                <optgroup label={t("Count")}>
+                  <option value="pcs">{t("Pieces")}</option>
+                  <option value="each">{t("Each")}</option>
+                </optgroup>
               </select>
               <span className="hint">{t("Changing this does not recalculate past movements.")}</span>
             </div>
@@ -106,6 +136,74 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
           <div className="field">
             <label htmlFor="note">{t("Note")}</label>
             <input id="note" name="note" type="text" defaultValue={item.note ?? ""} />
+          </div>
+
+
+          {/* ── how this thing is identified ────────────────────────────────
+              The name is what a person types, so the name is what varies. These
+              three are what let the software tell two items apart — or recognise
+              that they are one. */}
+          <div className="field-row" style={{ gridTemplateColumns: "1.4fr 1fr" }}>
+            <BarcodeField
+              model="stockItem"
+              name="barcode"
+              label={t("Barcode")}
+              defaultValue={item.barcode}
+              excludeId={id}
+              hint={t("The code printed on the packaging. Scan it — a barcode you never type is a barcode you never mistype.")}
+            />
+            <div className="field">
+              <label htmlFor="packSize">{t("One pack contains")}</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  id="packSize"
+                  name="packSize"
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  defaultValue={item.packSize != null ? String(item.packSize) : ""}
+                  placeholder="500"
+                  style={{ flex: 1 }}
+                />
+                <select name="packUnit" defaultValue={item.packUnit ?? ""} style={{ width: 110 }}>
+                  <option value="">—</option>
+                  <option value="g">g</option>
+                  <option value="kg">kg</option>
+                  <option value="oz">oz</option>
+                  <option value="lb">lb</option>
+                  <option value="ml">ml</option>
+                  <option value="l">L</option>
+                  <option value="floz">fl oz</option>
+                  <option value="gal">gal</option>
+                  <option value="pcs">pcs</option>
+                  <option value="each">each</option>
+                </select>
+              </div>
+              <span className="hint">
+                {t("What one purchased pack holds. This is what tells a 330 ml can apart from a 1.5 L bottle of the same drink.")}
+              </span>
+            </div>
+          </div>
+
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="supplierId">{t("Bought from")}</label>
+              <select id="supplierId" name="supplierId" defaultValue={item.supplierId ?? ""}>
+                <option value="">{t("not set")}</option>
+                {suppliers.map((sp) => (
+                  <option key={sp.id} value={sp.id}>
+                    {sp.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="supplierCode">{t("Their code for it")}</label>
+              <input id="supplierCode" name="supplierCode" type="text" defaultValue={item.supplierCode ?? ""} />
+              <span className="hint">
+                {t("For everything with no barcode — which in a kitchen is most of it.")}
+              </span>
+            </div>
           </div>
 
           <div className="field-check">
@@ -186,15 +284,7 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
           </p>
         </div>
 
-        <div className="form-actions">
-          <button className="btn" type="submit">
-            {t("Save")}
-          </button>
-          <Link className="btn btn-ghost" href="/admin/stock/items">
-            {t("Cancel")}
-          </Link>
-        </div>
-      </form>
+      </AdminForm>
 
       {/* ── ჟურნალი ── */}
       <div className="admin-panel" style={{ maxWidth: 900 }}>

@@ -6,9 +6,12 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { ActionError, formAction, isConfirmed } from "@/lib/action-state";
+import { guardDuplicate } from "@/lib/dup";
+import { nameKey } from "@/lib/name-key";
 
 /** სიის გვერდიდან — ყველა ტოპინგის ფასი/სტატუსი ერთი შენახვით. */
-export async function saveToppingPrices(fd: FormData) {
+export const saveToppingPrices = formAction(async (fd: FormData) => {
   const session = await requirePermission("can_edit_menu");
   const toppings = await db.topping.findMany({ where: { deletedAt: null }, include: { prices: true } });
 
@@ -31,19 +34,25 @@ export async function saveToppingPrices(fd: FormData) {
 
   revalidatePath("/admin/toppings");
   redirect("/admin/toppings?saved=1");
-}
+}, tr);
 
 /** ახალი ტოპინგი — სამი ზომის ფასით. */
-export async function createTopping(fd: FormData) {
+export const createTopping = formAction(async (fd: FormData) => {
   const session = await requirePermission("can_edit_menu");
   const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error(t("The English name is required"));
+  if (!nameEn) throw new ActionError(t("The English name is required"), "name_en");
+
+  // A duplicated topping duplicates its consumption rule with it, so the same
+  // cheese gets deducted twice or not at all depending on which one the
+  // product points at.
+  await guardDuplicate("topping", nameEn, { confirmed: isConfirmed(fd), t });
 
   const topping = await db.topping.create({
     data: {
       name: { en: nameEn, ka: fdStr(fd, "name_ka") || nameEn },
+      nameKey: nameKey(nameEn),
       category: fdStr(fd, "category") || null,
       recipeOnly: fdBool(fd, "recipeOnly"),
       active: true,
@@ -65,19 +74,22 @@ export async function createTopping(fd: FormData) {
 
   revalidatePath("/admin/toppings");
   redirect(`/admin/toppings/${topping.id}`);
-}
+}, tr);
 
 /** ერთი ტოპინგის სრული რედაქტირება. */
-export async function updateTopping(id: string, fd: FormData) {
+export const updateTopping = formAction(async (fd: FormData, id: string) => {
   const session = await requirePermission("can_edit_menu");
   const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error(t("The English name is required"));
+  if (!nameEn) throw new ActionError(t("The English name is required"), "name_en");
+
+  await guardDuplicate("topping", nameEn, { excludeId: id, confirmed: isConfirmed(fd), t });
 
   await db.topping.update({
     where: { id },
     data: {
+      nameKey: nameKey(nameEn),
       name: { en: nameEn, ka: fdStr(fd, "name_ka") || nameEn },
       category: fdStr(fd, "category") || null,
       emoji: fdStr(fd, "emoji") || null,
@@ -111,7 +123,7 @@ export async function updateTopping(id: string, fd: FormData) {
 
   revalidatePath("/admin/toppings");
   redirect("/admin/toppings?saved=1");
-}
+}, tr);
 
 /** არქივში გადატანა — ფიზიკურად არაფერი იშლება. */
 export async function archiveTopping(id: string) {

@@ -7,6 +7,7 @@ import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
 import { finishProduction, cancelProduction } from "../actions";
 import { PSTATUS } from "../status";
+import AdminForm from "@/app/admin/_components/AdminForm";
 
 export const dynamic = "force-dynamic";
 
@@ -211,7 +212,13 @@ export default async function ProductionDetail({
 
       {o.status === "in_progress" && (
         <>
-          <form className="admin-panel admin-form" action={finish} style={{ maxWidth: "none" }}>
+          <AdminForm
+            className="admin-panel admin-form"
+            style={{ maxWidth: "none" }}
+            action={finish}
+            submitLabel={t("Finish and write off")}
+            pendingLabel={t("Writing off…")}
+          >
             <h2>{t("Finish")}</h2>
             <p className="hint" style={{ marginTop: -8 }}>
               {t("This button does the whole move: the ingredients are")} <b>{t("written off")}</b>
@@ -267,12 +274,7 @@ export default async function ProductionDetail({
               </tbody>
             </table>
 
-            <div className="form-actions" style={{ marginTop: 16 }}>
-              <button className="btn" type="submit">
-                {t("Finish and write off")}
-              </button>
-            </div>
-          </form>
+          </AdminForm>
 
           <form action={cancel} style={{ marginTop: 16 }}>
             <button

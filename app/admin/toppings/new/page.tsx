@@ -2,6 +2,8 @@ import Link from "next/link";
 import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
 import { createTopping } from "../actions";
+import AdminForm from "@/app/admin/_components/AdminForm";
+import NameField from "@/app/admin/_components/NameField";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +23,20 @@ export default async function NewTopping() {
         </Link>
       </div>
 
-      <form className="admin-panel admin-form" action={createTopping}>
+      <AdminForm
+        className="admin-panel admin-form"
+        action={createTopping}
+        submitLabel={t("Create")}
+        cancelHref="/admin/toppings"
+      >
         <div className="field-row">
-          <div className="field">
-            <label htmlFor="name_en">{t("Name")} (EN)</label>
-            <input id="name_en" name="name_en" type="text" required autoFocus />
-          </div>
+          <NameField
+            model="topping"
+            name="name_en"
+            label={`${t("Name")} (EN)`}
+            required
+            autoFocus
+          />
           <div className="field">
             <label htmlFor="name_ka">{t("Name")} (KA)</label>
             <input id="name_ka" name="name_ka" type="text" />
@@ -57,15 +67,7 @@ export default async function NewTopping() {
           <label htmlFor="recipeOnly">{t("recipe only")}</label>
         </div>
 
-        <div className="form-actions">
-          <button className="btn" type="submit">
-            {t("Create")}
-          </button>
-          <Link className="btn btn-ghost" href="/admin/toppings">
-            {t("Cancel")}
-          </Link>
-        </div>
-      </form>
+      </AdminForm>
     </>
   );
 }

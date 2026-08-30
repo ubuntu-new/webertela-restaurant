@@ -6,16 +6,22 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/admin-auth";
 import { fdBool, fdNum, fdStr } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
+import { ActionError, formAction, isConfirmed } from "@/lib/action-state";
+import { guardDuplicate } from "@/lib/dup";
+import { nameKey } from "@/lib/name-key";
 
-export async function createCombo(fd: FormData) {
+export const createCombo = formAction(async (fd: FormData) => {
   const session = await requirePermission("can_edit_menu");
   const t = await tr();
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error(t("The English name is required"));
+  if (!nameEn) throw new ActionError(t("The English name is required"), "name_en");
+
+  await guardDuplicate("combo", nameEn, { confirmed: isConfirmed(fd), t });
 
   const c = await db.combo.create({
     data: {
       name: { en: nameEn, ka: fdStr(fd, "name_ka") || nameEn },
+      nameKey: nameKey(nameEn),
       description: { en: "", ka: "" },
       pricingMode: fdStr(fd, "pricingMode") === "discount" ? "discount" : "fixed",
       price: fdNum(fd, "price"),
@@ -45,21 +51,21 @@ export async function createCombo(fd: FormData) {
   revalidatePath("/admin/combos");
   revalidatePath("/", "layout"); // საიტის მენიუ მაშინვე განახლდეს
   redirect(`/admin/combos/${c.id}`);
-}
+}, tr);
 
-export async function updateCombo(id: string, fd: FormData) {
+export const updateCombo = formAction(async (fd: FormData, id: string) => {
   const session = await requirePermission("can_edit_menu");
   const t = await tr();
 
   const nameEn = fdStr(fd, "name_en");
-  if (!nameEn) throw new Error(t("The English name is required"));
+  if (!nameEn) throw new ActionError(t("The English name is required"), "name_en");
 
   const mode = fdStr(fd, "pricingMode") === "discount" ? "discount" : "fixed";
   const price = fdNum(fd, "price");
   const percent = fdNum(fd, "percent");
 
-  if (mode === "fixed" && price === null) throw new Error(t("Enter the fixed price"));
-  if (mode === "discount" && percent === null) throw new Error(t("Enter the discount percent"));
+  if (mode === "fixed" && price === null) throw new ActionError(t("Enter the fixed price"), "price");
+  if (mode === "discount" && percent === null) throw new ActionError(t("Enter the discount percent"), "percent");
 
   const badgeEn = fdStr(fd, "badge_en");
   const validFrom = fdStr(fd, "validFrom");
@@ -69,10 +75,13 @@ export async function updateCombo(id: string, fd: FormData) {
   const allBranches = await db.branch.findMany({ where: { deletedAt: null }, select: { id: true } });
   const availableIn = new Set(fd.getAll("availableIn").map(String));
 
+  await guardDuplicate("combo", nameEn, { excludeId: id, confirmed: isConfirmed(fd), t });
+
   await db.combo.update({
     where: { id },
     data: {
       name: { en: nameEn, ka: fdStr(fd, "name_ka") || nameEn },
+      nameKey: nameKey(nameEn),
       description: { en: fdStr(fd, "desc_en"), ka: fdStr(fd, "desc_ka") || fdStr(fd, "desc_en") },
       badge: badgeEn ? { en: badgeEn, ka: fdStr(fd, "badge_ka") || badgeEn } : undefined,
       photo: fdStr(fd, "photo") || null,
@@ -151,7 +160,7 @@ export async function updateCombo(id: string, fd: FormData) {
   revalidatePath("/admin/combos");
   revalidatePath("/", "layout"); // საიტის მენიუ მაშინვე განახლდეს
   redirect("/admin/combos?saved=1");
-}
+}, tr);
 
 export async function addComboSlot(comboId: string) {
   await requirePermission("can_edit_menu");

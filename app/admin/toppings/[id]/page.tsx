@@ -7,6 +7,8 @@ import { fmt } from "@/lib/format";
 import { updateTopping, archiveTopping } from "../actions";
 import ImageField from "../../_components/ImageField";
 import ArchiveButton from "../../_components/ArchiveButton";
+import AdminForm from "@/app/admin/_components/AdminForm";
+import NameField from "@/app/admin/_components/NameField";
 
 export const dynamic = "force-dynamic";
 
@@ -51,15 +53,25 @@ export default async function ToppingEdit({ params }: { params: Promise<{ id: st
         </Link>
       </div>
 
-      <form className="admin-form" action={save} style={{ maxWidth: 820 }}>
+      <AdminForm
+        className="admin-form"
+        style={{ maxWidth: 820 }}
+        action={save}
+        submitLabel={t("Save")}
+        cancelHref="/admin/toppings"
+      >
         <div className="admin-panel">
           <h2>{t("Basics")}</h2>
 
           <div className="field-row">
-            <div className="field">
-              <label htmlFor="name_en">{t("Name")} (EN)</label>
-              <input id="name_en" name="name_en" type="text" defaultValue={name.en} required />
-            </div>
+            <NameField
+              model="topping"
+              name="name_en"
+              label={`${t("Name")} (EN)`}
+              defaultValue={name.en}
+              excludeId={id}
+              required
+            />
             <div className="field">
               <label htmlFor="name_ka">{t("Name")} (KA)</label>
               <input id="name_ka" name="name_ka" type="text" defaultValue={name.ka} />
@@ -151,15 +163,7 @@ export default async function ToppingEdit({ params }: { params: Promise<{ id: st
           )}
         </div>
 
-        <div className="form-actions">
-          <button className="btn" type="submit">
-            {t("Save")}
-          </button>
-          <Link className="btn btn-ghost" href="/admin/toppings">
-            {t("Cancel")}
-          </Link>
-        </div>
-      </form>
+      </AdminForm>
 
       <div className="admin-panel" style={{ maxWidth: 820, marginTop: 20 }}>
         <h2>{t("Archive")}</h2>
