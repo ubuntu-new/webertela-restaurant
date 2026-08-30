@@ -21,6 +21,20 @@ export interface Suggestion {
   need: number;
   /// რამდენია საწარმოში ამ წუთს
   atSource: number;
+
+  /// საშუალო დღიური ხარჯვა — ბოლო 30 დღის გაყიდვებიდან
+  dailyUse: number | null;
+  /**
+   * How many days of trading the threshold represents.
+   *
+   * A minimum is a promise about time, not a quantity: "never let me get closer
+   * than this many days to running out". Stated in kilograms it is unreadable,
+   * and a threshold nobody can read is a threshold nobody checks — which is how
+   * a warehouse minimum of 500 kg of mozzarella sits on the screen looking
+   * ordinary while the kitchen uses six kilos a week.
+   */
+  minDays: number | null;
+  targetDays: number | null;
 }
 
 export interface BranchNeed {
@@ -30,10 +44,39 @@ export interface BranchNeed {
   items: Suggestion[];
 }
 
+/** How much of each item actually leaves the shelf in a day, over the last 30. */
+async function dailyUsage(): Promise<Map<string, number>> {
+  const since = new Date(Date.now() - 30 * 86400_000);
+
+  // Only the movements that represent consumption. A receipt or a transfer in
+  // is stock arriving, and counting it as usage would double the answer.
+  const rows = await db.stockMovement.groupBy({
+    by: ["itemId"],
+    where: { at: { gte: since }, type: { in: ["sale", "waste", "production_out"] } },
+    _sum: { qty: true },
+  });
+
+  const out = new Map<string, number>();
+  for (const r of rows) {
+    // Consumption is stored negative. The sign is what makes it consumption.
+    const used = Math.abs(Number(r._sum.qty ?? 0));
+    if (used > 0) out.set(r.itemId, used / 30);
+  }
+  return out;
+}
+
 export async function suggestReplenishment(sourceLocationId?: string) {
   const warehouse = sourceLocationId
     ? await db.stockLocation.findUnique({ where: { id: sourceLocationId } })
     : await db.stockLocation.findFirst({ where: { type: "warehouse", deletedAt: null } });
+
+  const perDay = await dailyUsage();
+
+  /** Days of cover a threshold buys, or null when nothing is being used. */
+  const days = (amount: number, itemId: string): number | null => {
+    const rate = perDay.get(itemId) ?? 0;
+    return rate > 0 ? Math.round((amount / rate) * 10) / 10 : null;
+  };
 
   const [branchLocations, levels] = await Promise.all([
     db.stockLocation.findMany({
@@ -77,6 +120,9 @@ export async function suggestReplenishment(sourceLocationId?: string) {
         target,
         need,
         atSource: sourceQty.get(l.itemId) ?? 0,
+        dailyUse: perDay.get(l.itemId) ?? null,
+        minDays: days(min, l.itemId),
+        targetDays: days(target, l.itemId),
       });
     }
 
@@ -112,6 +158,9 @@ export async function suggestReplenishment(sourceLocationId?: string) {
         target,
         need: Math.max(0, Math.round((target - qty) * 1000) / 1000),
         atSource: qty,
+        dailyUse: perDay.get(l.itemId) ?? null,
+        minDays: days(min, l.itemId),
+        targetDays: days(target, l.itemId),
       });
     }
   }

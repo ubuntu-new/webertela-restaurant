@@ -60,7 +60,7 @@ export default async function ReplenishPage() {
               <tr>
                 <th>{tx("Item")}</th>
                 <th style={{ width: 120 }}>{tx("On hand")}</th>
-                <th style={{ width: 120 }}>{tx("Min")}</th>
+                <th style={{ width: 190 }}>{tx("Min")}</th>
                 <th style={{ width: 140 }}>{tx("To buy")}</th>
               </tr>
             </thead>
@@ -74,8 +74,22 @@ export default async function ReplenishPage() {
                   <td>
                     {/* Every other number in this row carries its unit. A bare
                         "500" beside "16.952 kg" is unreadable — and a minimum is
-                        exactly the number somebody needs to sanity-check. */}
+                        exactly the number somebody needs to sanity-check.
+
+                        Beside it, what the threshold means in time. A minimum is
+                        a promise about days, not kilograms, and the software can
+                        see when that promise is absurd. */}
                     <span className="hint">{fmtQty(Number(i.min), i.unit)}</span>
+                    {i.minDays != null && (
+                      <div
+                        className="hint"
+                        style={i.minDays > 60 ? { color: "var(--a-danger)", fontWeight: 600 } : undefined}
+                      >
+                        {i.minDays > 60
+                          ? `${tx("≈")} ${i.minDays} ${tx("days of use — check this")}`
+                          : `${tx("≈")} ${i.minDays} ${tx("days of use")}`}
+                      </div>
+                    )}
                   </td>
                   <td>
                     <span className="badge" style={{ background: "#fdf3d6", color: "#8a6a12" }}>
@@ -86,6 +100,39 @@ export default async function ReplenishPage() {
               ))}
             </tbody>
           </table>
+
+          {/* Sixty days is not a rule of nature; it is the point past which a
+              threshold stops describing a kitchen. Above it the number was
+              almost certainly typed in the wrong unit, or into the wrong row —
+              and left alone it makes the replenishment screen demand a purchase
+              nobody will ever make, which is how people stop opening it. */}
+          {warehouseLow.some((i) => i.minDays != null && i.minDays > 60) && (
+            <div className="dup-warn" style={{ marginTop: 14 }}>
+              <div className="dup-warn-head">
+                <b>{tx("A minimum here is far larger than this kitchen uses")}</b>
+                <p>
+                  {tx(
+                    "A minimum is a promise about time — never let me get closer than this to running out. The ones marked above would take months to consume, so the purchase being suggested is not one anybody is going to make. Usually it means the number was typed in grams into an item measured in kilograms.",
+                  )}
+                </p>
+              </div>
+              <ul className="dup-hits">
+                {warehouseLow
+                  .filter((i) => i.minDays != null && i.minDays > 60)
+                  .map((i) => (
+                    <li key={i.itemId}>
+                      <Link href={`/admin/stock/items/${i.itemId}`}>{i18nText(i.itemName)}</Link>
+                      <span>
+                        {" · "}
+                        {tx("minimum")} {fmtQty(Number(i.min), i.unit)}
+                        {i.dailyUse != null &&
+                          ` · ${tx("used about")} ${fmtQty(Math.round(i.dailyUse * 70) / 10, i.unit)} ${tx("a week")}`}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

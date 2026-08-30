@@ -60,7 +60,25 @@ export interface MergePlan {
     recipesProducing: number;
   };
   /** What the surviving item will hold afterwards, per location. */
-  resulting: Array<{ locationId: string; locationName: string; qty: number; avgCost: number | null }>;
+  resulting: Array<{
+    locationId: string;
+    locationName: string;
+    qty: number;
+    avgCost: number | null;
+    minLevel: number | null;
+    targetLevel: number | null;
+    /**
+     * The threshold is coming from the item being archived, because the
+     * survivor has none at this location.
+     *
+     * Shown because it caught us once: a test item was given a warehouse
+     * minimum of 500 kg, the merge quietly adopted it, and the replenishment
+     * screen then asked the restaurant to buy 783 kg of mozzarella. The
+     * arithmetic was right and the outcome was absurd — which is exactly the
+     * kind of thing a preview exists to catch.
+     */
+    thresholdInherited: boolean;
+  }>;
 }
 
 /** Work out exactly what a merge would do, without doing any of it. */
@@ -142,10 +160,37 @@ export async function planMerge(keepId: string, loseId: string): Promise<MergePl
   // Everything is expressed in the surviving item's unit before it is added.
   // Adding 2 (kg) to 500 (g) and calling it 502 of anything is how a merge
   // would quietly destroy a stock figure.
-  const byLocation = new Map<string, { qty: number; value: number; costed: number; fallbackCost?: number }>();
-  for (const [side, unit] of [[keep.levels, keep.unit] as const, [lose.levels, lose.unit] as const]) {
+  const byLocation = new Map<
+    string,
+    {
+      qty: number;
+      value: number;
+      costed: number;
+      fallbackCost?: number;
+      keepMin?: number | null;
+      keepTarget?: number | null;
+      loseMin?: number | null;
+      loseTarget?: number | null;
+    }
+  >();
+  for (const [side, unit, isKeep] of [
+    [keep.levels, keep.unit, true] as const,
+    [lose.levels, lose.unit, false] as const,
+  ]) {
     for (const l of side) {
       const cur = byLocation.get(l.locationId) ?? { qty: 0, value: 0, costed: 0 };
+
+      // Thresholds are quantities too, so they convert with everything else.
+      const min = l.minLevel == null ? null : convert(num(l.minLevel), unit, keep.unit);
+      const target = l.targetLevel == null ? null : convert(num(l.targetLevel), unit, keep.unit);
+      if (isKeep) {
+        cur.keepMin = min;
+        cur.keepTarget = target;
+      } else {
+        cur.loseMin = min;
+        cur.loseTarget = target;
+      }
+
       const qty = convert(num(l.qty), unit, keep.unit);
       cur.qty += qty;
       if (l.avgCost != null) {
@@ -181,12 +226,22 @@ export async function planMerge(keepId: string, loseId: string): Promise<MergePl
       productionLines,
       recipesProducing,
     },
-    resulting: [...byLocation.entries()].map(([locationId, v]) => ({
-      locationId,
-      locationName: locName.get(locationId) ?? locationId,
-      qty: v.qty,
-      avgCost: v.costed > 0 ? v.value / v.costed : (v.fallbackCost ?? null),
-    })),
+    resulting: [...byLocation.entries()].map(([locationId, v]) => {
+      // The same rule the merge itself applies: the survivor's threshold wins,
+      // and the loser's is adopted only where the survivor has none.
+      const minLevel = v.keepMin ?? v.loseMin ?? null;
+      const targetLevel = v.keepTarget ?? v.loseTarget ?? null;
+      return {
+        locationId,
+        locationName: locName.get(locationId) ?? locationId,
+        qty: v.qty,
+        avgCost: v.costed > 0 ? v.value / v.costed : (v.fallbackCost ?? null),
+        minLevel,
+        targetLevel,
+        thresholdInherited:
+          (v.keepMin == null && v.loseMin != null) || (v.keepTarget == null && v.loseTarget != null),
+      };
+    }),
   };
 }
 

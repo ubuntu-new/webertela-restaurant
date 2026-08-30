@@ -161,6 +161,7 @@ export default async function DuplicatesPage({
                       <th>{t("Location")}</th>
                       <th style={{ width: 130 }}>{t("On hand")}</th>
                       <th style={{ width: 150 }}>{t("Average cost")}</th>
+                      <th style={{ width: 200 }}>{t("Min / target")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -171,10 +172,38 @@ export default async function DuplicatesPage({
                           {qty(r.qty)} {unitLabel(byId.get(plan.keepId)!.unit)}
                         </td>
                         <td>{r.avgCost != null ? f.money(r.avgCost) : "—"}</td>
+                        <td>
+                          {r.minLevel == null && r.targetLevel == null ? (
+                            <span className="hint">—</span>
+                          ) : (
+                            <>
+                              {r.minLevel != null ? qty(r.minLevel) : "—"} /{" "}
+                              {r.targetLevel != null ? qty(r.targetLevel) : "—"}{" "}
+                              {unitLabel(byId.get(plan.keepId)!.unit)}
+                              {/* A threshold arriving from the row about to be
+                                  archived is the one number here nobody chose on
+                                  purpose. It drives the replenishment screen, so
+                                  it is worth a colour. */}
+                              {r.thresholdInherited && (
+                                <div className="hint" style={{ color: "var(--a-orange)", fontWeight: 600 }}>
+                                  {t("taken from the item being archived")}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                {plan.resulting.some((r) => r.thresholdInherited) && (
+                  <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--a-orange)" }}>
+                    <b>{t("Check the minimums marked above.")}</b>{" "}
+                    {t(
+                      "Where the surviving item has no threshold of its own, the one from the archived item is carried over. That is usually what you want — but a minimum somebody typed while testing will start driving what the software tells you to buy.",
+                    )}
+                  </p>
+                )}
                 <p style={{ margin: "8px 0 0", fontSize: 13 }}>
                   {t(
                     "Cost is averaged by quantity, not chosen — 10 at $6 and 2 at $9 becomes 12 at $6.50, so no future sale changes price because of the merge.",
