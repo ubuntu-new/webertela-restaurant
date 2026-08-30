@@ -44,20 +44,58 @@ die()  { printf '\n\033[31m!! %s\033[0m\n' "$*"; exit 1; }
 
 PORT="$(grep -oP '(?<=^PORT=)\d+' .env || echo 3000)"
 
-# Reachable now, before anything is touched. Knowing whether the site was
-# already broken changes what a failure at the end means.
+# Is this instance serving?
+#
+# `/api/health` is the real answer, but it has not always existed — a build made
+# before it was added returns 404, and reading that as "down" made this script
+# announce a healthy site as broken on its very first run. Worse, the same check
+# runs after the restart, so on any release that does not include the endpoint
+# it would have rolled back a deploy that worked perfectly.
+#
+# So: 200 is up, a connection failure or a 5xx is down, and a 404 means this
+# build simply predates the endpoint — in which case the question becomes the
+# weaker one the script can still answer, which is whether the server responds
+# to anything at all.
 was_up() {
-  [ "$(curl -sS -m 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/api/health" 2>/dev/null)" = "200" ]
+  local code
+  code="$(curl -sS -m 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/api/health" 2>/dev/null)"
+
+  case "$code" in
+    200) return 0 ;;
+    404)
+      local alt
+      alt="$(curl -sS -m 5 -L -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/pos" 2>/dev/null)"
+      [ -n "$alt" ] && [ "$alt" -lt 500 ] 2>/dev/null && return 0
+      return 1
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+# Said once, so that "up" never quietly means "up as far as I could tell".
+health_kind() {
+  local code
+  code="$(curl -sS -m 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/api/health" 2>/dev/null)"
+  [ "$code" = "404" ] && echo "(this build has no /api/health — judged by whether it answers at all)"
 }
 
 say "before"
-if was_up; then echo "   site is up on :$PORT"; else warn "site is ALREADY down — this deploy is a repair, not a release"; fi
+if was_up; then
+  echo "   site is up on :$PORT $(health_kind)"
+else
+  warn "site is ALREADY down — this deploy is a repair, not a release"
+fi
 echo "   git: $(git rev-parse --short HEAD) $(git log -1 --format=%s | cut -c1-60)"
 
-# The dirty-tree guard, and why package-lock is exempt: npm rewrites it during
-# the very `npm install` a deploy asks for, and a guard that blocks its own
-# instructions teaches people to work around the guard.
-DIRTY="$(git status --porcelain -- . ':!.npm' ':!package-lock.json' 2>/dev/null)"
+# The dirty-tree guard, and why three files are exempt.
+#
+# A guard that blocks its own instructions teaches people to work around the
+# guard, and both exemptions here were earned that way. npm rewrites
+# package-lock.json during the `npm install` this script performs. And **Next
+# rewrites tsconfig.json during `next build`** — it adds its own compiler
+# options on every run — so after the very first deploy the tree is dirty
+# forever and no deploy can ever pass again.
+DIRTY="$(git status --porcelain -- . ':!.npm' ':!package-lock.json' ':!tsconfig.json' 2>/dev/null)"
 [ -n "$DIRTY" ] && { warn "uncommitted changes:"; printf '%s\n' "$DIRTY"; die "commit or stash first"; }
 
 say "dependencies"
@@ -119,6 +157,7 @@ done
 if $ok; then
   say "done"
   curl -sS -m 5 "http://127.0.0.1:${PORT}/api/health"; echo
+  [ -n "$(health_kind)" ] && warn "no /api/health in this build — the watchdog cannot monitor it"
   echo "   $PREV_DIR is kept until the next deploy, in case you want it."
   exit 0
 fi

@@ -108,6 +108,22 @@ for dir in "$INSTANCES_DIR"/*; do
   body="$(curl -sS -m 8 "http://127.0.0.1:${port}/api/health" 2>/dev/null)"
   code="$(curl -sS -m 8 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${port}/api/health" 2>/dev/null)"
 
+  # An instance still on a build from before the endpoint existed answers 404.
+  # Treating that as an outage would page somebody every minute about a site
+  # that is serving perfectly — and a monitor that cries wolf gets muted, which
+  # is the failure this whole file exists to prevent. So fall back to the weaker
+  # question it can still answer, and say so rather than pretending.
+  if [ "$code" = "404" ]; then
+    alt="$(curl -sS -m 8 -L -o /dev/null -w '%{http_code}' "http://127.0.0.1:${port}/pos" 2>/dev/null)"
+    if [ -n "$alt" ] && [ "$alt" -lt 500 ] 2>/dev/null; then
+      code=200
+      body=""
+      transition "stale-$slug" bad "$HOST/$slug is serving, but its build has no /api/health — it is only being watched shallowly. Deploy to fix."
+    fi
+  else
+    transition "stale-$slug" ok "$HOST/$slug is reporting proper health again."
+  fi
+
   if [ "$code" = "200" ]; then
     rm -f "$STATE_DIR/fails-$slug"
     transition "health-$slug" ok "$HOST/$slug is answering again."

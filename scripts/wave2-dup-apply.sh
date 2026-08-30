@@ -70,7 +70,7 @@ grep -q 'model Supplier' prisma/schema.prisma \
 # an `npm install` that this very deploy asked for. The check fired on it once
 # and stopped a deploy over a file the deploy itself had changed — a guard that
 # blocks its own instructions teaches people to work around the guard.
-DIRTY="$(git status --porcelain -- . ':!.npm' ':!package-lock.json' 2>/dev/null)"
+DIRTY="$(git status --porcelain -- . ':!.npm' ':!package-lock.json' ':!tsconfig.json' 2>/dev/null)"
 if [ -n "$DIRTY" ]; then
   warn "uncommitted changes in the working tree:"
   printf '%s\n' "$DIRTY"
