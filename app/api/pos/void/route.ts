@@ -4,6 +4,7 @@ import { getPosSession } from "@/lib/pos-auth";
 import { hashPin, isValidPin } from "@/lib/pin";
 import { recordMovements } from "@/lib/stock";
 import { logAction } from "@/lib/audit";
+import { check, clientIp, fail, key, succeed, waitMessage, PIN_POLICY } from "@/lib/rate-limit";
 import { reversePoints } from "@/lib/loyalty";
 
 export const runtime = "nodejs";
@@ -39,21 +40,76 @@ export async function POST(req: Request) {
   if (reason.length < 3) return NextResponse.json({ error: "A reason is required" }, { status: 400 });
   if (!isValidPin(body.pin ?? "")) return NextResponse.json({ error: "Enter the manager PIN" }, { status: 400 });
 
+  // ── how many guesses this till has left ──
+  //
+  // The higher-value of the two PIN doors: a correct guess here cancels a sale,
+  // refunds it, and puts stock back.
+  //
+  // Keyed on the signed-in cashier and nothing else.
+  //
+  // Two wrong answers were tried first. The terminal alone let one cashier
+  // burning five guesses deny an honest manager the ability to void on that
+  // till — a denial of the most time-critical action on the POS. Terminal *and*
+  // cashier looked stricter and was looser: it handed the same person a fresh
+  // five guesses on each till they signed into. The person is the thing being
+  // limited, so the person is the key.
+  const ip = await clientIp();
+  const bucket = key("void", session.sub);
+
+  const gate = check(bucket);
+  if (!gate.ok) {
+    return NextResponse.json(
+      { error: waitMessage(gate.retryAfter) },
+      { status: 429, headers: { "Retry-After": String(gate.retryAfter) } },
+    );
+  }
+
+  // All three refusals count. Two of them are only reachable with a PIN that
+  // matched a real employee, so leaving those free would let a cashier confirm
+  // a manager's PIN from behind the counter at no cost — and this is the door
+  // that person most wants to open.
+  const refuse = async (message: string, status: number, why: string) => {
+    const v = fail(bucket, PIN_POLICY);
+    // Always logged, unlike the other doors: reaching this at all means someone
+    // already signed in on a till is trying manager PINs, and the owner wants
+    // every one of those. The signed-in session caps the volume.
+    await logAction({
+      action: "order.void.refused",
+      entityType: "Order",
+      entityId: body.orderId ?? null,
+      branchId: session.branchId,
+      after: { why, ip, posId: session.posId, fails: v.fails, locked: !v.ok || undefined },
+      employeeId: session.sub,
+    });
+    return NextResponse.json({ error: message }, { status });
+  };
+
   // ── who authorised it ──
   const approver = await db.employee.findFirst({
     where: { posPinHash: hashPin(body.pin!), active: true, deletedAt: null },
     select: { id: true, name: true, role: true, permissions: true },
   });
-  if (!approver) return NextResponse.json({ error: "PIN not recognised" }, { status: 401 });
+  if (!approver) return refuse("PIN not recognised", 401, "pin not recognised");
 
   const canVoid = approver.role === "super_admin" || approver.permissions.includes("can_void");
-  if (!canVoid) return NextResponse.json({ error: "This person cannot authorise a void" }, { status: 403 });
+  if (!canVoid) return refuse("This person cannot authorise a void", 403, "no permission");
 
   // The point is a second pair of eyes — approving your own void defeats it
   if (approver.id === session.sub) {
-    return NextResponse.json({ error: "A void must be authorised by someone else" }, { status: 403 });
+    return refuse("A void must be authorised by someone else", 403, "self-approval");
   }
 
+  /**
+   * The counter is cleared only once a void has actually happened.
+   *
+   * Clearing it the moment the PIN matched looked equivalent and was not: a
+   * cashier who knows one manager's PIN could burn four guesses at a second
+   * manager's, then submit the known-good PIN with a nonsense order id — which
+   * fails at the lookup below and performs no void — and the throttle reset.
+   * Four free guesses per two requests, forever, on the one door that moves
+   * money. Requiring a completed void makes each reset cost a real, audited,
+   * reversible action with two names on it.
+   */
   const order = await db.order.findUnique({
     where: { id: body.orderId ?? "" },
     select: { id: true, orderNo: true, status: true, branchId: true, total: true, statusHistory: true },
@@ -93,6 +149,10 @@ export async function POST(req: Request) {
   }
 
   const history = Array.isArray(order.statusHistory) ? (order.statusHistory as unknown[]) : [];
+
+  // A void has now genuinely happened and is about to be recorded: this
+  // cashier is who they said they were, so their guess counter goes.
+  succeed(bucket);
 
   await db.order.update({
     where: { id: order.id },

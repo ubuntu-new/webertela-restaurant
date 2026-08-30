@@ -453,7 +453,23 @@ export default function PosTerminal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin: unlockPin, branchId, posId }),
       });
-      if (!res.ok) { setError("PIN not recognised"); setUnlockPin(""); return; }
+
+      if (!res.ok) {
+        // This branch used to say "PIN not recognised" whatever the server
+        // answered, which is the most-travelled path on the whole till — the
+        // terminal re-locks every three minutes — and now that attempts are
+        // rate limited it would be a lie in the one case that matters. A
+        // cashier told their correct PIN is wrong types it again, which is
+        // exactly the wrong thing to do, and the field being cleared each time
+        // makes it feel broken rather than throttled.
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "PIN not recognised");
+        // Keep what they typed when the server is asking them to wait: it was
+        // probably right, and re-entering it changes nothing.
+        if (res.status !== 429) setUnlockPin("");
+        return;
+      }
+
       await rememberPin(unlockPin, posId);
       setLocked(false);
       setUnlockPin("");
@@ -512,8 +528,17 @@ export default function PosTerminal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin, branchId, posId }),
       });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Could not sign in"); setPin(""); return; }
+      // Tolerant of a non-JSON body: a 502 from the proxy is HTML, and throwing
+      // here would land in the outer catch and report "no connection" for a
+      // server that answered.
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Could not sign in");
+        // Same reasoning as unlock: when the server is asking them to wait,
+        // what they typed was probably right and wiping it reads as a fault.
+        if (res.status !== 429) setPin("");
+        return;
+      }
       localStorage.setItem(TERMINAL_KEY, JSON.stringify({ branchId, posId }));
       localStorage.setItem(
         SESSION_KEY,
