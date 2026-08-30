@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { fmt } from "@/lib/format";
 import { i18nText } from "@/lib/admin-utils";
+import { findExistingDuplicateGroups } from "@/lib/dup";
 import type { Period } from "@/lib/analytics";
 
 /**
@@ -226,6 +227,39 @@ export async function advise(input: AdviceInput): Promise<Finding[]> {
         weight: monthly(revenue * 0.27),
       });
     }
+  }
+
+  // ── the same ingredient counted twice ──────────────────────────────────
+  //
+  // This one is here rather than on a settings checklist because it is not a
+  // configuration gap — it is an active, invisible error in the food-cost
+  // figure directly above it. Two rows for mozzarella mean recipes deduct from
+  // one and deliveries land on the other, so the cost of a pizza is understated
+  // and nothing anywhere looks broken. It is scored against food cost because
+  // that is the number it is corrupting.
+  const dupGroups = await findExistingDuplicateGroups("stockItem");
+  if (dupGroups.length > 0) {
+    const extra = dupGroups.reduce((n, g) => n + g.rows.length - 1, 0);
+    const first = dupGroups[0].rows[0].name;
+
+    out.push({
+      id: "duplicate-items",
+      severity: "warning",
+      title:
+        dupGroups.length === 1
+          ? `"${first}" exists twice in your stock`
+          : `${dupGroups.length} ingredients exist more than once`,
+      why:
+        `${extra} extra ${extra === 1 ? "row" : "rows"} for ingredients you already have. ` +
+        `Recipes deduct from one row while deliveries land on the other, so the stock on the shelf is right ` +
+        `and the stock in the software is split — which quietly understates food cost. ` +
+        `Merging adds the quantities together and keeps every movement.`,
+      action: { label: "Review and merge", href: "/admin/stock/duplicates" },
+      attaches: "foodCost",
+      // Not a measurable loss, but it makes the food-cost figure untrustworthy,
+      // and an untrustworthy number is worth more to fix than a bad one.
+      weight: monthly(revenue * 0.02 * dupGroups.length),
+    });
   }
 
   if (!input.fixedMonthly) {
