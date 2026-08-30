@@ -19,15 +19,27 @@ if (password.length < 10) {
 }
 
 const email = emailRaw.toLowerCase();
+
+// Same normalisation as lib/name-key.ts. Without it this row has no key, and
+// the duplicate check would never see the owner when someone later adds a
+// second employee with the same name.
+const nameKey = (v) =>
+  String(v ?? "")
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
 const db = new PrismaClient();
 
 const passwordHash = await bcrypt.hash(password, 12);
 
 const emp = await db.employee.upsert({
   where: { email },
-  update: { name, passwordHash, role: "super_admin", active: true },
+  update: { name, nameKey: nameKey(name), passwordHash, role: "super_admin", active: true },
   create: {
     name,
+    nameKey: nameKey(name),
     email,
     passwordHash,
     role: "super_admin",

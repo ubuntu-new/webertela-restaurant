@@ -2216,6 +2216,36 @@ try {
   await reportWindow(at(DAYS - 30, 0, 0), to, 30, "last thirty days  (the dashboard's default view — the targets are set against the ninety, see the note below)");
   await problems();
 
+  // ── name keys ────────────────────────────────────────────────────────────
+  // Every row above was created without one. A seeded demo with null keys is a
+  // demo where the duplicate warning is silently switched off — and the demo is
+  // the thing prospects are shown. One pass at the end costs nothing and means
+  // the seed can never fall behind the schema.
+  {
+    const key = (v) => {
+      const raw =
+        v && typeof v === "object" && !Array.isArray(v) ? String(v.en ?? "") || String(v.ka ?? "") : String(v ?? "");
+      return raw
+        .normalize("NFKD")
+        .replace(/\p{M}+/gu, "")
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, " ")
+        .trim();
+    };
+
+    let keyed = 0;
+    for (const model of ["category", "subcategory", "product", "topping", "combo", "discount", "stockItem", "recipe", "employee", "branch", "supplier"]) {
+      const rows = await db[model].findMany({ select: { id: true, name: true } });
+      for (const r of rows) {
+        const k = key(r.name);
+        if (!k) continue;
+        await db[model].update({ where: { id: r.id }, data: { nameKey: k } });
+        keyed++;
+      }
+    }
+    console.log(`  name keys written: ${keyed}`);
+  }
+
   console.log("");
   console.log(`  done in ${((Date.now() - t0) / 1000).toFixed(1)}s.`);
   console.log("");
