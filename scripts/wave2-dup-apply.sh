@@ -203,14 +203,37 @@ WARNS=$(printf '%s' "$LINT" | grep -c "  Warning: " || true)
 echo
 echo "   $ERRORS errors, $WARNS warnings — neither blocks this deploy"
 
-say "building"
-if ! npm run build; then
+# Built into a scratch directory and swapped in only on success.
+#
+# In place, `next build` overwrites `.next` while the live process is still
+# reading from it, so a build that failed halfway left the running server on a
+# half-replaced directory — and the message below, promising the site was still
+# serving the old code, was then simply untrue. That is how the demo spent
+# twenty minutes returning 502. See scripts/deploy.sh, which does the same thing
+# for releases that carry no migration.
+say "building into .next-build"
+rm -rf .next-build
+if ! NEXT_DIST_DIR=.next-build npm run build; then
+  rm -rf .next-build
   printf '\n\033[31m!! BUILD FAILED\033[0m\n'
-  echo "   Nothing was restarted; the site is still serving the old code."
+  echo "   Nothing was restarted and nothing was replaced — the site is genuinely"
+  echo "   still serving the previous build."
   echo "   The migration HAS been applied, and it is additive — the running code"
   echo "   ignores the new columns, so the site is fine while this is fixed."
   exit 1
 fi
+
+[ -f .next-build/BUILD_ID ] || {
+  rm -rf .next-build
+  printf '\n\033[31m!! build produced no BUILD_ID — refusing to swap it in\033[0m\n'
+  exit 1
+}
+
+say "swapping the new build in"
+rm -rf .next-previous
+[ -d .next ] && mv .next .next-previous
+mv .next-build .next
+echo "   previous build kept in .next-previous"
 
 # The build ran as root, so .next belongs to root — but the service runs as its
 # own user and Next writes a prerender cache there while serving. The log shows

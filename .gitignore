@@ -17,3 +17,10 @@ scripts/serviceAccount.json
 
 # npm cache created by running as a service user
 .npm/
+
+# Scratch and rollback copies of the build. `scripts/deploy.sh` builds into
+# .next-build, keeps the outgoing build in .next-previous, and parks a build
+# that failed to start in .next-failed.
+/.next-build
+/.next-previous
+/.next-failed
