@@ -10,6 +10,7 @@ import ArchiveButton from "../../../_components/ArchiveButton";
 import AdminForm from "@/app/admin/_components/AdminForm";
 import NameField from "@/app/admin/_components/NameField";
 import BarcodeField from "@/app/admin/_components/BarcodeField";
+import { unitLabel } from "@/lib/units";
 
 export const dynamic = "force-dynamic";
 
@@ -229,8 +230,16 @@ export default async function StockItemEdit({ params }: { params: Promise<{ id: 
               <tr>
                 <th>{t("Location")}</th>
                 <th style={{ width: 130 }}>{t("On hand")}</th>
-                <th style={{ width: 130 }}>{t("Min")}</th>
-                <th style={{ width: 130 }}>{t("Target")}</th>
+                {/* The unit belongs in the header of an editable threshold. It
+                    is the only thing telling somebody whether 500 means half a
+                    kilo or half a tonne, and it is the number they are least
+                    likely to sanity-check afterwards. */}
+                <th style={{ width: 130 }}>
+                  {t("Min")} <span className="hint">({unitLabel(item.unit)})</span>
+                </th>
+                <th style={{ width: 130 }}>
+                  {t("Target")} <span className="hint">({unitLabel(item.unit)})</span>
+                </th>
               </tr>
             </thead>
             <tbody>

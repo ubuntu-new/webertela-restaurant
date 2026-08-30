@@ -72,7 +72,10 @@ export default async function ReplenishPage() {
                     <b style={{ color: "var(--a-danger)" }}>{fmtQty(i.qty, i.unit)}</b>
                   </td>
                   <td>
-                    <span className="hint">{i.min}</span>
+                    {/* Every other number in this row carries its unit. A bare
+                        "500" beside "16.952 kg" is unreadable — and a minimum is
+                        exactly the number somebody needs to sanity-check. */}
+                    <span className="hint">{fmtQty(Number(i.min), i.unit)}</span>
                   </td>
                   <td>
                     <span className="badge" style={{ background: "#fdf3d6", color: "#8a6a12" }}>
@@ -145,10 +148,10 @@ export default async function ReplenishPage() {
                           <b style={{ color: "var(--a-danger)" }}>{fmtQty(i.qty, i.unit)}</b>
                         </td>
                         <td>
-                          <span className="hint">{i.min}</span>
+                          <span className="hint">{fmtQty(Number(i.min), i.unit)}</span>
                         </td>
                         <td>
-                          <span className="hint">{i.target}</span>
+                          <span className="hint">{fmtQty(Number(i.target), i.unit)}</span>
                         </td>
                         <td>
                           <span
