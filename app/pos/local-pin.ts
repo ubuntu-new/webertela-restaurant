@@ -100,3 +100,65 @@ export function forgetPin(): void {
     /* nothing to clear */
   }
 }
+
+/**
+ * Making an offline guess cost something.
+ *
+ * ⚠️ Read this before trusting it. The check above compares a typed PIN against
+ * a hash of one the *server accepted*, on the device, with none of the server's
+ * defences. That is a real oracle and it cannot be argued away — it is kept
+ * because the alternative is a till that dies when a router does, and it is the
+ * narrowest version available: one PIN, this terminal, gone at sign-out.
+ *
+ * What this adds is price. The count is persisted, so a reload does not buy
+ * five fresh attempts, and it is raised *before* the comparison, so twenty
+ * concurrent taps cost twenty increments rather than one. Five free, then a
+ * doubling wait to two minutes: the whole four-digit space costs about a
+ * fortnight instead of a few seconds.
+ *
+ * What it does not do, and no client-side control can: an attacker with the
+ * tablet and a devtools console reads the hash out of localStorage and attacks
+ * it offline, untouched by any of this. This raises the cost of the *easy* path
+ * — driving the real UI — and nothing more. A shorter answer would be a longer
+ * PIN.
+ */
+const TRIES_KEY = "ronnys-pos-offline-tries";
+
+function triesFor(posId: string): number {
+  try {
+    const v = JSON.parse(localStorage.getItem(TRIES_KEY) ?? "null");
+    return v?.posId === posId && typeof v.n === "number" ? v.n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Raise the count and say how long this attempt must wait before it is judged.
+ *
+ * Returns -1 when the count could not be written. That is deliberate and the
+ * caller must refuse the unlock: on a device where the counter cannot persist,
+ * the hash still reads and still answers, so guesses would be free — a full
+ * disk would quietly turn the throttle off and leave the oracle running. A till
+ * that cannot charge for a guess should not sell one.
+ */
+export function bumpOfflineTries(posId: string): number {
+  const n = triesFor(posId) + 1;
+  try {
+    localStorage.setItem(TRIES_KEY, JSON.stringify({ posId, n }));
+  } catch {
+    return -1;
+  }
+  // Five free. The sixth waits two seconds, and each one after that doubles to
+  // a two-minute ceiling.
+  return n <= 5 ? 0 : Math.min(2 ** (n - 5), 120) * 1000;
+}
+
+/** Called only after the server, or the shift's own PIN, has said yes. */
+export async function resetOfflineTries(posId: string): Promise<void> {
+  try {
+    localStorage.setItem(TRIES_KEY, JSON.stringify({ posId, n: 0 }));
+  } catch {
+    /* nothing to clear */
+  }
+}

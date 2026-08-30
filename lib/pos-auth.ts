@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { hashPin } from "@/lib/pin";
 
@@ -27,6 +28,20 @@ export interface PosSession {
   role: string;
   branchId: string;
   posId: string;
+  /**
+   * This sign-in, distinct from every other.
+   *
+   * The till stamps each queued sale with it, so that a sale rung up before a
+   * handover cannot be sent under the cookie of whoever came next. The client
+   * used to mint this itself and decide "same person?" by comparing displayed
+   * names — which fails silently for two employees called Ana, and fails the
+   * other way while the name is still empty on boot.
+   *
+   * Minted here because only the server knows whether a sign-in is a handover.
+   * It identifies a session, not a person: it is random, it changes on every
+   * sign-in by the same employee, and it says nothing about who they are.
+   */
+  sid: string;
 }
 
 export async function signInWithPin(pin: string, branchId: string, posId: string) {
@@ -43,11 +58,14 @@ export async function signInWithPin(pin: string, branchId: string, posId: string
     employee.branches.some((b) => b.branchId === branchId);
   if (!allowed) return { error: "not_assigned_to_branch" as const };
 
+  const sid = randomUUID();
+
   const token = await new SignJWT({
     name: employee.name,
     role: employee.role,
     branchId,
     posId,
+    sid,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(employee.id)
@@ -64,7 +82,7 @@ export async function signInWithPin(pin: string, branchId: string, posId: string
     maxAge: TTL_HOURS * 3600,
   });
 
-  return { employee };
+  return { employee, sid };
 }
 
 export async function getPosSession(): Promise<PosSession | null> {
@@ -80,6 +98,7 @@ export async function getPosSession(): Promise<PosSession | null> {
       role: String(payload.role ?? ""),
       branchId: String(payload.branchId ?? ""),
       posId: String(payload.posId ?? ""),
+      sid: String(payload.sid ?? ""),
     };
   } catch {
     return null;

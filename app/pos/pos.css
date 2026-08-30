@@ -494,3 +494,11 @@
 }
 .pos-points.on { background: #e8f2e8; border-color: #bcdcbc; color: var(--p-ok); }
 .pos-points em { font-style: normal; font-weight: 600; }
+
+/* Sales an earlier shift left unsent. A button, not a badge, because adopting
+   them puts someone else's takings in this cashier's name and that has to be a
+   decision rather than a notification. */
+.pos-orphans {
+  background: #fdf3d6 !important; color: #8a6a12 !important;
+  border-color: #e8d9a8 !important; font-weight: 600;
+}

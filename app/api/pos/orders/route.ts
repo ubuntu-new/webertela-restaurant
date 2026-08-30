@@ -40,6 +40,8 @@ export async function POST(req: Request) {
     address?: string;
     notes?: string;
     localNo?: string;
+    /** Set by the till when it is sending a sale another shift rang up. */
+    adoptedFrom?: string;
   };
   try {
     body = await req.json();
@@ -216,7 +218,23 @@ export async function POST(req: Request) {
       entityType: "Order",
       entityId: order.id,
       branchId: session.branchId,
-      after: { orderNo: order.orderNo, total: priced.total, posId: session.posId },
+      after: {
+        orderNo: order.orderNo,
+        total: priced.total,
+        posId: session.posId,
+        /**
+         * Set when the till sent a sale that a *different* shift rang up.
+         *
+         * The queue is local and survives a handover, so an order taken by one
+         * cashier during an outage can be sent by the next one who signs in.
+         * The terminal makes that a deliberate act rather than a silent one,
+         * but without this line the record would still read as if the sender
+         * took the money — and "who sold this" is the question the audit log
+         * exists to answer. Untrusted client input, so it is stored as a marker
+         * to investigate, never as an identity.
+         */
+        adoptedFrom: typeof body.adoptedFrom === "string" ? body.adoptedFrom.slice(0, 64) : undefined,
+      },
       employeeId: session.sub,
     });
 

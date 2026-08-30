@@ -27,7 +27,9 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const s = await getPosSession();
   return NextResponse.json({
-    session: s ? { name: s.name, branchId: s.branchId, posId: s.posId } : null,
+    // `shift` identifies this sign-in, not this person — see PosSession.sid.
+    // The till compares it to decide whether the queue changed hands.
+    session: s ? { name: s.name, branchId: s.branchId, posId: s.posId, shift: s.sid } : null,
   });
 }
 
@@ -185,7 +187,7 @@ export async function POST(req: Request) {
     employeeId: result.employee.id,
   });
 
-  return NextResponse.json({ ok: true, name: result.employee.name });
+  return NextResponse.json({ ok: true, name: result.employee.name, shift: result.sid });
 }
 
 export async function DELETE() {

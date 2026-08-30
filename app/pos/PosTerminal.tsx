@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { detailLines, lineColor } from "@/lib/item-detail";
 import { refreshCachedPage, useOfflineShell } from "./use-offline-shell";
-import { canUnlockOffline, forgetPin, matchesPin, rememberPin } from "./local-pin";
+import {
+  bumpOfflineTries, canUnlockOffline, forgetPin, matchesPin, rememberPin, resetOfflineTries,
+} from "./local-pin";
 import { makeFmt } from "@/lib/format-shared";
 import type { OrgFormat } from "@/lib/format-shared";
 
@@ -110,7 +112,45 @@ interface RecentOrder {
   items: { name: string; qty: number; detail: string; total: number }[];
 }
 
-interface Queued { clientRef: string; localNo: string; payload: unknown; at: number }
+/**
+ * A sale waiting to be sent, and **whose sale it is**.
+ *
+ * `shift` is the missing half. Without it the queue is a shared tray: whoever
+ * next has a valid cookie sends everything in it, under their own name. That is
+ * not hypothetical — it is reachable by the most ordinary sequence there is.
+ * Ana signs in, the connection drops, she takes four orders, she locks the till
+ * and goes home. Bekah unlocks it, which re-issues the cookie in *her* name,
+ * and Ana's four orders file as Bekah's: her sales figures, her audit rows, her
+ * name on a void investigation later.
+ *
+ * So each order remembers the shift that rang it up, and the drainer sends only
+ * what belongs to the shift that is signed in now. Anything else is held and
+ * shown, to be adopted on purpose or not at all.
+ */
+interface Queued {
+  clientRef: string;
+  localNo: string;
+  payload: unknown;
+  at: number;
+  /** Which shift took this. Absent on rows queued before this existed. */
+  shift?: string;
+  /**
+   * Whose shift it was, in words. The session id answers "the same one?" and
+   * nothing else — it exists nowhere on the server, so an audit row carrying
+   * only that says an adoption happened and cannot say from whom.
+   */
+  by?: string;
+  /**
+   * What the till showed when it was rung up.
+   *
+   * Not authoritative — the payload carries no prices on purpose, because the
+   * server reprices everything and a client that could name its own total would
+   * be a much worse problem than a stale one. This is only so that a cashier
+   * being asked to take responsibility for four unsent sales can see roughly
+   * what they come to, and notice if the figure is absurd.
+   */
+  total?: number;
+}
 
 const uuid = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
@@ -167,6 +207,63 @@ export default function PosTerminal({
   const [locked, setLocked] = useState(false);
   const [unlockPin, setUnlockPin] = useState("");
   const [recent, setRecent] = useState<RecentOrder[] | null>(null);
+
+  /**
+   * Identifies the shift currently signed in, so a queued sale can say which
+   * one it belongs to. Minted at sign-in, and at an unlock that changed who is
+   * standing there — see `unlock`.
+   *
+   * Minted by the server, never here. Two earlier attempts decided "is this the
+   * same person?" by comparing the displayed name, which is wrong in both
+   * directions: two employees called Ana miss a real handover, and an unlock
+   * before the name has loaded invents one that did not happen.
+   *
+   * State rather than a ref, so that the list of another shift's unsent sales
+   * can be *derived* from the queue rather than stored beside it. Stored, the
+   * two drifted: the count came from React state, the orphan list from a
+   * localStorage read inside the drainer, and after an unlock the header showed
+   * sales "to sync" that would never be sent, with no button, until the next
+   * fifteen-second tick noticed.
+   */
+  const [shift, setShift] = useState<string | null>(null);
+
+  /**
+   * One offline unlock at a time.
+   *
+   * Without it, holding Enter down during a two-minute wait queued sixty
+   * attempts that all read the same count, all slept the same delay together,
+   * and all cost one increment between them. The delay looked like a throttle
+   * and was a batching opportunity.
+   */
+  const unlocking = useRef(false);
+  /** The confirmation shown before another shift's sales become this one's. */
+  const [adopting, setAdopting] = useState(false);
+
+  /**
+   * Sales queued by a shift that is no longer signed in.
+   *
+   * Derived, never stored. Held rather than sent, and shown rather than hidden:
+   * silently refusing to send them would be the worse bug, because the count
+   * beside "to sync" would never fall and nobody would know why.
+   *
+   * A row with no `shift` at all predates this field and is treated as ours —
+   * the old behaviour, and the only sane reading of a row that never recorded
+   * an owner. Those are gone within a day of deploying.
+   */
+  const orphans = useMemo(
+    () => queue.filter((q) => q.shift && q.shift !== shift),
+    [queue, shift],
+  );
+
+  /**
+   * What the held sales came to on screen. A count alone is not enough to
+   * notice a wrong number; a figure is something a cashier can weigh against
+   * the drawer before putting their name to it.
+   */
+  const orphanTotal = useMemo(
+    () => Math.round(orphans.reduce((sum, q) => sum + (q.total ?? 0), 0) * 100) / 100,
+    [orphans],
+  );
   const [savedMenu, setSavedMenu] = useState<{ menu: Menu; at: number } | null>(null);
   const [voiding, setVoiding] = useState<RecentOrder | null>(null);
   const [voidPin, setVoidPin] = useState("");
@@ -241,6 +338,16 @@ export default function PosTerminal({
         // A session for a different terminal is as wrong as none: this device
         // would be filing its sales under someone else's till.
         const valid = data?.session && data.session.posId === posId;
+
+        // The cookie carries its own session id. If it no longer matches, this
+        // shift ended somewhere else — a second tab, another till sharing the
+        // browser — and everything queued under the old one has to stop
+        // draining here rather than going out under a stranger's name.
+        if (valid && typeof data.session.shift === "string" && data.session.shift !== shift) {
+          setShift(data.session.shift);
+          setWho(data.session.name ?? "");
+        }
+
         if (!valid) {
           try { localStorage.removeItem(SESSION_KEY); } catch { /* already gone */ }
           forgetPin();
@@ -262,6 +369,10 @@ export default function PosTerminal({
     // Deliberately not keyed on `queue`: this is a check that runs when the
     // connection or the shift changes, not on every sale.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // `shift` is read to compare, not to trigger: re-running on every shift
+    // change would ask the server again immediately after we just learned the
+    // answer from it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online, signedIn, posId]);
 
   // ── boot ──
@@ -282,10 +393,29 @@ export default function PosTerminal({
     if (session) {
       setBranchId(session.branchId);
       setPosId(session.posId);
+      // Keep the shift this device already recorded rather than minting a new
+      // one: the cookie has not changed, so neither has whose sales these are.
+      // Replacing it would orphan everything queued before the reload.
+      //
+      // Computed *outside* the try. Inside it, a storage read that threw —
+      // private browsing, a full disk — left the id null, and a null id writes
+      // sales with no owner at all, which the next shift then claims silently.
+      let prevShift: string | null = null;
+      try {
+        prevShift = JSON.parse(localStorage.getItem(SESSION_KEY) ?? "null")?.shift ?? null;
+      } catch {
+        /* unreadable — a fresh id below is the safe answer, not no id */
+      }
+      const id = prevShift ?? uuid();
+      setShift(id);
+
       try {
         localStorage.setItem(
           SESSION_KEY,
-          JSON.stringify({ name: session.name, branchId: session.branchId, posId: session.posId, at: Date.now() }),
+          JSON.stringify({
+            name: session.name, branchId: session.branchId, posId: session.posId,
+            at: Date.now(), shift: id,
+          }),
         );
       } catch {
         /* the shift still works; only an offline reload would forget it */
@@ -296,6 +426,11 @@ export default function PosTerminal({
       try {
         const saved = JSON.parse(localStorage.getItem(SESSION_KEY) ?? "null");
         if (saved?.posId && Date.now() - saved.at < SESSION_MS) {
+          // `?? uuid()` and not `?? null`. A session stored by the previous
+          // release has no `shift`, and for the fourteen hours those records
+          // stay valid a null here would make every sale unowned — the exact
+          // bug this change exists to close, on the day it ships.
+          setShift(saved.shift ?? uuid());
           setBranchId(saved.branchId);
           setPosId(saved.posId);
           setWho(saved.name ?? "");
@@ -372,12 +507,26 @@ export default function PosTerminal({
     try { localStorage.setItem(HELD_KEY, JSON.stringify(h)); } catch { /* full */ }
   }, []);
 
-  /** Drain the queue. Safe at any time — clientRef makes retries free. */
+  /**
+   * Drain the queue. Safe at any time — `clientRef` makes retries free.
+   *
+   * Only this shift's own sales are sent. Anything belonging to an earlier one
+   * is left where it is and surfaced instead, because sending it now would file
+   * it under the person signed in now — see the note on `Queued`.
+   *
+   * Rows queued before this field existed have no `shift` and are treated as
+   * this shift's, which is the old behaviour and the only sane reading of a row
+   * that never recorded an owner. Those disappear within a day of deploying.
+   */
   const drain = useCallback(async () => {
-    const current: Queued[] = JSON.parse(localStorage.getItem(QUEUE_KEY) ?? "[]");
+    const all: Queued[] = JSON.parse(localStorage.getItem(QUEUE_KEY) ?? "[]");
+    if (all.length === 0) return;
+
+    const current = all.filter((q) => !q.shift || q.shift === shift);
+    const others = all.filter((q) => q.shift && q.shift !== shift);
     if (current.length === 0) return;
 
-    const left: Queued[] = [];
+    const left: Queued[] = [...others];
     for (const q of current) {
       try {
         const res = await fetch("/api/pos/orders", {
@@ -400,7 +549,7 @@ export default function PosTerminal({
       }
     }
     persistQueue(left);
-  }, [persistQueue]);
+  }, [persistQueue, shift]);
 
   useEffect(() => {
     if (!signedIn) return;
@@ -470,16 +619,97 @@ export default function PosTerminal({
         return;
       }
 
+      /**
+       * Unlocking is really a re-sign-in: the server issues a cookie for
+       * whoever's PIN was typed, so the shift may have changed hands. Ana locks
+       * the till and goes home; Bekah unlocks it; from this moment the sales
+       * are Bekah's, and the device has to agree with the server about that.
+       *
+       * A new shift id is minted for exactly that reason. Anything Ana queued
+       * stays hers and stops draining here — the point of the id.
+       */
+      const data = await res.json().catch(() => ({}));
+      const name = typeof data?.name === "string" ? data.name : who;
+      const nextShift = typeof data?.shift === "string" ? data.shift : null;
+
+      /**
+       * A new shift only when somebody new is standing there.
+       *
+       * Unlocking is a re-sign-in — the server issues a cookie for whoever's
+       * PIN was typed — so a handover really is a new shift and Ana's unsent
+       * sales must stop draining as Bekah's. But the till re-locks every three
+       * minutes, and minting on *every* unlock meant Ana adopting her own sales
+       * from nine minutes ago, a dozen times a shift. That trains a cashier to
+       * press the adopt button without reading it, which destroys the one thing
+       * it is for.
+       */
+      // The server decides. A sign-in by the same person still produces a new
+      // session id, which is correct: the cookie really did change, and rows
+      // queued under the old one belong to a shift that has ended.
+      const handover = !!nextShift && nextShift !== shift;
+      if (handover) {
+        const id = nextShift;
+        setShift(id);
+        setWho(name);
+        try {
+          localStorage.setItem(
+            SESSION_KEY,
+            JSON.stringify({ name, branchId, posId, at: Date.now(), shift: id }),
+          );
+        } catch {
+          /* the shift is real either way */
+        }
+        // Only worth the six queries a /pos render costs when the page would
+        // actually come back different.
+        void refreshCachedPage();
+      }
+
+      await resetOfflineTries(posId);
       await rememberPin(unlockPin, posId);
       setLocked(false);
       setUnlockPin("");
     } catch {
-      if (await matchesPin(unlockPin, posId)) {
-        setLocked(false);
-        setUnlockPin("");
-        setError(null);
-        return;
+      /**
+       * No connection, so the stored hash is all there is.
+       *
+       * ⚠️ Be honest about what this is: a PIN the server *did* bless, checked
+       * on the device with none of the server's defences. Someone holding the
+       * tablet can pull the network and guess against it. Ten thousand
+       * candidates is nothing if the attempts are free.
+       *
+       * They are not free. The count below survives until the shift ends and
+       * the delay doubles, so a scripted search costs days rather than seconds,
+       * and the honest cashier who mistypes twice notices nothing. This does
+       * not make the local check as good as the server's — nothing on a device
+       * can be — it makes using it not worth the attacker's evening.
+       */
+      if (unlocking.current) return;
+      unlocking.current = true;
+      try {
+        // Charged before the comparison, not after: an attempt that is never
+        // judged still has to be paid for, or twenty at once cost one.
+        const wait = bumpOfflineTries(posId);
+        if (wait < 0) {
+          setError("This till cannot check a PIN offline right now. Reconnect to sign in.");
+          setUnlockPin("");
+          return;
+        }
+        if (wait > 0) {
+          setError(`Wait ${Math.ceil(wait / 1000)} seconds — too many attempts on this till.`);
+          await new Promise((r) => setTimeout(r, wait));
+        }
+
+        if (await matchesPin(unlockPin, posId)) {
+          await resetOfflineTries(posId);
+          setLocked(false);
+          setUnlockPin("");
+          setError(null);
+          return;
+        }
+      } finally {
+        unlocking.current = false;
       }
+
       setError(
         canUnlockOffline(posId)
           ? "PIN not recognised"
@@ -519,6 +749,43 @@ export default function PosTerminal({
     }
   };
 
+  /**
+   * Take responsibility for another shift's unsent sales.
+   *
+   * One tap, and it is the cashier's own decision. The alternative designs are
+   * both worse: sending them automatically puts someone else's takings in this
+   * person's name without asking, and leaving them forever means real money
+   * never reaches the books. Restamping them makes the adoption explicit here
+   * and visible in the audit trail afterwards, since the orders arrive under
+   * the adopter's session.
+   */
+  const adoptOrphans = useCallback(() => {
+    const all: Queued[] = JSON.parse(localStorage.getItem(QUEUE_KEY) ?? "[]");
+    const mine = shift ?? uuid();
+    const restamped = all.map((q) =>
+      q.shift && q.shift !== mine
+        ? // Recorded on the order itself, so "Bekah sent four of Ana's sales"
+          // is answerable months later from the audit log and not only by
+          // whoever happened to be watching the screen. The *name* travels,
+          // because the session id means nothing on the server.
+          //
+          // An existing value is kept: passed along twice, the interesting fact
+          // is who took the money, not who handled it last.
+          {
+              ...q,
+              shift: mine,
+              payload: {
+                ...(q.payload as object),
+                adoptedFrom:
+                  (q.payload as { adoptedFrom?: string }).adoptedFrom ?? q.by ?? "an earlier shift",
+              },
+            }
+        : { ...q, shift: mine },
+    );
+    persistQueue(restamped);
+    void drain();
+  }, [persistQueue, drain, shift]);
+
   // ── auth ──
   const doSignIn = async () => {
     setError(null);
@@ -539,10 +806,35 @@ export default function PosTerminal({
         if (res.status !== 429) setPin("");
         return;
       }
+      /**
+       * Signing in again as the same person must not orphan her own queue.
+       *
+       * The session id changes on every sign-in, so treating any change as a
+       * handover would mean this: the till loses its cookie mid-outage, the
+       * screen says "sign in to send the orders stored here", she does — and
+       * every one of her own sales becomes something she has to adopt through a
+       * dialogue telling her they are somebody else's. So the previous id is
+       * carried when the name is unchanged, and only a different person starts
+       * a new shift.
+       */
+      let prevName: string | null = null;
+      let prevShift: string | null = null;
+      try {
+        const prev = JSON.parse(localStorage.getItem(SESSION_KEY) ?? "null");
+        prevName = prev?.name ?? null;
+        prevShift = prev?.shift ?? null;
+      } catch {
+        /* unreadable — a new shift is the safe answer */
+      }
+      const sameCashier = !!prevShift && prevName === data.name;
+      const id = sameCashier ? prevShift : (typeof data.shift === "string" ? data.shift : uuid());
+
+      setShift(id);
+      await resetOfflineTries(posId);
       localStorage.setItem(TERMINAL_KEY, JSON.stringify({ branchId, posId }));
       localStorage.setItem(
         SESSION_KEY,
-        JSON.stringify({ name: data.name, branchId, posId, at: Date.now() }),
+        JSON.stringify({ name: data.name, branchId, posId, at: Date.now(), shift: id }),
       );
       // Only ever stored after the server has said yes.
       await rememberPin(pin, posId);
@@ -623,12 +915,17 @@ export default function PosTerminal({
 
   const signOut = async () => {
     forgetPin();
+    // Before the await, not after: the DELETE has no timeout, and a hanging
+    // request would otherwise leave a signed-in till on screen with no shift —
+    // where every sale is instantly an orphan of itself.
+    setSignedIn(false);
+    setShift(null);
+    void resetOfflineTries(posId);
     try { localStorage.removeItem(SESSION_KEY); } catch { /* already gone */ }
     await fetch("/api/pos/session", { method: "DELETE" }).catch(() => {
       // Offline sign-out still ends the shift on this device. The cookie
       // expires on its own, and the stored PIN is already gone.
     });
-    setSignedIn(false);
     setLines([]);
   };
 
@@ -769,7 +1066,10 @@ export default function PosTerminal({
     };
 
     // queue first, then try — a crash mid-send must never lose the sale
-    const q: Queued[] = [...queue, { clientRef, localNo, payload, at: Date.now() }];
+    // `?? undefined` was a trap: JSON.stringify drops an undefined key, so a
+    // null shift produced a row indistinguishable from a legacy one — and
+    // legacy rows are claimed by whoever drains next. Signed in means owned.
+    const q: Queued[] = [...queue, { clientRef, localNo, payload, at: Date.now(), shift: shift ?? uuid(), by: who || undefined, total: Math.round(subtotal * 100) / 100 }];
     persistQueue(q);
 
     const ch = change;
@@ -920,7 +1220,14 @@ export default function PosTerminal({
               {shell.problem ? "Offline not available" : "Preparing offline…"}
             </span>
           )}
-          {queue.length > 0 && <span className="pos-sync">{queue.length} to sync</span>}
+          {queue.length - orphans.length > 0 && (
+            <span className="pos-sync">{queue.length - orphans.length} to sync</span>
+          )}
+          {orphans.length > 0 && (
+            <button type="button" className="pos-orphans" onClick={() => setAdopting(true)}>
+              {orphans.length} from an earlier shift
+            </button>
+          )}
           <button type="button" onClick={() => { loadRecent(); }}>
             Recent
           </button>
@@ -1261,6 +1568,45 @@ export default function PosTerminal({
             <p className="pos-fiscal">
               ⚠️ The fiscal receipt still comes from the certified device, as before.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── another shift's unsent sales ── */}
+      {/**
+        * Adopting another shift's sales is a decision, so it is asked as one.
+        *
+        * A one-tap button in the header would have been a notification, and the
+        * cashier would be taking responsibility for money they cannot see. What
+        * they need before agreeing is how many and how much — enough to notice
+        * that the number is wrong.
+        */}
+      {adopting && (
+        <div className="pos-modal" onClick={(e) => e.target === e.currentTarget && setAdopting(false)}>
+          <div className="pos-sheet">
+            <h2>
+              Send {orphans.length} order(s) from an earlier shift
+              {orphanTotal > 0 && <> — {f.money(orphanTotal)}</>}?
+            </h2>
+            <p style={{ fontSize: 14.5, lineHeight: 1.6, margin: "0 0 4px" }}>
+              These were rung up on this till before you signed in, and never reached the server.
+              Sending them now files them under <b>{who || "your name"}</b> — the books will show you
+              took them.
+            </p>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--p-muted)", lineHeight: 1.55 }}>
+              The record notes that they came from an earlier shift, so this can be looked up later.
+              If they are not yours, leave them: the person who took them can sign in and send them.
+            </p>
+            <div className="pos-sheet-foot">
+              <button type="button" onClick={() => setAdopting(false)}>Leave them</button>
+              <button
+                type="button"
+                className="pos-primary"
+                onClick={() => { setAdopting(false); adoptOrphans(); }}
+              >
+                Send as {who || "me"}
+              </button>
+            </div>
           </div>
         </div>
       )}
