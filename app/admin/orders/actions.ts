@@ -25,19 +25,21 @@ export async function setOrderStatus(id: string, status: string) {
 
   // A button, not a form — there is no state to return to, so the refusal
   // travels in the URL and the order page shows it.
-  // The `: never` is not decoration. TypeScript only treats a call as
-  // terminating control flow when the thing being called carries an explicit
-  // never return type — an inferred one is not enough. Without it, `order` is
-  // still possibly null on the next line and the build stops, which is exactly
-  // what happened.
+  //
+  // Every call is `return fail(...)`, and the return is the point. TypeScript
+  // will treat a bare call as terminating control flow, but only when the callee
+  // is a function declaration or a variable whose *declared type* ends in never
+  // — annotating the arrow's return type is not enough, which cost two builds
+  // to find out. A return statement needs no such rule: flow stops because the
+  // function is over.
   const fail = (msg: string): never => failTo(`/admin/orders/${id}`, msg);
 
-  if (!(FLOW as readonly string[]).includes(status)) fail(t("Unknown status"));
+  if (!(FLOW as readonly string[]).includes(status)) return fail(t("Unknown status"));
 
   const order = await db.order.findUnique({ where: { id }, select: { statusHistory: true, status: true } });
-  if (!order) fail(t("Order not found"));
+  if (!order) return fail(t("Order not found"));
   if (order.status === "completed" || order.status === "cancelled") {
-    fail(t("A finished or cancelled order cannot change status"));
+    return fail(t("A finished or cancelled order cannot change status"));
   }
 
   const history = Array.isArray(order.statusHistory) ? (order.statusHistory as unknown[]) : [];
