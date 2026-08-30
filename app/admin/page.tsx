@@ -510,9 +510,10 @@ export default async function Dashboard({
         </>
       )}
 
-      {setup.done < setup.total && (
-        <SetupChecklist steps={setup.steps} done={setup.done} total={setup.total} />
-      )}
+      {/* Shown while anything is unfinished, and once more when it is not:
+          "everything is in" is worth reading exactly once, and the component
+          collapses to that one line by itself. */}
+      <SetupChecklist goals={setup.goals} next={setup.next} done={setup.done} total={setup.total} />
 
       {/* ── მარაგი ── */}
       <div className="admin-panel">

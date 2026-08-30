@@ -539,3 +539,41 @@
    restaurant's. Two different facts that read identically until they are told
    apart. */
 .pack-list li em.pack-added { color: var(--a-orange); }
+
+/* ── Getting set up ─────────────────────────────────────────────────────────
+   The old version was nine equal boxes. Nine equal tasks is how somebody does
+   none of them, so the shape now carries the argument: one thing at the top,
+   then the rest grouped under the figure each group unlocks. */
+
+.setup-next {
+  background: linear-gradient(180deg, #fffaf0, #fff);
+  border: 1px solid #ecd9a0; border-left: 3px solid var(--a-orange);
+  border-radius: var(--a-radius); padding: 16px 18px; margin: 4px 0 20px;
+}
+.setup-next-label {
+  display: inline-block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--a-orange); font-weight: 700; margin-bottom: 6px;
+}
+.setup-next b { display: block; font-size: 17px; margin-bottom: 4px; }
+.setup-next p { margin: 0 0 10px; font-size: 14px; color: var(--a-muted); line-height: 1.6; }
+.setup-next-count { font-size: 13.5px; }
+.setup-next-count b { display: inline; font-size: 13.5px; color: var(--a-ink); }
+.setup-next-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.setup-goal { border-top: 1px solid var(--a-line); padding: 14px 0 4px; }
+.setup-goal:first-of-type { border-top: 0; }
+.setup-goal-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.setup-goal-head b { font-size: 15.5px; }
+.setup-goal > p { margin: 3px 0 8px; font-size: 13.5px; color: var(--a-muted); line-height: 1.55; }
+.setup-goal-tick { color: var(--a-ok); margin-right: 7px; font-weight: 700; }
+.setup-goal-done .setup-goal-head b,
+.setup-goal-done > p { color: var(--a-muted); }
+
+/* A count, not a tick. "34 of 41" is the difference between knowing there is
+   work left and knowing how much of it. */
+.setup-count { display: flex !important; align-items: center; gap: 9px; margin-top: 3px; }
+.setup-bar { flex: 1; max-width: 180px; height: 5px; border-radius: 3px; background: var(--a-line); overflow: hidden; }
+.setup-bar > i { display: block; height: 100%; background: var(--a-ok); }
+
+/* The things that are actually missing, by name. */
+.setup-missing { display: block !important; margin-top: 3px; font-size: 12.5px; color: #8a6a12; }
