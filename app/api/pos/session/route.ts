@@ -7,9 +7,24 @@ import { logAction } from "@/lib/audit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * Who this terminal is signed in as, according to the cookie.
+ *
+ * The till asks this the moment it is online again, to confirm a shift it
+ * restored from the device while there was nobody to ask. Only the cookie
+ * holder can read it and no other origin can, so it is not a leak — but it was
+ * returning the whole token payload, including the internal employee id and the
+ * permission role, neither of which the terminal uses for anything.
+ *
+ * An endpoint should hand back what its caller needs and stop there. What is
+ * needed is: is there a session, is it for this till, and whose name goes on
+ * the sale.
+ */
 export async function GET() {
   const s = await getPosSession();
-  return NextResponse.json({ session: s });
+  return NextResponse.json({
+    session: s ? { name: s.name, branchId: s.branchId, posId: s.posId } : null,
+  });
 }
 
 export async function POST(req: Request) {
