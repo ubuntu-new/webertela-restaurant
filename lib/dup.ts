@@ -198,6 +198,10 @@ export async function findDuplicates(
   const c: Candidate = typeof candidate === "string" ? { name: candidate } : candidate;
   const spec = SPEC[model];
   const limit = opts.limit ?? 4;
+  // Prisma types each delegate separately, so there is no type that means "any
+  // model I might be handed". The cast is the price of one function serving
+  // eleven tables instead of eleven near-identical functions; `model` is a
+  // DupModel, so the string cannot be anything the client does not have.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const table = (db as any)[model];
   const select = selectFor(spec);
@@ -396,6 +400,7 @@ export async function findExistingDuplicateGroups(
   model: DupModel,
 ): Promise<Array<{ key: string; rows: Array<{ id: string; name: string; href: string }> }>> {
   const spec = SPEC[model];
+  // Same reason as in findDuplicates: one function, eleven tables.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const table = (db as any)[model];
 

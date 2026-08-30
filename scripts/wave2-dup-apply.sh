@@ -203,6 +203,18 @@ if ! npm run build; then
   exit 1
 fi
 
+# The build ran as root, so .next belongs to root — but the service runs as its
+# own user and Next writes a prerender cache there while serving. The log shows
+# the result: "EACCES: permission denied, open .next/server/app/favicon.ico.html"
+# on every request for a page it wants to cache. Harmless to the response, noisy
+# in the journal, and slower than it needs to be.
+RUN_USER="$(systemctl show -p User --value "$SERVICE" 2>/dev/null || true)"
+if [ -n "$RUN_USER" ] && [ "$RUN_USER" != "root" ]; then
+  say "handing .next to $RUN_USER"
+  chown -R "$RUN_USER":"$RUN_USER" .next
+  echo "   done"
+fi
+
 say "restarting $SERVICE"
 systemctl restart "$SERVICE"
 sleep 3
