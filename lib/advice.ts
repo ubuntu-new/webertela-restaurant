@@ -208,9 +208,40 @@ export async function advise(input: AdviceInput): Promise<Finding[]> {
   }
 
   if (input.labourCost === 0 || input.unpricedShifts > 0) {
-    const staff = await db.employee.count({
-      where: { deletedAt: null, active: true, hourlyRate: null },
-    });
+    const [staff, anyShift] = await Promise.all([
+      db.employee.count({ where: { deletedAt: null, active: true, hourlyRate: null } }),
+      db.shift.count(),
+    ]);
+
+    /**
+     * Nobody has clocked in — a different problem, and until now an invisible
+     * one.
+     *
+     * The rule below assumes hours exist and only the rates are missing, which
+     * was written for a product where the till recorded shifts. It did not:
+     * nothing in the codebase had ever written a `Shift` row, so labour was
+     * structurally zero, prime cost was food cost wearing prime cost's name,
+     * and an owner with every rate filled in saw no warning at all. The
+     * checklist would even go green.
+     *
+     * This is the case where the rates are fine and the hours are simply not
+     * there yet.
+     */
+    if (anyShift === 0 && staff === 0) {
+      out.push({
+        id: "no-shifts",
+        severity: "critical",
+        title: "Nobody has clocked in yet",
+        why:
+          "Prime cost is ingredients plus labour, and no hours have been recorded — so what is " +
+          "shown is food cost alone, which will always look better than the truth. Hours start " +
+          "counting the first time somebody signs in to the till.",
+        action: { label: "See shifts", href: "/admin/shifts" },
+        attaches: "labour",
+        weight: monthly(revenue * 0.3),
+      });
+    }
+
     if (staff > 0) {
       out.push({
         id: "no-labour",
@@ -220,8 +251,11 @@ export async function advise(input: AdviceInput): Promise<Finding[]> {
             ? "Labour cost cannot be calculated"
             : `${staff} people have no hourly rate`,
         why:
-          `Shifts are being recorded, but without a rate they cannot be turned into money — ` +
-          `so prime cost, the one number that says whether the restaurant works, stays blank.`,
+          anyShift === 0
+            ? `Nobody has clocked in yet either, so there are no hours to price. Both halves ` +
+              `have to be there before prime cost means anything.`
+            : `Shifts are being recorded, but without a rate they cannot be turned into money — ` +
+              `so prime cost, the one number that says whether the restaurant works, stays blank.`,
         action: { label: "Add hourly rates", href: "/admin/employees" },
         attaches: "labour",
         weight: monthly(revenue * 0.27),
@@ -308,7 +342,10 @@ export async function advise(input: AdviceInput): Promise<Finding[]> {
       why:
         `Clocked in ${days} day${days === 1 ? "" : "s"} ago and never clocked out. ` +
         `Until it is closed, labour cost — and prime cost with it — is wrong.`,
-      action: { label: "Close the shift", href: "/admin/employees" },
+      // Pointed at /admin/employees for as long as this advice has existed,
+      // which was a screen with no way to close anything — the shift table had
+      // never been written to, so there was nothing to close. Now there is.
+      action: { label: "Close the shift", href: "/admin/shifts" },
       attaches: "labour",
       weight: 400,
     });

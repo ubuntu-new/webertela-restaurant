@@ -502,3 +502,7 @@
   background: #fdf3d6 !important; color: #8a6a12 !important;
   border-color: #e8d9a8 !important; font-weight: 600;
 }
+
+/* How long this shift has been running. Quiet — it is reassurance that the
+   hours are being counted, not something to act on. */
+.pos-since { color: var(--p-muted); font-size: 13px; margin-left: 10px; }

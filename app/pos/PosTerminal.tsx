@@ -152,6 +152,13 @@ interface Queued {
   total?: number;
 }
 
+/** "on 3h 20m" — the shift so far, in the shape a person reads it. */
+function onFor(iso: string): string {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 60) return `on ${mins}m`;
+  return `on ${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
+
 const uuid = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
@@ -226,6 +233,16 @@ export default function PosTerminal({
    * fifteen-second tick noticed.
    */
   const [shift, setShift] = useState<string | null>(null);
+
+  /**
+   * When this person clocked in.
+   *
+   * Shown because a cashier has no other way to know their hours are being
+   * counted, and hours nobody can see are hours nobody trusts. It is also the
+   * cheapest possible prompt to sign out at the end: a number that has been
+   * climbing all evening is harder to walk away from than a blank screen.
+   */
+  const [since, setSince] = useState<string | null>(null);
 
   /**
    * One offline unlock at a time.
@@ -343,6 +360,8 @@ export default function PosTerminal({
         // shift ended somewhere else — a second tab, another till sharing the
         // browser — and everything queued under the old one has to stop
         // draining here rather than going out under a stranger's name.
+        if (valid && typeof data.session.since === "string") setSince(data.session.since);
+
         if (valid && typeof data.session.shift === "string" && data.session.shift !== shift) {
           setShift(data.session.shift);
           setWho(data.session.name ?? "");
@@ -828,6 +847,7 @@ export default function PosTerminal({
       }
       const sameCashier = !!prevShift && prevName === data.name;
       const id = sameCashier ? prevShift : (typeof data.shift === "string" ? data.shift : uuid());
+      setSince(typeof data.since === "string" ? data.since : null);
 
       setShift(id);
       await resetOfflineTries(posId);
@@ -920,6 +940,7 @@ export default function PosTerminal({
     // where every sale is instantly an orphan of itself.
     setSignedIn(false);
     setShift(null);
+    setSince(null);
     void resetOfflineTries(posId);
     try { localStorage.removeItem(SESSION_KEY); } catch { /* already gone */ }
     await fetch("/api/pos/session", { method: "DELETE" }).catch(() => {
@@ -1207,6 +1228,7 @@ export default function PosTerminal({
         <div className="pos-head-left">
           <b>{posId}</b>
           <span>{who}</span>
+          {since && <span className="pos-since">{onFor(since)}</span>}
         </div>
         <div className="pos-head-right">
           {!online && <span className="pos-offline">Offline</span>}

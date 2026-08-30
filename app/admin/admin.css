@@ -577,3 +577,7 @@
 
 /* The things that are actually missing, by name. */
 .setup-missing { display: block !important; margin-top: 3px; font-size: 12.5px; color: #8a6a12; }
+
+/* A shift that outlived a working day: somebody left without signing out, and
+   until it is closed with a real time it inflates labour cost. */
+.shift-stale { background: #fffaf0; border-radius: 8px; padding: 8px; }

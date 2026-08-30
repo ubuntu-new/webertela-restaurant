@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { signInWithPin, posSignOut, getPosSession } from "@/lib/pos-auth";
 import { isValidPin } from "@/lib/pin";
 import { logAction } from "@/lib/audit";
+import { startShift, endShift, currentShift } from "@/lib/shift";
 import {
   check, clientIp, fail, key, relax, slowDown, succeed, waitMessage, worthLogging,
   PIN_POLICY, PIN_POLICY_WIDE, GLOBAL_POLICY,
@@ -26,10 +27,14 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   const s = await getPosSession();
+  const on = s ? await currentShift(s.sub) : null;
+
   return NextResponse.json({
     // `shift` identifies this sign-in, not this person — see PosSession.sid.
     // The till compares it to decide whether the queue changed hands.
-    session: s ? { name: s.name, branchId: s.branchId, posId: s.posId, shift: s.sid } : null,
+    session: s
+      ? { name: s.name, branchId: s.branchId, posId: s.posId, shift: s.sid, since: on?.clockIn?.toISOString() ?? null }
+      : null,
   });
 }
 
@@ -178,6 +183,20 @@ export async function POST(req: Request) {
   relax(wide);
   relax(everyone);
 
+  /**
+   * Signing in starts a shift — unless one is already running.
+   *
+   * This endpoint serves both a cold sign-in and every unlock after the
+   * three-minute idle lock, and an unlock is a re-sign-in as far as the server
+   * is concerned. Opening a shift on each one would produce twenty a day. So
+   * `startShift` is a no-op when the person is already on one, checked by
+   * employee rather than terminal because people move between tills.
+   *
+   * It never blocks the sign-in. Hours that go unrecorded make a report wrong;
+   * a sign-in that fails closes a restaurant.
+   */
+  const shift = await startShift(result.employee.id, branchId, posId);
+
   await logAction({
     action: "pos.signIn",
     entityType: "Employee",
@@ -187,11 +206,24 @@ export async function POST(req: Request) {
     employeeId: result.employee.id,
   });
 
-  return NextResponse.json({ ok: true, name: result.employee.name, shift: result.sid });
+  return NextResponse.json({
+    ok: true,
+    name: result.employee.name,
+    shift: result.sid,
+    // When this person actually started, so the till can say "on since 16:20"
+    // rather than leaving the hours invisible until payroll.
+    since: shift?.clockIn?.toISOString() ?? null,
+  });
 }
 
 export async function DELETE() {
   const s = await getPosSession();
+
+  // The honest end of a shift. Everything else — a tablet going flat, somebody
+  // walking out — leaves it open, and an open shift is repaired by a person
+  // rather than guessed at. See lib/shift.ts.
+  if (s) await endShift(s.sub);
+
   await posSignOut();
   if (s) {
     await logAction({
