@@ -31,6 +31,27 @@ export interface OfflineShell {
 /** ⚠️ Must match `SHELL` in public/sw.js — see the note there. */
 const SHELL_CACHE = "pos-v1-shell";
 
+/**
+ * Re-store the page snapshot now that something about it has changed.
+ *
+ * Signing in is a fetch, not a navigation, so the page never reloads and the
+ * cached document stays the one from before — the signed-out version, which
+ * also lacks this branch's out-of-stock list. Both are corrected on the next
+ * online reload, which is exactly the reload a cashier never does. So it is
+ * done here instead, once, right after the shift opens.
+ */
+export async function refreshCachedPage(): Promise<void> {
+  if (!("caches" in window)) return;
+  try {
+    const res = await fetch("/pos", { credentials: "same-origin", cache: "no-store" });
+    if (!res.ok || res.redirected) return;
+    const cache = await caches.open(SHELL_CACHE);
+    await cache.put("/pos", res.clone());
+  } catch {
+    /* offline, or storage refused — the old snapshot is still better than none */
+  }
+}
+
 export function useOfflineShell(): OfflineShell {
   const [state, setState] = useState<OfflineShell>({
     supported: true,

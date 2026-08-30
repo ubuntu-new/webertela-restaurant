@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { detailLines, lineColor } from "@/lib/item-detail";
-import { useOfflineShell } from "./use-offline-shell";
+import { refreshCachedPage, useOfflineShell } from "./use-offline-shell";
 import { canUnlockOffline, forgetPin, matchesPin, rememberPin } from "./local-pin";
 import { makeFmt } from "@/lib/format-shared";
 import type { OrgFormat } from "@/lib/format-shared";
@@ -40,6 +40,24 @@ const HELD_KEY = "ronnys-pos-held";
  * till both keep working and admit how old what it is showing is.
  */
 const MENU_KEY = "ronnys-pos-menu";
+/**
+ * Who is signed in, kept on the device.
+ *
+ * `signedIn` starts from a server-rendered prop, and offline there is no server
+ * render — the page comes from the cache carrying whatever session state it had
+ * when it was stored. Cache it while signed out and every offline reload throws
+ * the cashier back to the sign-in screen, mid-shift, with queued sales behind
+ * it. That is the precise failure this whole change exists to prevent, arriving
+ * by a different door.
+ *
+ * So the terminal remembers its own session. The cookie is still the authority:
+ * it rides along with every request, and if the server disagrees the first API
+ * call comes back 401 and signs the terminal out. This only decides what to
+ * show while nobody can be asked.
+ */
+const SESSION_KEY = "ronnys-pos-session";
+/** Mirrors TTL_HOURS in lib/pos-auth.ts — the cookie's own life. */
+const SESSION_MS = 14 * 60 * 60 * 1000;
 
 interface Pizza { id: number; name: string; sizes: [number, number, number]; ings: string[] }
 interface Item { id: string; name: string; price: number; photo?: string }
@@ -213,6 +231,31 @@ export default function PosTerminal({
     if (session) {
       setBranchId(session.branchId);
       setPosId(session.posId);
+      try {
+        localStorage.setItem(
+          SESSION_KEY,
+          JSON.stringify({ name: session.name, branchId: session.branchId, posId: session.posId, at: Date.now() }),
+        );
+      } catch {
+        /* the shift still works; only an offline reload would forget it */
+      }
+    } else {
+      // No server-rendered session. Either genuinely signed out, or this page
+      // came from the cache with no connection to ask. Only the device knows.
+      try {
+        const saved = JSON.parse(localStorage.getItem(SESSION_KEY) ?? "null");
+        if (saved?.posId && Date.now() - saved.at < SESSION_MS) {
+          setBranchId(saved.branchId);
+          setPosId(saved.posId);
+          setWho(saved.name ?? "");
+          setSignedIn(true);
+        } else if (saved) {
+          // Past the cookie's own lifetime, so the server would refuse it too.
+          localStorage.removeItem(SESSION_KEY);
+        }
+      } catch {
+        /* nothing stored — the sign-in screen is correct */
+      }
     }
     const on = () => setOnline(true);
     const off = () => setOnline(false);
@@ -291,7 +334,14 @@ export default function PosTerminal({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(q.payload),
         });
-        if (res.status === 401) { setSignedIn(false); left.push(q); continue; }
+        if (res.status === 401) {
+          // The server has the final word. Whatever the device believed, the
+          // shift is over — and the order stays queued for whoever signs in next.
+          try { localStorage.removeItem(SESSION_KEY); } catch { /* already gone */ }
+          setSignedIn(false);
+          left.push(q);
+          continue;
+        }
         if (!res.ok && res.status >= 500) { left.push(q); continue; }
         // a 4xx that isn't auth will never be accepted — keeping it blocks the queue
       } catch {
@@ -414,10 +464,17 @@ export default function PosTerminal({
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Could not sign in"); setPin(""); return; }
       localStorage.setItem(TERMINAL_KEY, JSON.stringify({ branchId, posId }));
+      localStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify({ name: data.name, branchId, posId, at: Date.now() }),
+      );
       // Only ever stored after the server has said yes.
       await rememberPin(pin, posId);
       setWho(data.name);
       setSignedIn(true);
+      // Store the page as it looks signed in, so an offline reload comes back
+      // to the till rather than to this screen.
+      void refreshCachedPage();
       setPin("");
     } catch {
       setError("No connection to the server");
@@ -490,6 +547,7 @@ export default function PosTerminal({
 
   const signOut = async () => {
     forgetPin();
+    try { localStorage.removeItem(SESSION_KEY); } catch { /* already gone */ }
     await fetch("/api/pos/session", { method: "DELETE" }).catch(() => {
       // Offline sign-out still ends the shift on this device. The cookie
       // expires on its own, and the stored PIN is already gone.
