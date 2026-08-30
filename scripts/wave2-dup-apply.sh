@@ -165,7 +165,29 @@ order by copies desc, "nameKey";
 SQL
 echo "   (left alone on purpose — merge them from /admin/stock/duplicates)"
 
-# ── 5. build — and only then restart ─────────────────────────────────────────
+# ── 5. types first, then the build ───────────────────────────────────────────
+#
+# `next build` stops at the first type error, so a change with three of them
+# costs three deploys to discover — which is exactly what happened on the first
+# run of this script. `tsc --noEmit` lists all of them at once. Two minutes here
+# against a round trip per error.
+say "type check"
+if ! npx tsc --noEmit; then
+  printf '\n\033[31m!! TYPE ERRORS — every one of them is listed above\033[0m\n'
+  echo "   Nothing was restarted; the site is still serving the old code."
+  echo "   The migration HAS been applied, and it is additive — the running code"
+  echo "   ignores the new columns, so the site is fine while this is fixed."
+  exit 1
+fi
+echo "   no type errors"
+
+# Lint reports; it does not gate. ESLint was never installed on this project, so
+# there is a backlog that has nothing to do with today's change, and a check that
+# fails work it did not cause is a check people learn to skip. The count is
+# printed so the backlog is at least visible and can be worked down on purpose.
+say "lint (report only)"
+npm run lint 2>&1 | tail -25 || warn "lint reported problems — they do not block this deploy"
+
 say "building"
 if ! npm run build; then
   printf '\n\033[31m!! BUILD FAILED\033[0m\n'
