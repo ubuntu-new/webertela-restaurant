@@ -65,9 +65,15 @@ grep -q 'model Supplier' prisma/schema.prisma \
 
 # A dirty tree means someone edited the server directly. Migrating on top of
 # uncommitted work is how changes get lost — geotaxi had three weeks of it.
-if [ -n "$(git status --porcelain -- . ':!.npm' 2>/dev/null)" ]; then
+#
+# package-lock.json is excluded along with .npm, because npm rewrites it during
+# an `npm install` that this very deploy asked for. The check fired on it once
+# and stopped a deploy over a file the deploy itself had changed — a guard that
+# blocks its own instructions teaches people to work around the guard.
+DIRTY="$(git status --porcelain -- . ':!.npm' ':!package-lock.json' 2>/dev/null)"
+if [ -n "$DIRTY" ]; then
   warn "uncommitted changes in the working tree:"
-  git status --short -- . ':!.npm'
+  printf '%s\n' "$DIRTY"
   printf '\n   Commit or stash them first — then run this again.\n'
   exit 1
 fi
