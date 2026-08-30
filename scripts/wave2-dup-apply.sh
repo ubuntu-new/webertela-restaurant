@@ -189,10 +189,19 @@ echo "   no type errors"
 
 # Lint reports; it does not gate. ESLint was never installed on this project, so
 # there is a backlog that has nothing to do with today's change, and a check that
-# fails work it did not cause is a check people learn to skip. The count is
-# printed so the backlog is at least visible and can be worked down on purpose.
-say "lint (report only)"
-npm run lint 2>&1 | tail -25 || warn "lint reported problems — they do not block this deploy"
+# fails work it did not cause is a check people learn to skip.
+#
+# The whole report is printed. The first version piped it through `tail -25`,
+# which silently cut four warnings off the top — including one in code written
+# that same afternoon. A report that hides part of itself without saying so is
+# worse than no report, because it is believed.
+say "lint (report only, not a gate)"
+LINT="$(npm run lint 2>&1 || true)"
+printf '%s\n' "$LINT" | sed -n '/^\.\//,$p'
+ERRORS=$(printf '%s' "$LINT" | grep -c "  Error: " || true)
+WARNS=$(printf '%s' "$LINT" | grep -c "  Warning: " || true)
+echo
+echo "   $ERRORS errors, $WARNS warnings — neither blocks this deploy"
 
 say "building"
 if ! npm run build; then

@@ -61,34 +61,16 @@ export default function NameField({
   const seq = useRef(0);
   const boxRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * Read the sibling fields straight out of the DOM at the moment of the check.
-   *
-   * Lifting them into React state would mean turning every form on the site
-   * into a controlled one for the sake of a hint. The form element is right
-   * there and it already holds the current values.
-   */
-  function readContext() {
-    if (!contextFields || !boxRef.current) return undefined;
-    const form = boxRef.current.closest("form");
-    if (!form) return undefined;
-
-    const read = (fieldName?: string) => {
-      if (!fieldName) return undefined;
-      const el = form.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${CSS.escape(fieldName)}"]`);
-      const v = el?.value?.trim();
-      return v || undefined;
-    };
-
-    const packSize = read(contextFields.packSize);
-    return {
-      barcode: read(contextFields.barcode),
-      packSize: packSize ? Number(packSize.replace(",", ".")) : undefined,
-      packUnit: read(contextFields.packUnit) as never,
-      supplierId: read(contextFields.supplierId),
-      supplierCode: read(contextFields.supplierCode),
-    };
-  }
+  // The field NAMES, pulled out as plain strings.
+  //
+  // contextFields is an object literal, so it is a new value on every render —
+  // an effect depending on it would rerun forever. These are the actual inputs:
+  // stable strings that only change if the caller passes different ones.
+  const cfBarcode = contextFields?.barcode;
+  const cfPackSize = contextFields?.packSize;
+  const cfPackUnit = contextFields?.packUnit;
+  const cfSupplierId = contextFields?.supplierId;
+  const cfSupplierCode = contextFields?.supplierCode;
 
   useEffect(() => {
     const typed = value.trim();
@@ -98,6 +80,32 @@ export default function NameField({
       setHits([]);
       return;
     }
+
+    /**
+     * The sibling fields, read straight out of the DOM at the moment of the
+     * check. Lifting them into React state would mean turning every form on the
+     * site into a controlled one for the sake of a hint — the form element is
+     * right there and already holds the current values.
+     */
+    const readContext = () => {
+      const form = boxRef.current?.closest("form");
+      if (!form) return undefined;
+
+      const read = (fieldName?: string) => {
+        if (!fieldName) return undefined;
+        const el = form.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${CSS.escape(fieldName)}"]`);
+        return el?.value?.trim() || undefined;
+      };
+
+      const packSize = read(cfPackSize);
+      return {
+        barcode: read(cfBarcode),
+        packSize: packSize ? Number(packSize.replace(",", ".")) : undefined,
+        packUnit: read(cfPackUnit) as never,
+        supplierId: read(cfSupplierId),
+        supplierCode: read(cfSupplierCode),
+      };
+    };
 
     const mine = ++seq.current;
     const timer = setTimeout(() => {
@@ -113,7 +121,7 @@ export default function NameField({
     }, 450);
 
     return () => clearTimeout(timer);
-  }, [value, model, excludeId, defaultValue]);
+  }, [value, model, excludeId, defaultValue, cfBarcode, cfPackSize, cfPackUnit, cfSupplierId, cfSupplierCode]);
 
   const exact = hits.some((h) => h.exact);
 

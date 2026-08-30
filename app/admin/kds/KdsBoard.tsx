@@ -15,7 +15,6 @@ import { detailLines, lineColor } from "@/lib/item-detail";
  *     so a reconnect doesn't set off a chime storm.
  */
 
-const SIZES = ["S", "M", "XL"];
 const POLL_MS = 8000;
 
 interface Item {

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { i18nText } from "@/lib/admin-utils";
 import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
 
