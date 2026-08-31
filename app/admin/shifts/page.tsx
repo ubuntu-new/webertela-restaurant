@@ -4,6 +4,7 @@ import { tr } from "@/lib/admin-i18n";
 import { fmt } from "@/lib/format";
 import { i18nText } from "@/lib/admin-utils";
 import { ABANDONED_AFTER_HOURS } from "@/lib/shift";
+import { cashSummaries } from "@/lib/cash";
 import AdminForm from "../_components/AdminForm";
 import { closeShift } from "./actions";
 
@@ -40,6 +41,33 @@ export default async function ShiftsPage({
       take: 40,
     }),
   ]);
+
+  /**
+   * What each drawer came to.
+   *
+   * Batched, and for **every** row on the page. The first version looped over
+   * `cashSummary` for the first twenty of forty shifts — eighty queries on a
+   * page that renders per request, and rows twenty-one to forty printed "not
+   * counted" over drawers that had been counted. Half the table quietly said
+   * the opposite of the truth, three lines under a comment about not letting
+   * that happen.
+   */
+  const drawers = await cashSummaries([...open.map((r) => r.id), ...recent.map((r) => r.id)]);
+
+  const short = [...drawers.values()].filter((d) => d.variance !== null && d.variance !== 0).length;
+
+  // Cash in and out that was not a sale. Shown rather than only folded into a
+  // total: a fabricated "found under the till" and a real supplier payment look
+  // identical in a net figure, and only one of them is worth asking about.
+  const moves = await db.cashMovement.findMany({
+    // Open shifts too. Restricting this to closed ones meant an owner could not
+    // see today's payouts until tonight — which is the only time looking at
+    // them could still change anything.
+    where: { shiftId: { in: [...open.map((r) => r.id), ...recent.map((r) => r.id)] } },
+    include: { employee: { select: { name: true } } },
+    orderBy: { at: "desc" },
+    take: 25,
+  });
 
   const hours = (m: number | null) => (m === null ? null : Math.round((m / 60) * 10) / 10);
   const runningFor = (d: Date) => Math.round(((Date.now() - d.getTime()) / 3600_000) * 10) / 10;
@@ -143,6 +171,44 @@ export default async function ShiftsPage({
         })}
       </div>
 
+      {/* ── cash that was not a sale ── */}
+      {moves.length > 0 && (
+        <div className="admin-panel">
+          <h2>
+            {t("Money in and out of the till")} <span className="hint">· {t("not sales")}</span>
+          </h2>
+          <p className="hint" style={{ marginTop: 0 }}>
+            {t(
+              "Every one of these changes what a drawer was expected to hold. Most are a supplier paid in cash; the ones that are not are the reason this list is here rather than buried in a total.",
+            )}
+          </p>
+          <div style={{ overflowX: "auto" }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>{t("When")}</th>
+                  <th>{t("Who")}</th>
+                  <th>{t("What for")}</th>
+                  <th style={{ textAlign: "right" }}>{t("Amount")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {moves.map((m) => (
+                  <tr key={m.id}>
+                    <td>{f.dateTime(m.at)}</td>
+                    <td>{m.employee?.name ?? "—"}</td>
+                    <td>{m.reason}</td>
+                    <td style={{ textAlign: "right", color: Number(m.amount) < 0 ? "#8a6a12" : undefined }}>
+                      {f.moneySigned(Number(m.amount))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* ── what has been recorded ── */}
       <div className="admin-panel">
         <h2>{t("Recent")}</h2>
@@ -152,6 +218,12 @@ export default async function ShiftsPage({
             {t(
               "Nothing yet. The first shift appears the moment someone signs in to the till — and prime cost starts including labour the same day.",
             )}
+          </p>
+        )}
+
+        {short > 0 && (
+          <p className="setup-missing" style={{ marginTop: 0 }}>
+            {short} {t("of these drawers did not balance. Hover a figure to see what was expected against what was counted — a difference is usually a payout nobody wrote down, and occasionally it is not.")}
           </p>
         )}
 
@@ -172,6 +244,7 @@ export default async function ShiftsPage({
                   <th>{t("Finished")}</th>
                   <th style={{ textAlign: "right" }}>{t("Hours")}</th>
                   <th style={{ textAlign: "right" }}>{t("Cost")}</th>
+                  <th style={{ textAlign: "right" }}>{t("Drawer")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,7 +255,17 @@ export default async function ShiftsPage({
                     <tr key={s.id}>
                       <td>{s.employee?.name ?? "—"}</td>
                       <td>{f.dateTime(s.clockIn)}</td>
-                      <td>{s.clockOut ? f.dateTime(s.clockOut) : "—"}</td>
+                      <td>
+                        {s.clockOut ? f.dateTime(s.clockOut) : "—"}
+                        {/* What the cashier said about a difference. Written
+                            since this feature shipped and read by nothing,
+                            which made it a question asked and then ignored. */}
+                        {s.cashNote && (
+                          <div className="hint" style={{ marginTop: 2 }}>
+                            &ldquo;{s.cashNote}&rdquo;
+                          </div>
+                        )}
+                      </td>
                       <td style={{ textAlign: "right" }}>
                         {h === null ? (
                           // Not "0". A shift closed without a duration is one
@@ -198,6 +281,31 @@ export default async function ShiftsPage({
                         )}
                       </td>
                       <td style={{ textAlign: "right" }}>{h !== null && rate !== null ? f.money(rate * h) : "—"}</td>
+                      <td style={{ textAlign: "right" }}>
+                        {(() => {
+                          const d = drawers.get(s.id);
+                          // Never a zero for "nobody counted". A drawer that was
+                          // not counted has no difference, which is a different
+                          // fact from a difference of nothing — and printing 0
+                          // would claim the money was checked.
+                          if (!d || d.variance === null) {
+                            return <span className="hint">{t("not counted")}</span>;
+                          }
+                          if (d.variance === 0) return <span style={{ color: "var(--a-ok, #3f7d3f)" }}>✓</span>;
+                          return (
+                            <b
+                              style={{ color: "#8a6a12" }}
+                              title={
+                                d.expected === null || d.closing === null
+                                  ? undefined
+                                  : `${t("Expected")} ${f.money(d.expected)} · ${t("counted")} ${f.money(d.closing)}`
+                              }
+                            >
+                              {f.moneySigned(d.variance)}
+                            </b>
+                          );
+                        })()}
+                      </td>
                     </tr>
                   );
                 })}

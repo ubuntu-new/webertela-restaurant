@@ -35,6 +35,13 @@ export const createBranch = formAction(async (fd: FormData) => {
       nameKey: nameKey(nameEn),
       address: { en: fdStr(fd, "address_en"), ka: fdStr(fd, "address_ka") || fdStr(fd, "address_en") },
       phone: fdStr(fd, "phone") || null,
+      // A suggestion for the till's counting field and nothing more — see
+      // lib/cash.ts. Empty means this branch's float varies, which is a real
+      // answer rather than a missing one.
+      // `?? null`, not `|| null`: a branch that genuinely starts with an empty
+      // drawer typed 0, and `|| null` would throw that answer away and show the
+      // field blank again next time.
+      openingFloat: fdNum(fd, "openingFloat") ?? null,
       active: false,
       sortOrder: 999,
     },
@@ -85,6 +92,13 @@ export const updateBranch = formAction(async (fd: FormData, id: string) => {
       nameKey: nameKey(nameEn),
       address: { en: fdStr(fd, "address_en"), ka: fdStr(fd, "address_ka") || fdStr(fd, "address_en") },
       phone: fdStr(fd, "phone") || null,
+      // A suggestion for the till's counting field and nothing more — see
+      // lib/cash.ts. Empty means this branch's float varies, which is a real
+      // answer rather than a missing one.
+      // `?? null`, not `|| null`: a branch that genuinely starts with an empty
+      // drawer typed 0, and `|| null` would throw that answer away and show the
+      // field blank again next time.
+      openingFloat: fdNum(fd, "openingFloat") ?? null,
       hours: hoursText ? { display: { en: hoursText, ka: fdStr(fd, "hours_ka") || hoursText } } : undefined,
       lat: fdNum(fd, "lat"),
       lng: fdNum(fd, "lng"),

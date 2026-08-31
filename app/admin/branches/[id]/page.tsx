@@ -130,6 +130,22 @@ export default async function BranchEdit({ params }: { params: Promise<{ id: str
               <label htmlFor="phone">{t("Phone")}</label>
               <input id="phone" name="phone" type="text" defaultValue={b.phone ?? ""} />
             </div>
+            <div className="field">
+              <label htmlFor="openingFloat">{t("Cash normally in the drawer at open")}</label>
+              <input
+                id="openingFloat"
+                name="openingFloat"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={b.openingFloat == null ? "" : String(b.openingFloat)}
+              />
+              <span className="hint">
+                {t(
+                  "Only a reminder on the till — the cashier still counts, and the counted figure is the one every drawer total is built on. Leave it empty if it varies.",
+                )}
+              </span>
+            </div>
             <div className="field" style={{ alignContent: "end" }}>
               <div className="field-check">
                 <input id="active" name="active" type="checkbox" defaultChecked={b.active} />

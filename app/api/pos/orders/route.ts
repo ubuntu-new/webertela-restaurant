@@ -42,6 +42,13 @@ export async function POST(req: Request) {
     localNo?: string;
     /** Set by the till when it is sending a sale another shift rang up. */
     adoptedFrom?: string;
+    /**
+     * The cash that crossed the counter. Recorded, never trusted: the price is
+     * always the server's own, and these two only answer "what should be in the
+     * drawer" — a question that had no answer at all while the till computed
+     * them, showed them, and threw them away.
+     */
+    tendered?: number;
   };
   try {
     body = await req.json();
@@ -50,6 +57,7 @@ export async function POST(req: Request) {
   }
 
   const clientRef = String(body.clientRef ?? "").trim();
+
   if (!clientRef) return NextResponse.json({ error: "clientRef required" }, { status: 400 });
 
   // ── already received? return the same answer, don't create a second order ──
@@ -96,7 +104,40 @@ export async function POST(req: Request) {
 
   const finalTotal = Math.round((priced.total - redeem.value) * 100) / 100;
 
-  const org = await db.organization.findFirst();
+  /**
+   * What the customer handed over, if it is a believable amount.
+   *
+   * Believable means "not less than the price". Anything short is a mistyped
+   * number, and a mistyped number stored here becomes a shortfall in tonight's
+   * drawer with a cashier's name against it — the software inventing an
+   * accusation out of a fat finger. A tenth of a cent of slack, because a till
+   * that rejects exact payment for a floating-point reason is worse than one
+   * that accepts a rounding error.
+   */
+  const raw = Number(body.tendered);
+  const cashKept =
+    Number.isFinite(raw) && raw > 0 && raw >= finalTotal - 0.001
+      ? Math.round(raw * 100) / 100
+      : null;
+
+  /**
+   * The shift this sale belongs to.
+   *
+   * One indexed lookup per order, which is the price of being able to narrow a
+   * variance to a person rather than to a day. Null when nobody is clocked in —
+   * the sale still stands; it simply cannot be reconciled, and the drawer count
+   * will say so rather than pretend.
+   */
+  // Together, not one after the other: this is the hottest path in the product
+  // and two sequential round trips on every sale is two too many.
+  const [shift, org] = await Promise.all([
+    db.shift.findFirst({
+      where: { employeeId: session.sub, status: "open" },
+      orderBy: { clockIn: "desc" },
+      select: { id: true },
+    }),
+    db.organization.findFirst(),
+  ]);
   if (!org) return NextResponse.json({ error: "Organization not found" }, { status: 500 });
 
   const notes = [body.notes?.trim(), body.localNo ? `POS ${body.localNo}` : null]
@@ -132,6 +173,12 @@ export async function POST(req: Request) {
           { status: "confirmed", at: new Date().toISOString(), by: session.name },
         ],
         paymentMethod: "cash",
+        // Measured against `finalTotal`, not `priced.total`: loyalty points come
+        // off before the customer hands anything over, so change against the
+        // pre-discount price would be wrong by the discount every time.
+        paidAmount: cashKept,
+        changeGiven: cashKept === null ? null : Math.round((cashKept - finalTotal) * 100) / 100,
+        shiftId: shift?.id ?? null,
         paymentStatus: "paid",
         items: {
           create: priced.items.map((i) => ({

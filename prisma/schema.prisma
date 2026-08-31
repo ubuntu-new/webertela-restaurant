@@ -60,6 +60,30 @@ enum EmployeeRole {
   driver
 }
 
+/// Cash into or out of the drawer that was not a sale.
+///
+/// Without this the arithmetic is a lie in the one direction that matters: a
+/// manager pays the vegetable supplier forty in cash, and at midnight the
+/// drawer is forty short with a cashier's name against it. Every legitimate
+/// reason money leaves a till has to be recordable, or the variance accuses
+/// whoever happened to be standing there.
+model CashMovement {
+  id         String   @id @default(cuid())
+  shiftId    String
+  /// Negative leaves the drawer, positive goes in. One column rather than two,
+  /// because a "paid out" of minus forty and a "paid in" of forty are the same
+  /// arithmetic and splitting them invites one to be forgotten in a sum.
+  amount     Decimal  @db.Decimal(10, 2)
+  reason     String
+  employeeId String?
+  at         DateTime @default(now())
+
+  shift    Shift     @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id])
+
+  @@index([shiftId])
+}
+
 enum ShiftStatus {
   open
   closed
@@ -153,6 +177,15 @@ model Branch {
   lng       Float?
   active    Boolean @default(true)
   sortOrder Int     @default(0)
+
+  /// What this branch normally starts a drawer with.
+  ///
+  /// A suggestion and never an assumption. Some places put the same float in
+  /// every morning; others keep whatever was left. Either way the cashier
+  /// counts, and the *counted* number is what the arithmetic uses — because a
+  /// drawer that was configured at 200 and actually held 180 would otherwise
+  /// show a 20 shortfall tonight and blame the wrong shift for yesterday.
+  openingFloat Decimal? @db.Decimal(10, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -689,6 +722,7 @@ model Employee {
 
   branches  EmployeeBranch[]
   shifts    Shift[]
+  cashMoves CashMovement[]
   orders    Order[]          @relation("OrderCreatedBy")
   deliveries Order[]         @relation("OrderDriver")
   auditLogs AuditLog[]
@@ -722,11 +756,21 @@ model Shift {
   durationMin Int?
   status     ShiftStatus @default(open)
   approvedBy String?
+
+  /// Counted at the start and at the end. Null means nobody counted, which is
+  /// a different thing from zero and is never shown as one.
+  openingCash Decimal? @db.Decimal(10, 2)
+  closingCash Decimal? @db.Decimal(10, 2)
+  /// What the cashier said about a difference, in their own words.
+  cashNote    String?
+
   createdAt  DateTime    @default(now())
 
   employee Employee  @relation(fields: [employeeId], references: [id])
   branch   Branch    @relation(fields: [branchId], references: [id])
   terminal Terminal? @relation(fields: [posId], references: [posId])
+  orders   Order[]
+  cash     CashMovement[]
 
   @@index([employeeId, clockIn])
   @@index([branchId, status])
@@ -771,8 +815,24 @@ model Order {
   // ── გადახდა ──
   paymentMethod PaymentMethod @default(cash)
   paymentStatus PaymentStatus @default(unpaid)
-  paidAmount    Decimal       @default(0) @db.Decimal(10, 2)
-  changeGiven   Decimal       @default(0) @db.Decimal(10, 2)
+
+  /// The shift that rang it up. Without it a sale belongs to a day rather than
+  /// to a countable period, and a variance can never be narrowed to a person.
+  shiftId String?
+  /// The cash that crossed the counter.
+  ///
+  /// These two have been in the schema since the first migration and **nothing
+  /// has ever read or written them** — which is exactly why "how much should be
+  /// in the drawer" had no answer while the till computed both numbers, showed
+  /// them, and threw them away. Adding new columns beside them was the first
+  /// thing tried here and it was wrong twice: a duplicate field Prisma refuses,
+  /// and a second definition of the same fact.
+  ///
+  /// Now nullable, because `NOT NULL DEFAULT 0` cannot say "nobody recorded
+  /// this" — and telling a drawer count that a sale took zero cash is the
+  /// difference between an honest gap and a false shortfall.
+  paidAmount    Decimal?      @db.Decimal(10, 2)
+  changeGiven   Decimal?      @db.Decimal(10, 2)
   terminalId    String?
   txnRef        String?
 
@@ -792,6 +852,7 @@ model Order {
   org         Organization @relation(fields: [orgId], references: [id])
   branch      Branch       @relation(fields: [branchId], references: [id])
   terminal    Terminal?    @relation(fields: [posId], references: [posId])
+  shift       Shift?       @relation(fields: [shiftId], references: [id])
   user        User?        @relation(fields: [userId], references: [id])
   createdBy   Employee?    @relation("OrderCreatedBy", fields: [createdByEmployee], references: [id])
   driver      Employee?    @relation("OrderDriver", fields: [driverId], references: [id])
@@ -804,6 +865,7 @@ model Order {
   @@index([userId, createdAt])
   @@index([branchId, source, createdAt])
   @@index([branchId, posId, createdAt])
+  @@index([shiftId])
 }
 
 // შეკვეთის პოზიცია — immutable snapshot (მენიუს ცვლილება ძველ შეკვეთას არ ცვლის)

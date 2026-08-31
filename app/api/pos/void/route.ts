@@ -5,6 +5,8 @@ import { hashPin, isValidPin } from "@/lib/pin";
 import { recordMovements } from "@/lib/stock";
 import { logAction } from "@/lib/audit";
 import { check, clientIp, fail, key, succeed, waitMessage, PIN_POLICY } from "@/lib/rate-limit";
+import { currentShift } from "@/lib/shift";
+import { recordMovement, REFUND_PREFIX } from "@/lib/cash";
 import { reversePoints } from "@/lib/loyalty";
 
 export const runtime = "nodejs";
@@ -112,7 +114,10 @@ export async function POST(req: Request) {
    */
   const order = await db.order.findUnique({
     where: { id: body.orderId ?? "" },
-    select: { id: true, orderNo: true, status: true, branchId: true, total: true, statusHistory: true },
+    select: {
+      id: true, orderNo: true, status: true, branchId: true, total: true,
+      statusHistory: true, paymentMethod: true, paymentStatus: true, shiftId: true,
+    },
   });
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   if (order.branchId !== session.branchId) {
@@ -139,6 +144,57 @@ export async function POST(req: Request) {
         employeeId: session.sub,
       })),
     );
+  }
+
+  /**
+   * The cash leaves *this* drawer, tonight.
+   *
+   * Not the drawer that sold it. A Tuesday sale voided on Thursday hands
+   * Thursday's cash to the customer, and writing it against Tuesday would
+   * rewrite a variance that was counted, agreed and audited two days ago while
+   * leaving Thursday short with nothing to account for it. Recorded here so the
+   * money leaves the drawer it actually left.
+   *
+   * Best effort, like the reversals around it: a sale is never left half-voided
+   * because the ledger had a bad moment.
+   */
+  // Only a till sale that was actually paid in cash takes money back out of a
+  // drawer. A web cash-on-delivery order that was never collected has no cash
+  // to refund, and paying it out of this till would be inventing a shortfall.
+  if (order.paymentMethod === "cash" && order.paymentStatus === "paid" && order.shiftId) {
+    try {
+      const shift = await currentShift(session.sub);
+      if (shift) {
+        await recordMovement(
+          shift.id,
+          -Number(order.total),
+          `${REFUND_PREFIX}#${order.orderNo} — ${reason}`.slice(0, 200),
+          session.sub,
+          // Allowed even after the drawer has been counted. The guard that
+          // normally blocks that exists to stop a cashier making their own
+          // shortfall vanish; this is not that. A void already needs a second
+          // person's PIN, is refused for self-approval, and is written to the
+          // audit trail — so refusing it here would only mean cash left the
+          // till with no record, which is the outcome the guard exists to
+          // prevent.
+          { system: true },
+        );
+      } else {
+        // Nobody is clocked in, so there is no drawer to take it from. Silence
+        // here would mean cash leaving a till with no record anywhere, so it is
+        // written where an owner will find it instead.
+        await logAction({
+          action: "cash.refundUnassigned",
+          entityType: "Order",
+          entityId: order.id,
+          branchId: order.branchId,
+          after: { amount: Number(order.total), why: "no open shift at the time of the void" },
+          employeeId: session.sub,
+        });
+      }
+    } catch (e) {
+      console.error("void: could not record the refund against the drawer", e);
+    }
   }
 
   // points go back too — earned and redeemed alike

@@ -506,3 +506,27 @@
 /* How long this shift has been running. Quiet — it is reassurance that the
    hours are being counted, not something to act on. */
 .pos-since { color: var(--p-muted); font-size: 13px; margin-left: 10px; }
+
+/* ── the drawer ── */
+.pos-drawer-rows { display: grid; gap: 6px; margin: 10px 0; font-size: 14.5px; }
+.pos-drawer-rows > div { display: flex; justify-content: space-between; gap: 12px; }
+.pos-drawer-rows span { color: var(--p-muted); }
+.pos-drawer-total {
+  border-top: 1px solid var(--p-line); padding-top: 8px; margin-top: 4px; font-size: 16px;
+}
+/* A difference is not an error, it is a fact worth looking at — so amber, not
+   red. Red reads as "you did something wrong", and most variances are a
+   forgotten payout rather than a missing note. */
+.pos-bad { color: #8a6a12; }
+.pos-ok { color: var(--p-ok); }
+.pos-drawer-close { display: grid; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--p-line); }
+.pos-drawer-close label { font-size: 13px; color: var(--p-muted); }
+.pos-drawer-close input {
+  padding: 12px; font: inherit; font-size: 16px;
+  border: 1px solid var(--p-line); border-radius: 8px;
+}
+/* Something the cashier must read before pressing the button beneath it. */
+.pos-warn { color: #8a6a12; font-size: 13px; line-height: 1.5; }
+/* A figure that is not known. Deliberately not styled like a number, so it is
+   never mistaken for one. */
+.pos-unknown { color: var(--p-muted); font-weight: 400; }

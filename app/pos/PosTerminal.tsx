@@ -65,12 +65,34 @@ interface Pizza { id: number; name: string; sizes: [number, number, number]; ing
 interface Item { id: string; name: string; price: number; photo?: string }
 interface Topping { name: string; ps: [number, number, number] }
 interface Menu {
+  /**
+   * The delivery rule. `getMenu()` has sent both since the beginning and this
+   * type never declared them, so the till showed the subtotal as the amount to
+   * collect while the server recorded subtotal + fee − points. Nobody noticed
+   * while the difference went nowhere; it goes into the drawer count now, and
+   * every points sale would leave the till over and every delivery short.
+   */
+  FREE_DELIVERY: number;
+  DELIVERY_FEE: number;
   PIZZAS: Pizza[];
   PIZZA_PHOTOS: Record<number, string>;
   TOPPINGS: Topping[];
   EXTRAS: Item[];
   SAUCES: Item[];
   DRINKS: Item[];
+}
+
+/** What the drawer did this shift. Mirrors CashSummary in lib/cash.ts. */
+interface CashSummary {
+  opening: number | null;
+  suggested: number | null;
+  sales: number;
+  refunds: number;
+  movements: number;
+  closing: number | null;
+  expected: number | null;
+  variance: number | null;
+  cashOrders: number;
 }
 
 interface Line {
@@ -255,6 +277,32 @@ export default function PosTerminal({
   const unlocking = useRef(false);
   /** The confirmation shown before another shift's sales become this one's. */
   const [adopting, setAdopting] = useState(false);
+
+  /**
+   * The drawer.
+   *
+   * Counted at both ends by the person standing at it, and never by anybody
+   * else — a closing figure written by a manager who was not there is a number
+   * with no witness. Everything below is one screen because a cashier at the
+   * end of a shift will do one thing well and three things badly.
+   */
+  const [drawer, setDrawer] = useState<CashSummary | null>(null);
+  const [showDrawer, setShowDrawer] = useState(false);
+  const [cashAmount, setCashAmount] = useState("");
+  const [cashWhy, setCashWhy] = useState("");
+  /** The closing count. Its own box: see the note on the sheet. */
+  const [cashCount, setCashCount] = useState("");
+  /**
+   * Anything the cashier wants to say about the drawer.
+   *
+   * Its own box, and optional. Reusing the movement's "what was it for?" field
+   * saved "paid Giorgi" as the explanation for a difference nobody had
+   * explained, and leaving it out entirely meant `cashNote` was written by
+   * nothing — a question the schema asked and no screen ever put.
+   */
+  const [cashCloseNote, setCashCloseNote] = useState("");
+  const [cashErr, setCashErr] = useState<string | null>(null);
+  const [cashBusy, setCashBusy] = useState(false);
 
   /**
    * Sales queued by a shift that is no longer signed in.
@@ -738,6 +786,51 @@ export default function PosTerminal({
     }
   };
 
+  const loadDrawer = useCallback(async () => {
+    try {
+      const res = await fetch("/api/pos/cash", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setDrawer(data.summary ?? null);
+    } catch {
+      /* offline — the drawer is a server question and waits for the server */
+    }
+  }, []);
+
+  // Asked once a shift is real, so the opening count can be prompted for while
+  // the cashier is still standing at the till rather than remembered at
+  // midnight.
+  useEffect(() => {
+    if (signedIn && online) void loadDrawer();
+  }, [signedIn, online, loadDrawer]);
+
+  const postCash = async (action: string, extra: Record<string, unknown> = {}) => {
+    setCashBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/pos/cash", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...extra }),
+      });
+      const data = await res.json().catch(() => ({}));
+      // Shown inside the sheet. Setting the page-level error put every refusal
+      // — "already counted", "say what it was for" — behind the modal, where a
+      // cashier saw a button that did nothing and pressed it again.
+      if (!res.ok) { setCashErr(data.error ?? "Could not record that"); return; }
+      setCashErr(null);
+      setDrawer(data.summary ?? null);
+      setCashAmount("");
+      setCashWhy("");
+      setCashCount("");
+      setCashCloseNote("");
+    } catch {
+      setCashErr("No connection — the drawer is counted on the server.");
+    } finally {
+      setCashBusy(false);
+    }
+  };
+
   const loadRecent = async () => {
     try {
       const res = await fetch("/api/pos/recent", { cache: "no-store" });
@@ -969,11 +1062,35 @@ export default function PosTerminal({
   );
 
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.price * l.qty, 0), [lines]);
+
+  /**
+   * What the customer actually hands over.
+   *
+   * The same arithmetic the server does in `priceOrder` and the order route:
+   * subtotal, plus the delivery fee when one applies, minus any points being
+   * redeemed. Shown everywhere the old code showed `subtotal`, because a till
+   * that names one figure while the books record another produces a drawer that
+   * is wrong every single night, by exactly the amount nobody was told about.
+   */
+  const due = useMemo(() => {
+    const fee =
+      fulfillment === "delivery" && menu && subtotal < menu.FREE_DELIVERY
+        ? menu.DELIVERY_FEE
+        : 0;
+    const points = usePoints && known ? Math.min(known.points * 0.1, subtotal) : 0;
+    return Math.round(Math.max(0, subtotal + fee - points) * 100) / 100;
+    // `menu`, not `menuProp`. The prop is null on an offline-cached load — the
+    // very path offline mode was built for — and a delivery order would then
+    // lose its fee while the server still charged it.
+  }, [subtotal, fulfillment, menu, usePoints, known]);
   const count = useMemo(() => lines.reduce((s, l) => s + l.qty, 0), [lines]);
+  // Against `due`, not `subtotal` — the change handed back has to match the
+  // money actually collected, or the drawer disagrees with the books by the
+  // delivery fee or the points on every such sale.
   const change = useMemo(() => {
     const t = Number(tendered);
-    return Number.isFinite(t) && t >= subtotal ? Math.round((t - subtotal) * 100) / 100 : null;
-  }, [tendered, subtotal]);
+    return Number.isFinite(t) && t >= due ? Math.round((t - due) * 100) / 100 : null;
+  }, [tendered, due]);
 
   // ── cart ──
   const addSimple = (it: Item) => {
@@ -1062,6 +1179,11 @@ export default function PosTerminal({
       clientRef,
       localNo,
       fulfillment,
+      // Computed on this screen since the first day and thrown away just as
+      // long, which is exactly why "how much should be in the drawer" had no
+      // answer. The server re-checks it against its own total and ignores
+      // anything short of the price.
+      tendered: Number(tendered) || undefined,
       userId: known?.id,
       redeemPoints: usePoints && known ? known.points : 0,
       customerName: customer.name,
@@ -1090,7 +1212,7 @@ export default function PosTerminal({
     // `?? undefined` was a trap: JSON.stringify drops an undefined key, so a
     // null shift produced a row indistinguishable from a legacy one — and
     // legacy rows are claimed by whoever drains next. Signed in means owned.
-    const q: Queued[] = [...queue, { clientRef, localNo, payload, at: Date.now(), shift: shift ?? uuid(), by: who || undefined, total: Math.round(subtotal * 100) / 100 }];
+    const q: Queued[] = [...queue, { clientRef, localNo, payload, at: Date.now(), shift: shift ?? uuid(), by: who || undefined, total: due }];
     persistQueue(q);
 
     const ch = change;
@@ -1115,7 +1237,7 @@ export default function PosTerminal({
         setPaying(false);
       }
     } catch {
-      setDone({ no: localNo, total: Math.round(subtotal * 100) / 100, change: ch });
+      setDone({ no: localNo, total: due, change: ch });
       clearTicket();
       setPaying(false);
       setError("Saved locally — will sync when the connection returns");
@@ -1255,6 +1377,16 @@ export default function PosTerminal({
           </button>
           <button type="button" onClick={() => setShowHeld(true)}>
             Held {held.length > 0 && <b>{held.length}</b>}
+          </button>
+          <button
+            type="button"
+            className={drawer && drawer.opening === null ? "pos-orphans" : undefined}
+            onClick={() => { setCashErr(null); setShowDrawer(true); void loadDrawer(); }}
+          >
+            {/* Amber until the opening float is counted — the one moment that
+                cannot be done later, because by midnight nobody remembers what
+                was in the drawer at four. */}
+            Drawer{drawer && drawer.opening === null ? " · count it" : ""}
           </button>
           <button type="button" onClick={() => setLocked(true)}>Lock</button>
           <button type="button" onClick={signOut}>Sign out</button>
@@ -1468,7 +1600,7 @@ export default function PosTerminal({
               <b>
                 {usePoints && known
                   ? f.money(Math.max(0, subtotal - Math.min(known.points * 0.1, subtotal)))
-                  : f.money(subtotal)}
+                  : f.money(due)}
               </b>
             </div>
             {error && <p className="pos-err">{error}</p>}
@@ -1477,7 +1609,7 @@ export default function PosTerminal({
               <button type="button" className="pos-ghost" onClick={clearTicket} disabled={lines.length === 0}>Clear</button>
             </div>
             <button className="pos-primary" type="button" onClick={() => setPaying(true)} disabled={lines.length === 0}>
-              Charge {f.money(subtotal)}
+              Charge {f.money(due)}
             </button>
           </div>
         </aside>
@@ -1558,7 +1690,7 @@ export default function PosTerminal({
         <div className="pos-modal" onClick={(e) => e.target === e.currentTarget && setPaying(false)}>
           <div className="pos-sheet pos-pay">
             <h2>Cash</h2>
-            <p className="pos-pay-due">Due <b>{f.money(subtotal)}</b></p>
+            <p className="pos-pay-due">Due <b>{f.money(due)}</b></p>
 
             <input
               className="pos-pay-input"
@@ -1570,8 +1702,8 @@ export default function PosTerminal({
 
             <div className="pos-choice wrap">
               {/* the tendered field is parsed with Number() — it must stay a raw numeric string, never formatted money */}
-              <button type="button" onClick={() => setTendered(subtotal.toFixed(2))}>Exact</button>
-              {QUICK_CASH.filter((c) => c >= subtotal).slice(0, 4).map((c) => (
+              <button type="button" onClick={() => setTendered(due.toFixed(2))}>Exact</button>
+              {QUICK_CASH.filter((c) => c >= due).slice(0, 4).map((c) => (
                 <button key={c} type="button" onClick={() => setTendered(String(c))}>{f.money(c)}</button>
               ))}
             </div>
@@ -1590,6 +1722,190 @@ export default function PosTerminal({
             <p className="pos-fiscal">
               ⚠️ The fiscal receipt still comes from the certified device, as before.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── the drawer ── */}
+      {showDrawer && (
+        <div className="pos-modal" onClick={(e) => e.target === e.currentTarget && setShowDrawer(false)}>
+          <div className="pos-sheet">
+            <h2>Cash drawer</h2>
+
+            {!drawer && <p className="pos-empty">No shift is open, so there is no drawer to count.</p>}
+
+            {drawer && drawer.opening === null && (
+              <>
+                <p style={{ fontSize: 14.5, lineHeight: 1.6, margin: "0 0 4px" }}>
+                  <b>Count what is in the drawer now.</b> Everything tonight is measured from this
+                  number, so it has to be what you actually counted — not what should be there.
+                </p>
+                <div className="pos-customer" style={{ padding: 0 }}>
+                  <input
+                    inputMode="decimal"
+                    placeholder={drawer.suggested !== null ? String(drawer.suggested) : "0.00"}
+                    value={cashAmount}
+                    onChange={(e) => setCashAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                  />
+                </div>
+                {drawer.suggested !== null && (
+                  <p className="pos-queue-note" style={{ textAlign: "left" }}>
+                    This branch usually starts with {f.money(drawer.suggested)} — a reminder, not an
+                    answer. Count it.
+                  </p>
+                )}
+                {cashErr && <p className="pos-err">{cashErr}</p>}
+                <button
+                  type="button"
+                  className="pos-primary"
+                  disabled={cashBusy || cashAmount.trim() === ""}
+                  onClick={() => postCash("open", { amount: Number(cashAmount) })}
+                >
+                  {cashBusy ? "Saving…" : "That is what is in the drawer"}
+                </button>
+              </>
+            )}
+
+            {drawer && drawer.opening !== null && (
+              <>
+                <div className="pos-drawer-rows">
+                  <div><span>Counted at the start</span><b>{f.money(drawer.opening)}</b></div>
+                  <div>
+                    <span>Cash taken ({drawer.cashOrders} sale{drawer.cashOrders === 1 ? "" : "s"})</span>
+                    <b>{f.money(drawer.sales)}</b>
+                  </div>
+                  {drawer.refunds > 0 && (
+                    <div><span>Given back on voids</span><b>−{f.money(drawer.refunds)}</b></div>
+                  )}
+                  {drawer.movements !== 0 && (
+                    <div><span>Paid in and out</span><b>{f.money(drawer.movements)}</b></div>
+                  )}
+                  <div className="pos-drawer-total">
+                    <span>Should be in the drawer</span>
+                    <b>{drawer.expected === null ? "—" : f.money(drawer.expected)}</b>
+                  </div>
+                </div>
+
+                {drawer.closing === null ? (
+                  <>
+                    {/* ── money in or out ──
+                        Two buttons and a positive number, never a minus sign.
+                        `inputMode="decimal"` gives a tablet a keypad with no
+                        minus key at all, so the only way to record a payout was
+                        a character the cashier could not type — which made the
+                        one control that stops a supplier payment looking like
+                        theft undeliverable on the hardware it ships on. */}
+                    <div className="pos-customer" style={{ padding: "10px 0 0" }}>
+                      <input
+                        inputMode="decimal"
+                        placeholder="Amount"
+                        value={cashAmount}
+                        onChange={(e) => setCashAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                      />
+                      <input
+                        placeholder="What was it for?"
+                        value={cashWhy}
+                        onChange={(e) => setCashWhy(e.target.value)}
+                      />
+                    </div>
+                    <div className="pos-seg" style={{ padding: "8px 0 0" }}>
+                      <button
+                        type="button"
+                        disabled={cashBusy || !cashAmount.trim() || cashWhy.trim().length < 3}
+                        onClick={() => postCash("move", { amount: -Math.abs(Number(cashAmount)), reason: cashWhy })}
+                      >
+                        Money out
+                      </button>
+                      <button
+                        type="button"
+                        disabled={cashBusy || !cashAmount.trim() || cashWhy.trim().length < 3}
+                        onClick={() => postCash("move", { amount: Math.abs(Number(cashAmount)), reason: cashWhy })}
+                      >
+                        Money in
+                      </button>
+                    </div>
+                    <p className="pos-queue-note" style={{ textAlign: "left" }}>
+                      Paying a supplier from the till? Put it here. Otherwise the drawer is short
+                      tonight and it looks like it went missing.
+                    </p>
+
+                    {/* ── the count ──
+                        Its own box. Sharing one field with the payout amount
+                        meant a cashier could type 250 for a paid-in, hit the
+                        wrong button, and permanently close the drawer at 250 —
+                        with no correction path anywhere in the product. */}
+                    <div className="pos-drawer-close">
+                      <label htmlFor="drawer-count">Count the drawer to finish</label>
+                      <input
+                        id="drawer-count"
+                        inputMode="decimal"
+                        placeholder="What is in the drawer now"
+                        value={cashCount}
+                        onChange={(e) => setCashCount(e.target.value.replace(/[^0-9.]/g, ""))}
+                      />
+                      <input
+                        placeholder="Anything to say about it? (optional)"
+                        value={cashCloseNote}
+                        onChange={(e) => setCashCloseNote(e.target.value)}
+                      />
+                      {queue.length > 0 && (
+                        <p className="pos-warn" style={{ margin: 0 }}>
+                          {queue.length} sale(s) have not reached the server yet, so the expected
+                          figure is missing them. Wait for the connection before counting, or
+                          tonight&rsquo;s difference will be wrong by that much — permanently.
+                        </p>
+                      )}
+                    </div>
+
+                    {cashErr && <p className="pos-err">{cashErr}</p>}
+
+                    <div className="pos-sheet-foot">
+                      <button type="button" onClick={() => setShowDrawer(false)}>Not yet</button>
+                      <button
+                        type="button"
+                        className="pos-primary"
+                        disabled={cashBusy || cashCount.trim() === "" || queue.length > 0}
+                        // No `note: cashWhy`. That box is the *movement*
+                        // reason, and reusing it saved "paid Giorgi" as the
+                        // explanation for a difference nobody had explained.
+                        onClick={() =>
+                          postCash("close", {
+                            amount: Number(cashCount),
+                            note: cashCloseNote.trim() || undefined,
+                          })
+                        }
+                      >
+                        {cashBusy ? "Counting…" : "This is what I counted"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="pos-drawer-rows">
+                      <div><span>You counted</span><b>{f.money(drawer.closing)}</b></div>
+                      <div className="pos-drawer-total">
+                        <span>Difference</span>
+                        <b className={drawer.variance === 0 ? "pos-ok" : drawer.variance === null ? "pos-unknown" : "pos-bad"}>
+                          {drawer.variance === null ? "—" : f.moneySigned(drawer.variance)}
+                        </b>
+                      </div>
+                    </div>
+                    <p className="pos-queue-note" style={{ textAlign: "left" }}>
+                      {drawer.variance === null
+                        ? "Nobody counted the drawer at the start, so there is nothing to compare tonight against."
+                        : drawer.variance === 0
+                          ? "It balances. Nothing else to do."
+                          : "Recorded. A difference is worth a look now, while you can still find it."}
+                    </p>
+                    {cashErr && <p className="pos-err">{cashErr}</p>}
+                    <div className="pos-sheet-foot">
+                      <button type="button" onClick={() => setShowDrawer(false)}>Close</button>
+                      <span />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
