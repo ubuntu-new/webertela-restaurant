@@ -34,6 +34,7 @@ STAMP="$(date +%F_%H%M%S)"
 HOST="$(hostname -s)"
 failed=""
 made=0
+would=0
 
 say() { printf '%s\n' "$*"; }
 
@@ -54,6 +55,13 @@ notify() {
 # user with a plain name — Prisma appends `?schema=public`, which libpq's own
 # tools reject, and root is not a postgres role. Both of those cost a failed
 # deploy to learn once already.
+#
+# ⚠️ Not every instance on this host is Postgres. The first run of this script
+# announced it would `pg_dump 'prod.db'` for a tenant whose `DATABASE_URL` is a
+# SQLite file — a command that fails every night forever, alerting every night
+# forever, which is precisely how a monitor gets muted. So the scheme decides
+# the tool, and a scheme neither tool understands is skipped out loud rather
+# than attempted and reported as a failure.
 for dir in /srv/*; do
   [ -d "$dir" ] || continue
   [ -f "$dir/.env" ] || continue
@@ -61,13 +69,55 @@ for dir in /srv/*; do
 
   url="$(grep -oP '(?<=^DATABASE_URL=)["'"'"']?\K[^"'"'"']+' "$dir/.env" 2>/dev/null | head -1)"
   [ -n "$url" ] || { say "  $slug: no DATABASE_URL, skipped"; continue; }
+
+  case "$url" in
+    postgres://*|postgresql://*) kind=pg ;;
+    file:*|sqlite:*)             kind=sqlite ;;
+    *.db|*.sqlite|*.sqlite3)     kind=sqlite ;;
+    *)                           kind=unknown ;;
+  esac
+
+  if [ "$kind" = "unknown" ]; then
+    # Named, not silently ignored: an instance nobody is backing up is worth
+    # one line a night until somebody decides that is on purpose.
+    say "  $slug: DATABASE_URL is neither Postgres nor SQLite — NOT backed up"
+    continue
+  fi
+
+  if [ "$kind" = "sqlite" ]; then
+    # `file:./prod.db` and friends are relative to the app directory.
+    path="$(printf '%s' "$url" | sed -E 's#^(file:|sqlite:)(//)?##; s#\?.*$##')"
+    case "$path" in /*) ;; *) path="$dir/${path#./}" ;; esac
+    [ -f "$path" ] || { say "  $slug: $path does not exist, skipped"; continue; }
+
+    out="$BACKUP_DIR/${slug}_nightly_${STAMP}.sqlite"
+    if $CHECK; then
+      say "  $slug → would copy SQLite $path"
+      would=$((would + 1))
+      continue
+    fi
+
+    # `.backup` rather than `cp`: SQLite can be mid-write, and a copied file is
+    # a torn one. This takes a consistent snapshot of a live database.
+    if sqlite3 "$path" ".backup '$out'" 2>/dev/null; then
+      made=$((made + 1))
+      say "  $slug: $(du -h "$out" | cut -f1) (sqlite)"
+    else
+      failed="$failed $slug(sqlite)"
+      rm -f "$out"
+      say "  $slug: sqlite backup FAILED"
+    fi
+    continue
+  fi
+
   dbname="$(printf '%s' "$url" | sed -E 's#.*/([^/?]+)(\?.*)?$#\1#')"
   [ -n "$dbname" ] || { say "  $slug: could not read a database name"; continue; }
 
   out="$BACKUP_DIR/${dbname}_nightly_${STAMP}.dump"
 
   if $CHECK; then
-    say "  $slug → would dump '$dbname' to $out"
+    say "  $slug → would dump Postgres '$dbname'"
+    would=$((would + 1))
     continue
   fi
 
@@ -100,7 +150,7 @@ if [ -n "${BACKUP_REMOTE:-}" ]; then
       ssh -o BatchMode=yes -o ConnectTimeout=8 "${BACKUP_REMOTE%%:*}" true \
         && shipped="$shipped (reachable)" || shipped="$shipped (UNREACHABLE)"
     elif scp -q -o BatchMode=yes -o ConnectTimeout=15 \
-        "$BACKUP_DIR"/*_nightly_"$STAMP".dump "$BACKUP_REMOTE"/ 2>/dev/null; then
+        "$BACKUP_DIR"/*_nightly_"$STAMP".* "$BACKUP_REMOTE"/ 2>/dev/null; then
       shipped="copied to $BACKUP_REMOTE"
     else
       shipped="FAILED to reach $BACKUP_REMOTE"
@@ -112,7 +162,7 @@ if [ -n "${BACKUP_REMOTE:-}" ]; then
       rclone lsd "$BACKUP_REMOTE" >/dev/null 2>&1 \
         && shipped="would rclone to $BACKUP_REMOTE (reachable)" \
         || shipped="would rclone to $BACKUP_REMOTE (UNREACHABLE)"
-    elif rclone copy --include "*_nightly_${STAMP}.dump" "$BACKUP_DIR" "$BACKUP_REMOTE" 2>/dev/null; then
+    elif rclone copy --include "*_nightly_${STAMP}.*" "$BACKUP_DIR" "$BACKUP_REMOTE" 2>/dev/null; then
       shipped="copied to $BACKUP_REMOTE"
     else
       shipped="FAILED to reach $BACKUP_REMOTE"
@@ -123,11 +173,15 @@ fi
 
 # ── prune, but only what left the building ────────────────────────────────────
 if ! $CHECK; then
-  find "$BACKUP_DIR" -name '*_nightly_*.dump' -mtime +$KEEP_DAYS -delete 2>/dev/null
+  find "$BACKUP_DIR" \( -name '*_nightly_*.dump' -o -name '*_nightly_*.sqlite' \) -mtime +$KEEP_DAYS -delete 2>/dev/null
 fi
 
 say ""
-say "$made dump(s) · offsite: $shipped"
+if $CHECK; then
+  say "$would would be backed up · offsite: $shipped"
+else
+  say "$made backed up · offsite: $shipped"
+fi
 
 if $CHECK; then
   [ -z "${BACKUP_REMOTE:-}" ] && say "

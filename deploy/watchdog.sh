@@ -196,7 +196,7 @@ else
 fi
 
 # ── the backups ───────────────────────────────────────────────────────────────
-newest="$(find "$BACKUP_DIR" -name '*.dump' -mmin -$((BACKUP_MAX_HOURS * 60)) 2>/dev/null | head -1)"
+newest="$(find "$BACKUP_DIR" \( -name '*.dump' -o -name '*.sqlite' \) -mmin -$((BACKUP_MAX_HOURS * 60)) 2>/dev/null | head -1)"
 if [ -z "$newest" ]; then
   transition backup bad "$HOST has no database backup newer than ${BACKUP_MAX_HOURS}h. A schedule nobody checks is a schedule that stopped."
 else
