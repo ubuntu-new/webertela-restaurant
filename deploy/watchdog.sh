@@ -136,13 +136,16 @@ for dir in "$INSTANCES_DIR"/*; do
   body="$(curl -sS -m 8 "http://127.0.0.1:${port}/api/health" 2>/dev/null)"
   code="$(curl -sS -m 8 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${port}/api/health" 2>/dev/null)"
 
+  # `X-Forwarded-Proto: http` is what nginx sends, and without it the
+  # middleware 308s this probe to https on a plain-HTTP port — a healthy
+  # site then reads as an outage. See the note in wave2-dup-apply.sh.
   # An instance still on a build from before the endpoint existed answers 404.
   # Treating that as an outage would page somebody every minute about a site
   # that is serving perfectly — and a monitor that cries wolf gets muted, which
   # is the failure this whole file exists to prevent. So fall back to the weaker
   # question it can still answer, and say so rather than pretending.
   if [ "$code" = "404" ]; then
-    alt="$(curl -sS -m 8 -L -o /dev/null -w '%{http_code}' "http://127.0.0.1:${port}/pos" 2>/dev/null)"
+    alt="$(curl -sS -m 8 -L -H 'X-Forwarded-Proto: http' -o /dev/null -w '%{http_code}' "http://127.0.0.1:${port}/pos" 2>/dev/null)"
     if [ -n "$alt" ] && [ "$alt" -lt 500 ] 2>/dev/null; then
       code=200
       body=""

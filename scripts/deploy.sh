@@ -86,9 +86,12 @@ was_up() {
 
   case "$code" in
     200) return 0 ;;
+    # The header is what nginx sends. Without it the middleware redirects
+    # this probe to https on a plain-HTTP port, TLS fails, and a healthy
+    # site reads as down — which here would roll back a good deploy.
     404)
       local alt
-      alt="$(curl -sS -m 5 -L -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/pos" 2>/dev/null)"
+      alt="$(curl -sS -m 5 -L -H 'X-Forwarded-Proto: http' -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/pos" 2>/dev/null)"
       [ -n "$alt" ] && [ "$alt" -lt 500 ] 2>/dev/null && return 0
       return 1
       ;;

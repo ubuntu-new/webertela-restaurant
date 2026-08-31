@@ -275,16 +275,29 @@ sleep 3
 systemctl --no-pager --lines=0 status "$SERVICE" || true
 
 say "health check"
-# 307 is the locale redirect, so redirects are followed rather than counted as
-# a failure — an earlier version of this reported a healthy site as broken.
-# The port comes from the systemd unit, never from .env — see port_of above.
+# ⚠️ Do not point this at a page. It used to probe /admin with -L, and the
+# middleware answers an unproxied request with a 308 to **https** — so curl
+# dutifully followed it back to a plain-HTTP port, spoke TLS at it, and failed
+# with `OpenSSL alert internal error`. The site was perfectly healthy; the check
+# had built its own failure and then reported it. Fourth time a check here has
+# lied, and the first one to lie in the safe direction.
+#
+# /api/health is exempt from the middleware matcher, so it never redirects — and
+# it answers the question that matters, which is whether the database is
+# reachable, not whether the process is alive.
 PORT="$(port_of "$SERVICE")"
 if [ -z "$PORT" ]; then
   warn "could not find the port for $SERVICE — skipping the health check rather than probing a guess"
 else
-  echo "   checking 127.0.0.1:$PORT"
-  curl -sS -L -o /dev/null -w '   HTTP %{http_code} after %{num_redirects} redirect(s)\n' \
-    "http://127.0.0.1:${PORT}/admin" || warn "curl could not reach the site"
+  echo "   checking 127.0.0.1:$PORT/api/health"
+  code="$(curl -sS -m 8 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/api/health" 2>/dev/null)"
+  case "$code" in
+    200) echo "   HTTP 200 — serving, and the database answers" ;;
+    404) warn "HTTP 404 — this build predates /api/health, so nothing here checked the database" ;;
+    503) warn "HTTP 503 — the site is up but it CANNOT REACH ITS DATABASE" ;;
+    000|"") warn "no answer at all on :$PORT — the site is not serving" ;;
+    *)   warn "HTTP $code from /api/health — not what a healthy instance returns" ;;
+  esac
 fi
 
 say "recent log"
