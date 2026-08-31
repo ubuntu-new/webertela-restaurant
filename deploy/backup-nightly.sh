@@ -85,10 +85,31 @@ for dir in /srv/*; do
   fi
 
   if [ "$kind" = "sqlite" ]; then
-    # `file:./prod.db` and friends are relative to the app directory.
-    path="$(printf '%s' "$url" | sed -E 's#^(file:|sqlite:)(//)?##; s#\?.*$##')"
-    case "$path" in /*) ;; *) path="$dir/${path#./}" ;; esac
-    [ -f "$path" ] || { say "  $slug: $path does not exist, skipped"; continue; }
+    # ⚠️ A relative SQLite path in Prisma is relative to **the schema file**, not
+    # to the project root. `file:./prod.db` in `prisma/schema.prisma` means
+    # `prisma/prod.db`. Resolving it against the app directory found nothing and
+    # skipped a paying customer's only database, quietly, while reporting a
+    # tidy-looking three-of-four.
+    #
+    # So both are tried, Prisma's convention first, and a miss says where it
+    # looked rather than naming one guess as though it were the answer.
+    rel="$(printf '%s' "$url" | sed -E 's#^(file:|sqlite:)(//)?##; s#\?.*$##')"
+    case "$rel" in
+      /*) path="$rel" ;;
+      *)
+        rel="${rel#./}"
+        if   [ -f "$dir/prisma/$rel" ]; then path="$dir/prisma/$rel"
+        elif [ -f "$dir/$rel" ];        then path="$dir/$rel"
+        else path=""
+        fi
+        ;;
+    esac
+
+    if [ -z "$path" ] || [ ! -f "$path" ]; then
+      say "  $slug: SQLite file not found — looked in $dir/prisma/ and $dir/ for '$rel'. NOT backed up."
+      failed="$failed $slug(missing-db)"
+      continue
+    fi
 
     out="$BACKUP_DIR/${slug}_nightly_${STAMP}.sqlite"
     if $CHECK; then
