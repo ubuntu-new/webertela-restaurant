@@ -27,11 +27,19 @@ export const dynamic = "force-dynamic";
 
 const ROLE_LABEL: Record<string, string> = { till: "Till", kitchen: "Kitchen" };
 
+/** In the words of somebody waiting for paper, not of the database. */
+const STATUS_LABEL: Record<string, string> = {
+  pending: "Waiting",
+  claimed: "Printing",
+  done: "Printed",
+  failed: "Failed",
+};
+
 const STATUS_STYLE: Record<string, string> = {
-  pending: "setup-mark-todo",
-  claimed: "setup-mark-todo",
-  done: "setup-mark-done",
-  failed: "setup-mark-todo",
+  pending: "job-waiting",
+  claimed: "job-waiting",
+  done: "job-done",
+  failed: "job-failed",
 };
 
 export default async function PrintersPage({
@@ -245,6 +253,11 @@ export default async function PrintersPage({
                     #8648" — so appending it again read as "#8648 · #8648". */}
                 <b>{doc?.title ?? job.kind}</b>
                 <span>
+                  {/* The status was dropped when this summary was flattened,
+                      and "waiting" against "printed" is the first thing anyone
+                      opening this page wants to know. */}
+                  <b className={STATUS_STYLE[job.status] ?? ""}>{t(STATUS_LABEL[job.status] ?? job.status)}</b>
+                  {" · "}
                   {f.dateTime(job.createdAt)} · {job.printer?.name ?? t("no printer assigned")}
                   {job.reprintOf ? ` · ${t("reprint")}` : ""}
                   {job.attempts > 0 ? ` · ${job.attempts} ${t("attempts")}` : ""}

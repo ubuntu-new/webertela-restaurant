@@ -214,6 +214,17 @@ export default function PosTerminal({
 
   const [lines, setLines] = useState<Line[]>([]);
   const [editing, setEditing] = useState<Line | null>(null);
+
+  /**
+   * Which receipt is being sent, and which was just sent.
+   *
+   * Two pieces of state rather than one, because the useful feedback here is
+   * not "done" — it is "done, and it was *this* one". A cashier hunting a
+   * missing receipt will press Reprint on three orders in a row, and a single
+   * flag would light up all of them.
+   */
+  const [reprinting, setReprinting] = useState<string | null>(null);
+  const [reprinted, setReprinted] = useState<string | null>(null);
   const [tab, setTab] = useState("Pizza");
   const [search, setSearch] = useState("");
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
@@ -838,6 +849,38 @@ export default function PosTerminal({
       setRecent(Array.isArray(data.orders) ? data.orders : []);
     } catch {
       setRecent([]);
+    }
+  };
+
+  /**
+   * Another copy of a receipt, from the recent list.
+   *
+   * The modal deliberately stays open. A cashier reprinting is usually looking
+   * for one order among several — closing the list after each press would make
+   * them find their place again every time.
+   */
+  const reprint = async (order: RecentOrder) => {
+    setError(null);
+    setReprinting(order.id);
+    try {
+      const res = await fetch("/api/pos/reprint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Could not reprint");
+        return;
+      }
+      setReprinted(order.id);
+      // The tick fades, so the next glance at this list does not claim a
+      // reprint that happened ten minutes ago is happening now.
+      setTimeout(() => setReprinted((id) => (id === order.id ? null : id)), 4000);
+    } catch {
+      setError("No connection");
+    } finally {
+      setReprinting(null);
     }
   };
 
@@ -1997,6 +2040,12 @@ export default function PosTerminal({
                   ))}
                 </div>
                 <div className="pos-recent-foot">
+                  {/* Available on a voided order too: the customer still asks
+                      for the paper, and a copy of what was rung up is how the
+                      refund gets explained. */}
+                  <button type="button" onClick={() => reprint(o)} disabled={reprinting === o.id}>
+                    {reprinting === o.id ? "Sending…" : reprinted === o.id ? "Sent ✓" : "Reprint"}
+                  </button>
                   {o.status === "cancelled" ? (
                     <span className="pos-voided">Voided</span>
                   ) : (

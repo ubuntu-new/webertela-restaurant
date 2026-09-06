@@ -556,6 +556,12 @@
 .print-job > summary span { display: block; font-size: 13px; color: var(--a-muted); }
 .print-job > summary .setup-missing { margin-top: 4px; }
 
+/* The status, in the meta line. Colour carries it at a glance; the word carries
+   it for anyone who cannot rely on the colour. */
+.job-waiting { color: var(--a-orange); }
+.job-done { color: var(--a-ok); }
+.job-failed { color: var(--a-bad, #b03030); }
+
 .receipt-preview {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 12px;
