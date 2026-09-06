@@ -207,6 +207,19 @@ model Branch {
 
   printers Printer[]
 
+  /**
+   * The shared secret the local print agent authenticates with.
+   *
+   * Per branch, not per organisation, and that is the whole point: the agent
+   * runs on a machine in a restaurant, on premises nobody here controls. A
+   * token that leaks from one kitchen must not open another restaurant's queue.
+   *
+   * Null until an agent is set up. The endpoint refuses a branch with no token
+   * rather than treating "no token configured" as "no token required" — that
+   * particular shortcut is how an unauthenticated endpoint gets shipped.
+   */
+  agentToken String? @unique
+
   @@index([orgId, active, sortOrder])
   @@index([deletedAt])
   @@index([nameKey])

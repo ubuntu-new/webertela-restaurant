@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { logAction } from "@/lib/audit";
@@ -189,6 +190,42 @@ export async function testPrint(id: string): Promise<void> {
   });
 
   redirect("/admin/printers?queued=1");
+}
+
+/**
+ * A fresh token for this branch's print agent.
+ *
+ * Regenerating invalidates the old one immediately, which is the point: an
+ * agent on a machine that walked out of the building is revoked by pressing
+ * this, not by hoping.
+ *
+ * The value is shown once, on the page, right after it is made. It is stored in
+ * full rather than hashed — unlike a password — because the agent has to send
+ * it back verbatim and there is nobody to reset it for. That is a deliberate
+ * trade: this token opens one branch's print queue and nothing else, and an
+ * owner who can read it already has the admin panel open.
+ */
+export async function regenerateAgentToken(branchId: string): Promise<void> {
+  const branch = await db.branch.findUnique({ where: { id: branchId }, select: { id: true } });
+  if (!branch) failTo("/admin/printers", "That branch no longer exists.");
+
+  // 32 bytes of randomness, url-safe. Not a cuid: ids are guessable by design
+  // and this is a credential.
+  const token = randomBytes(32).toString("base64url");
+
+  await db.branch.update({ where: { id: branchId }, data: { agentToken: token } });
+
+  await logAction({
+    action: "printer.agentToken",
+    entityType: "Branch",
+    entityId: branchId,
+    branchId,
+    // Never the token itself. An audit log is read by more people than the
+    // page that generated it.
+    after: { rotated: true },
+  });
+
+  redirect(`/admin/printers?token=${encodeURIComponent(token)}&branch=${branchId}`);
 }
 
 /** Put a failed job back in the queue. */

@@ -4,7 +4,7 @@ import { fmt } from "@/lib/format";
 import { i18nText } from "@/lib/admin-utils";
 import { docToText, type PrintDoc } from "@/lib/print-doc";
 import AdminForm from "../_components/AdminForm";
-import { removePrinter, retryJob, savePrinter, testPrint } from "./actions";
+import { regenerateAgentToken, removePrinter, retryJob, savePrinter, testPrint } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +45,14 @@ const STATUS_STYLE: Record<string, string> = {
 export default async function PrintersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; removed?: string; queued?: string; error?: string }>;
+  searchParams: Promise<{
+    saved?: string;
+    removed?: string;
+    queued?: string;
+    error?: string;
+    token?: string;
+    branch?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const t = await tr();
@@ -56,6 +63,9 @@ export default async function PrintersPage({
       where: { deletedAt: null, active: true },
       orderBy: { sortOrder: "asc" },
       include: { printers: { orderBy: { role: "asc" } } },
+      // `agentToken` comes back with the branch and is never rendered — only
+      // whether one exists. The value is shown once, from the redirect that
+      // created it, and never read back out of the database into a page.
     }),
     db.printJob.findMany({
       orderBy: { createdAt: "desc" },
@@ -198,6 +208,41 @@ export default async function PrintersPage({
                   </AdminForm>
                 );
               })}
+            </div>
+
+            {/* ── the agent ── */}
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--a-line)" }}>
+              <h3>{t("Local print agent")}</h3>
+              <p className="hint" style={{ marginTop: 4 }}>
+                {t(
+                  "A small program on any always-on machine in this branch. It asks this server for work and sends it to the printers on your own network — so nothing has to be opened on your router.",
+                )}
+              </p>
+
+              {sp.token && sp.branch === branch.id ? (
+                <>
+                  <p className="setup-missing" style={{ marginBottom: 6 }}>
+                    {t("Copy this now — it is shown once and never again.")}
+                  </p>
+                  <pre className="receipt-preview" style={{ fontSize: 12 }}>
+                    {`WEBERTELA_URL=${process.env.NEXT_PUBLIC_SITE_URL ?? "https://your-site"}
+WEBERTELA_AGENT_TOKEN=${sp.token}
+node print-agent.mjs`}
+                  </pre>
+                </>
+              ) : (
+                <p className="hint">
+                  {branch.agentToken
+                    ? t("An agent token exists for this branch. Generate a new one only if you need to replace it — the old one stops working immediately.")
+                    : t("No agent yet. Generate a token when you are ready to install one.")}
+                </p>
+              )}
+
+              <form action={regenerateAgentToken.bind(null, branch.id)} style={{ marginTop: 8 }}>
+                <button className="btn btn-ghost" type="submit">
+                  {branch.agentToken ? t("Replace the agent token") : t("Generate an agent token")}
+                </button>
+              </form>
             </div>
 
             {branch.printers.length > 0 && (
