@@ -306,9 +306,19 @@ export async function POST(req: Request) {
     await queueKitchenTicket(order.id, { requestedBy: session.sub });
     await queueReceipt(order.id, {
       requestedBy: session.sub,
-      // Only cash opens the drawer. A card sale never puts a hand in it, and a
-      // drawer that pops on every order is a drawer nobody watches.
-      openDrawer: order.paymentMethod === "cash",
+      /**
+       * The drawer opens when cash actually changed hands.
+       *
+       * Not when `paymentMethod` says "cash" — that column is written as a
+       * constant a few lines above, so every POS sale claims to be cash and the
+       * test would have been true always. `cashKept` is the amount the cashier
+       * recorded taking, and null when they did not, which is the same fact the
+       * reconciliation arithmetic runs on.
+       *
+       * A drawer that pops on every order is a drawer nobody watches, and the
+       * point of the cash work was to make it worth watching.
+       */
+      openDrawer: cashKept !== null,
     });
 
     return NextResponse.json({
