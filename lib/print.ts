@@ -67,6 +67,23 @@ export interface PrintableOrder {
   orgName?: string | null;
   branchPhone?: string | null;
   branchAddress?: string | null;
+
+  /**
+   * Who rang it up, which till, which branch.
+   *
+   * Not decoration and not legally required — but this is the line that makes a
+   * receipt answerable. When a customer rings up about a charge three weeks
+   * later, "Ronny's, Monroe, till 1, served by Nino, check 8648" locates the
+   * transaction and the person in one read. Without it the owner has a number
+   * and a date and a shrug.
+   *
+   * It is also what New York expects a vendor to be able to produce: guest
+   * checks sequentially numbered, kept three years, with enough detail to
+   * reconstruct the sale.
+   */
+  servedBy?: string | null;
+  posId?: string | null;
+  branchCode?: string | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -136,7 +153,18 @@ export function receiptDoc(order: PrintableOrder, columns = RECEIPT_COLUMNS): Pr
     lines.push({ t: "row", left: "Discount", right: `-${money(order.discountTotal)}` });
   if (num(order.deliveryFee) > 0)
     lines.push({ t: "row", left: "Delivery", right: money(order.deliveryFee) });
-  if (num(order.tax) > 0) lines.push({ t: "row", left: "Tax", right: money(order.tax) });
+
+  /**
+   * Tax is printed even when it is zero, unlike every other optional line here.
+   *
+   * New York requires sales tax to be *separately stated* on the receipt given
+   * to the customer — it is not enough for it to be inside the total. A line
+   * reading 0.00 is therefore either a correct statement about an untaxed sale
+   * or a visible reminder that nobody has configured tax yet, and both are
+   * better than a receipt that is silent on the question.
+   */
+  lines.push({ t: "row", left: "Tax", right: money(order.tax) });
+
   if (num(order.tip) > 0) lines.push({ t: "row", left: "Tip", right: money(order.tip) });
 
   lines.push({ t: "feed" });
@@ -155,6 +183,21 @@ export function receiptDoc(order: PrintableOrder, columns = RECEIPT_COLUMNS): Pr
 
   lines.push({ t: "feed" });
   lines.push({ t: "text", v: "Thank you", align: "c" });
+
+  /**
+   * The traceability line, last and small.
+   *
+   * Bottom of the receipt because a customer never needs it and the one person
+   * who does — whoever is answering the phone about a charge from three weeks
+   * ago — knows to look there. This is the American convention: the header
+   * sells, the footer accounts.
+   */
+  const trace = [order.branchCode, order.posId, order.servedBy].filter(Boolean).join(" · ");
+  if (trace) {
+    lines.push({ t: "feed" });
+    lines.push({ t: "text", v: trace, align: "c" });
+  }
+
   lines.push({ t: "cut" });
 
   return { columns, title: `Receipt #${order.orderNo}`, lines };
@@ -196,9 +239,23 @@ export function kitchenDoc(order: PrintableOrder, columns = RECEIPT_COLUMNS): Pr
     lines.push({ t: "feed" });
   }
 
-  if (order.notes) {
+  /**
+   * Only what a cook can act on.
+   *
+   * `notes` carries the terminal's own marker — "POS MON-01-POS-1-0003" —
+   * appended when the order is created, and the first version printed it in
+   * bold at the bottom of the ticket. A cook does not need to know which till
+   * rang the order up, and a bold line that means nothing teaches them that the
+   * bold lines are worth ignoring. That is the line that says "no onions".
+   */
+  const cookNotes = String(order.notes ?? "")
+    .split(" · ")
+    .filter((part) => part.trim() && !/^POS\s/i.test(part.trim()))
+    .join(" · ");
+
+  if (cookNotes) {
     lines.push({ t: "rule", ch: "=" });
-    lines.push({ t: "text", v: order.notes, bold: true });
+    lines.push({ t: "text", v: cookNotes, bold: true });
   }
 
   lines.push({ t: "cut" });
@@ -267,8 +324,9 @@ export async function printableOrder(orderId: string): Promise<PrintableOrder | 
     where: { id: orderId },
     include: {
       items: true,
-      branch: { select: { name: true, phone: true, address: true } },
+      branch: { select: { name: true, code: true, phone: true, address: true } },
       org: { select: { name: true } },
+      createdBy: { select: { name: true } },
     },
   });
   if (!order) return null;
@@ -312,6 +370,9 @@ export async function printableOrder(orderId: string): Promise<PrintableOrder | 
     orgName: order.org?.name ? i18nText(order.org.name) : null,
     branchPhone: order.branch?.phone ?? null,
     branchAddress: addressLine,
+    servedBy: order.createdBy?.name ?? null,
+    posId: order.posId ?? null,
+    branchCode: order.branch?.code ?? null,
   };
 }
 

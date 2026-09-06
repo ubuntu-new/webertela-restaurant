@@ -85,7 +85,29 @@ export const savePrinter = formAction(async (fd: FormData) => {
   if (id) {
     await db.printer.update({ where: { id }, data });
   } else {
-    await db.printer.create({ data });
+    const created = await db.printer.create({ data });
+
+    /**
+     * Adopt the jobs that were queued before this printer existed.
+     *
+     * Every branch starts with no printers, so the first orders rung up produce
+     * jobs with `printerId: null` — they queue, they preview, and they wait.
+     * Without this they would wait for ever: the printer arrives, and the paper
+     * that was already owed never comes out.
+     *
+     * Only `pending` ones, and only for this role. A job that already failed on
+     * a different machine is a decision for a person, not something to quietly
+     * hand to new hardware.
+     */
+    await db.printJob.updateMany({
+      where: {
+        branchId,
+        printerId: null,
+        status: "pending",
+        kind: role === "till" ? { in: ["receipt", "drawer", "test"] } : "kitchen",
+      },
+      data: { printerId: created.id },
+    });
   }
 
   await logAction({

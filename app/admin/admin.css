@@ -545,6 +545,17 @@
    paper. A monospace face and `pre` are what make 48 characters on screen the
    same 48 characters that come off the roll, so a total that would wrap wraps
    here too, and gets found before a customer sees it rather than after. */
+/* One job in the list.
+   Deliberately NOT .setup-step: that is `display:flex`, which laid the summary
+   and the paper side by side with a chasm between them. A <details> wants its
+   summary above its contents, which is block layout. */
+.print-job { border-bottom: 1px solid var(--a-line); padding: 12px 0; }
+.print-job:last-child { border-bottom: 0; }
+.print-job > summary { cursor: pointer; list-style: revert; }
+.print-job > summary b { display: block; font-size: 14px; }
+.print-job > summary span { display: block; font-size: 13px; color: var(--a-muted); }
+.print-job > summary .setup-missing { margin-top: 4px; }
+
 .receipt-preview {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 12px;

@@ -239,15 +239,11 @@ export default async function PrintersPage({
         {jobs.map((job) => {
           const doc = job.doc as unknown as PrintDoc;
           return (
-            <details key={job.id} className="setup-step">
-              <summary className="setup-step-body" style={{ cursor: "pointer" }}>
-                <span className={`setup-mark ${STATUS_STYLE[job.status] ?? ""}`}>
-                  {job.status === "done" ? "✓" : job.status === "failed" ? "!" : "•"}
-                </span>
-                <b>
-                  {doc?.title ?? job.kind}
-                  {job.order ? ` · #${job.order.orderNo}` : ""}
-                </b>
+            <details key={job.id} className="print-job">
+              <summary>
+                {/* `doc.title` already carries the order number — "Receipt
+                    #8648" — so appending it again read as "#8648 · #8648". */}
+                <b>{doc?.title ?? job.kind}</b>
                 <span>
                   {f.dateTime(job.createdAt)} · {job.printer?.name ?? t("no printer assigned")}
                   {job.reprintOf ? ` · ${t("reprint")}` : ""}
