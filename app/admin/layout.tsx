@@ -34,6 +34,7 @@ const NAV: { href: string; label: string }[] = [
   { href: "/admin/shifts", label: "Shifts" },
   { href: "/admin/setup/starter", label: "Starter packs" },
   { href: "/admin/branches", label: "Branches" },
+  { href: "/admin/printers", label: "Printers" },
   { href: "/admin/employees", label: "Staff" },
   { href: "/admin/discounts", label: "Discounts" },
   { href: "/admin/settings", label: "Settings" },

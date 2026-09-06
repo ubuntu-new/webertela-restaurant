@@ -8,6 +8,7 @@ import { recordMovements } from "@/lib/stock";
 import { applyOutgoingCost } from "@/lib/costing";
 import { logAction } from "@/lib/audit";
 import { getLoyaltySettings, redeemValue, awardPoints, redeemPoints } from "@/lib/loyalty";
+import { queueKitchenTicket, queueReceipt } from "@/lib/print";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -283,6 +284,31 @@ export async function POST(req: Request) {
         adoptedFrom: typeof body.adoptedFrom === "string" ? body.adoptedFrom.slice(0, 64) : undefined,
       },
       employeeId: session.sub,
+    });
+
+    /**
+     * Paper, now.
+     *
+     * Two jobs, deliberately separate: the cook's ticket and the customer's
+     * receipt are different documents on different printers, and the kitchen
+     * one is the urgent half — a ticket that arrives a minute late is a plate
+     * that arrives ten minutes late.
+     *
+     * ⚠️ Neither may fail the sale. `enqueue` swallows and logs its own errors,
+     * so a jammed printer, an unplugged one, or a branch with none configured
+     * at all leaves the order standing. A till that refuses a customer because
+     * the paper ran out is worse than one that never printed.
+     *
+     * Note this sits *after* the duplicate check, not before it: a terminal
+     * retrying over a flaky connection returns the original order and prints
+     * nothing, because the ticket already came out the first time.
+     */
+    await queueKitchenTicket(order.id, { requestedBy: session.sub });
+    await queueReceipt(order.id, {
+      requestedBy: session.sub,
+      // Only cash opens the drawer. A card sale never puts a hand in it, and a
+      // drawer that pops on every order is a drawer nobody watches.
+      openDrawer: order.paymentMethod === "cash",
     });
 
     return NextResponse.json({

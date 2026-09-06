@@ -205,6 +205,8 @@ model Branch {
 
   branchCombos BranchCombo[]
 
+  printers Printer[]
+
   @@index([orgId, active, sortOrder])
   @@index([deletedAt])
   @@index([nameKey])
@@ -861,6 +863,8 @@ model Order {
   /// ტერმინალის მიერ გენერირებული uuid — იგივე შეკვეთის ხელახლა გაგზავნა უვნებელია
   clientRef String? @unique
 
+  printJobs PrintJob[]
+
   @@index([branchId, status, createdAt])
   @@index([userId, createdAt])
   @@index([branchId, source, createdAt])
@@ -894,6 +898,107 @@ model OrderItem {
 // ─────────────────────────────────────────────────────────────
 // 10) AUDIT LOG
 // ─────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────
+// 9B) ბეჭდვა — ორი პრინტერი ფილიალში
+// ─────────────────────────────────────────────────────────────
+
+/// სად დგას პრინტერი და რას ბეჭდავს.
+///
+/// ორი ერთ ფილიალში, და ისინი ერთმანეთს არ ცვლიან: სალაროსი მომხმარებელს
+/// ეკუთვნის, სამზარეულოსი კი მზარეულს. სხვადასხვა ტექსტი, სხვადასხვა ზომა,
+/// სხვადასხვა მომენტი.
+enum PrinterRole {
+  till    /// ჩეკი მომხმარებელს — და უჯრის გახსნის იმპულსი
+  kitchen /// ტიკეტი, რომლითაც სამზარეულო მუშაობს
+}
+
+enum PrintJobKind {
+  receipt
+  kitchen
+  drawer /// არაფერს ბეჭდავს — მხოლოდ უჯრას ხსნის
+  test
+}
+
+enum PrintJobStatus {
+  pending
+  claimed /// აგენტმა წაიღო, ჯერ არ დაუდასტურებია
+  done
+  failed
+}
+
+/// ერთი ფიზიკური პრინტერი.
+///
+/// `host` შეიძლება ცარიელი იყოს და ეს ნორმალურია: რიგი, დოკუმენტი და გადახედვა
+/// ჰარდვეარის გარეშეც მუშაობს. ჯერ პროგრამა, მერე რკინა — და არა პირიქით.
+model Printer {
+  id       String      @id @default(cuid())
+  orgId    String
+  branchId String
+  role     PrinterRole
+  name     String
+
+  /// სად უგზავნის ბაიტებს ლოკალური აგენტი. null = ჯერ არ დამონტაჟებულა.
+  host String?
+  port Int     @default(9100)
+
+  /// სიმბოლო ხაზში. 80mm ≈ 48, 58mm ≈ 32.
+  columns Int @default(48)
+
+  /// უჯრა ამ პრინტერზეა მიერთებული (RJ11). მხოლოდ სალაროსთვის აქვს აზრი.
+  hasDrawer Boolean @default(false)
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branch Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  jobs   PrintJob[]
+
+  @@index([branchId, role, active])
+}
+
+/// ერთი დასაბეჭდი ფურცელი, თავისი შიგთავსით.
+///
+/// ⚠️ `doc` არის **სნეპშოტი და არა მითითება**. ჩეკი იმის ჩანაწერია, რაც მოხდა:
+/// ხვალ ფასი თუ შეიცვალა, გუშინდელი ჩეკის ხელახალი ბეჭდვა გუშინდელ ფასს უნდა
+/// აჩვენებდეს. თუ აქ შეკვეთის id-ს ვინახავდით და ბეჭდვისას თავიდან ვკითხულობდით,
+/// reprint ისტორიას გადაწერდა — და სწორედ ეს არის ის, რასაც აუდიტი ვერ იტანს.
+model PrintJob {
+  id        String  @id @default(cuid())
+  orgId     String
+  branchId  String
+  printerId String?
+  orderId   String?
+
+  kind   PrintJobKind
+  status PrintJobStatus @default(pending)
+
+  /// PrintDoc — იხ. lib/print-doc.ts. ბაიტებად აგენტთან გადაცემისას იქცევა,
+  /// HTML-ად კი გადახედვისას. ერთი წყარო, ორი გამოსახულება.
+  doc Json
+
+  copies   Int     @default(1)
+  attempts Int     @default(0)
+  error    String?
+
+  /// ვინ მოითხოვა. ავტომატური ბეჭდვისას ცარიელია — მაშინ სისტემამ გადაწყვიტა.
+  requestedBy String?
+  /// რომელი დავალების გამეორებაა. ცარიელი = ორიგინალი.
+  reprintOf String?
+
+  createdAt DateTime  @default(now())
+  claimedAt DateTime?
+  doneAt    DateTime?
+
+  printer Printer? @relation(fields: [printerId], references: [id], onDelete: SetNull)
+  order   Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  /// აგენტი ამ ინდექსით იღებს რიგს.
+  @@index([branchId, status, createdAt])
+  @@index([orderId])
+  @@index([printerId, status])
+}
 
 model AuditLog {
   id         String   @id @default(cuid())
