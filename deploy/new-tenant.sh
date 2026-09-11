@@ -145,6 +145,30 @@ echo "   money     $CURRENCY · $LOCALE · $TZ_NAME"
 echo "   language  /$LOCALE_LANG"
 [ "$DEMO" -eq 1 ] && echo "   mode      DEMO (writes refused)"
 
+# ⚠️ The restaurant belongs in this summary, and it was missing.
+#
+# A dry run exists to show what the real run will do. This block was written
+# before step 9b, so it listed the slug, the domain and the port and said
+# nothing about the organization, the branch or the tax rate — the three things
+# most likely to be typed wrong and the three that are hardest to change
+# afterwards. Somebody could read a dry run that looked right and then get
+# something they had never seen.
+if [ -n "$ORG_NAME" ]; then
+  echo "   ---"
+  echo "   restaurant $ORG_NAME"
+  echo "   branch     ${BRANCH_CODE:-<generated from slug>} · $BRANCH_NAME · $POS_COUNT till(s)"
+  echo "   address    ${ORG_ADDRESS:-<none — it is printed on receipts>}"
+  [ -n "$ORG_PHONE" ] && echo "   phone      $ORG_PHONE"
+  echo "   tax        ${TAX_RATE}%  $([ "$TAX_INCLUSIVE" = "1" ] && echo '(already in the menu price)' || echo '(added at the till)')"
+  echo "   delivery   min ${MIN_ORDER} · fee ${DELIVERY_FEE} · free over ${FREE_DELIVERY}"
+  if [ "$MIN_ORDER" = "0" ] && [ "$DELIVERY_FEE" = "0" ]; then
+    echo "              ⚠ both zero: every delivery free, no minimum"
+  fi
+else
+  echo "   ---"
+  echo "   ⚠ NO ORGANIZATION — this tenant will not be able to take an order"
+fi
+
 if [ "$DRY" -eq 1 ]; then
   say "dry run — nothing was changed"
   exit 0
