@@ -57,6 +57,20 @@ const emp = await db.employee.upsert({
 });
 
 console.log(`✓ super_admin მზადაა: ${emp.name} <${emp.email}>`);
-console.log("  შესვლა: https://ronnys.webertela.online/admin/login");
+
+// ⚠️ Read from the environment, not written in.
+//
+// This line said https://ronnys.webertela.online/admin/login for every tenant
+// it ever ran for. deploy/new-tenant.sh calls this script at the end of
+// provisioning a new restaurant, so the last thing a new client's setup printed
+// was a link to somebody else's back office — and the person following the
+// instructions would have tried it, been shown Ronny's login form, and had no
+// way to tell that anything was wrong.
+const site = process.env.NEXT_PUBLIC_SITE_URL;
+console.log(
+  site
+    ? `  შესვლა: ${site.replace(/\/+$/, "")}/admin/login`
+    : "  შესვლა: /admin/login  (NEXT_PUBLIC_SITE_URL არ არის .env-ში, ამიტომ დომენს ვერ ვწერ)",
+);
 
 await db.$disconnect();

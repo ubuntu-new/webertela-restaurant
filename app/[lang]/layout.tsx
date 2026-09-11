@@ -30,7 +30,19 @@ export async function generateMetadata({
   const l = isLocale(lang) ? lang : DEFAULT_LOCALE;
   const m = META[l];
   return {
-    metadataBase: new URL(SITE_URL),
+    /**
+     * ⚠️ `new URL("")` throws, so this has to be conditional.
+     *
+     * SITE_URL used to fall back to a hardcoded domain, which meant this line
+     * could never fail — and also meant an unconfigured tenant published
+     * canonical tags pointing at somebody else's restaurant. Removing the
+     * fallback fixed that and moved the failure here, where an empty value
+     * would have crashed every page instead of mislabelling it.
+     *
+     * Undefined is the correct answer: Next then emits relative canonicals,
+     * which are valid and are right on whatever host is serving.
+     */
+    metadataBase: SITE_URL ? new URL(SITE_URL) : undefined,
     title: m.title,
     description: m.description,
     alternates: {

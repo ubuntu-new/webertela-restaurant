@@ -31,6 +31,20 @@ SLUG="" ; DOMAIN="" ; PORT=""
 CURRENCY="USD" ; LOCALE="en-US" ; TZ_NAME="America/New_York" ; COUNTRY="US"
 ADMIN_EMAIL="" ; DEMO=0 ; DRY=0
 
+# The restaurant itself. Without --org-name the tenant is provisioned but has no
+# Organization row, and the application cannot take an order — see step 9b.
+ORG_NAME="" ; ORG_ADDRESS="" ; ORG_PHONE=""
+BRANCH_NAME="Main" ; BRANCH_CODE="" ; POS_COUNT=1
+
+# ⚠️ No default. create-org.mjs refuses without it, and so does this script when
+# an organization is being created. A guessed sales-tax rate is wrong silently,
+# every day, until somebody official notices.
+TAX_RATE="" ; TAX_INCLUSIVE=0
+
+# Zero means "not set up", and the summary at the end says so. Left at zero,
+# every delivery is free and has no minimum.
+MIN_ORDER=0 ; DELIVERY_FEE=0 ; FREE_DELIVERY=0
+
 usage() {
   cat <<EOF
 Usage: $0 <slug> --domain <host> --port <n> [options]
@@ -54,6 +68,20 @@ while [ $# -gt 0 ]; do
     --port)     PORT="$2"; shift 2 ;;
     --currency) CURRENCY="$2"; shift 2 ;;
     --locale)   LOCALE="$2"; shift 2 ;;
+
+    # The restaurant. --org-name and --tax-rate are what turn a provisioned
+    # server into one that can take an order.
+    --org-name)      ORG_NAME="$2"; shift 2 ;;
+    --address)       ORG_ADDRESS="$2"; shift 2 ;;
+    --phone)         ORG_PHONE="$2"; shift 2 ;;
+    --branch-name)   BRANCH_NAME="$2"; shift 2 ;;
+    --branch-code)   BRANCH_CODE="$2"; shift 2 ;;
+    --pos)           POS_COUNT="$2"; shift 2 ;;
+    --tax-rate)      TAX_RATE="$2"; shift 2 ;;
+    --tax-inclusive) TAX_INCLUSIVE=1; shift ;;
+    --min-order)     MIN_ORDER="$2"; shift 2 ;;
+    --delivery-fee)  DELIVERY_FEE="$2"; shift 2 ;;
+    --free-delivery) FREE_DELIVERY="$2"; shift 2 ;;
     --tz)       TZ_NAME="$2"; shift 2 ;;
     --country)  COUNTRY="$2"; shift 2 ;;
     --admin)    ADMIN_EMAIL="$2"; shift 2 ;;
@@ -64,6 +92,27 @@ while [ $# -gt 0 ]; do
 done
 
 [ -n "$DOMAIN" ] && [ -n "$PORT" ] || usage
+
+# ⚠️ Checked here, before a single user, database or service is created.
+#
+# The organization is made in step 9b, near the end. Discovering a missing
+# --tax-rate there would mean rolling back twenty minutes of provisioning, or
+# worse, leaving a half-built tenant behind. Arguments are cheap to validate and
+# expensive to discover late.
+if [ -n "$ORG_NAME" ] && [ -z "$TAX_RATE" ]; then
+  echo "!! --org-name was given but --tax-rate was not."
+  echo "   It is the sales tax this branch adds — e.g. --tax-rate 8.125 for"
+  echo "   Orange County NY, or --tax-rate 0 if there genuinely is none."
+  echo "   There is no default: a guessed rate is wrong silently, on every sale."
+  exit 1
+fi
+if [ -z "$ORG_NAME" ]; then
+  echo "!! no --org-name. This will provision a server that cannot take orders."
+  echo "   Add --org-name \"The Restaurant\" --address \"...\" --tax-rate N,"
+  echo "   or run scripts/create-org.mjs afterwards. Continuing in 5s."
+  sleep 5
+fi
+
 # "en-US" -> "en". The storefront speaks languages, not locales.
 LOCALE_LANG="${LOCALE%%-*}"
 
@@ -271,6 +320,53 @@ caddy validate --config "$CADDYFILE" >/dev/null 2>&1 || fail "Caddyfile is inval
 systemctl reload caddy
 echo "   $DOMAIN → 127.0.0.1:$PORT"
 
+# ── 9b. the rows without which the app does not work ─────────────────────
+#
+# ⚠️ This step did not exist, and everything this script built was unusable
+# without it.
+#
+# The application reads its organization with `db.organization.findFirst()` —
+# app/api/orders/route.ts:104 returns 500 when that is null, and
+# app/admin/branches/actions.ts throws, which means the admin UI cannot create
+# the first branch because creating a branch needs an organization that only a
+# branch could have created. `organization.create` appeared exactly once in the
+# codebase, in the demo seed, hardcoded to "Hudson Fire & Grind".
+#
+# So a tenant provisioned by this script came up, answered 200 on /, passed
+# every check at the bottom of this file, and could not take a single order.
+#
+# `--tax-rate` is required by create-org.mjs and has no default here either.
+# Guessing somebody's sales tax is the kind of wrong that only surfaces in an
+# audit.
+if [ -n "$ORG_NAME" ]; then
+  say "organization, first branch and settings"
+
+  ORG_ARGS=(
+    --name "$ORG_NAME"
+    --branch "${BRANCH_NAME:-Main}"
+    --code "${BRANCH_CODE:-$(printf '%s' "$SLUG" | tr '[:lower:]' '[:upper:]' | cut -c1-6)-01}"
+    --address "${ORG_ADDRESS:-}"
+    --currency "$CURRENCY"
+    --locale "$LOCALE"
+    --tz "$TZ_NAME"
+    --country "$COUNTRY"
+    --tax-rate "$TAX_RATE"
+    --pos "$POS_COUNT"
+    --min-order "$MIN_ORDER"
+    --delivery-fee "$DELIVERY_FEE"
+    --free-delivery "$FREE_DELIVERY"
+  )
+  [ -n "${ORG_PHONE:-}" ] && ORG_ARGS+=(--phone "$ORG_PHONE")
+  [ "${TAX_INCLUSIVE:-0}" = "1" ] && ORG_ARGS+=(--tax-inclusive)
+
+  runuser -u "$DB_USER" -- env -u NODE_ENV node "$APP_DIR/scripts/create-org.mjs" "${ORG_ARGS[@]}" \
+    || fail "create-org.mjs failed — the tenant would have no organization and could not take orders"
+else
+  echo "   !! no --org-name given, so no organization was created."
+  echo "      This tenant CANNOT take orders until you run:"
+  echo "        cd $APP_DIR && runuser -u $DB_USER -- node scripts/create-org.mjs --help"
+fi
+
 # ── 10. first admin ──────────────────────────────────────────────────────
 if [ -n "$ADMIN_EMAIL" ] && [ -f "$APP_DIR/scripts/create-admin.mjs" ]; then
   say "admin account"
@@ -320,6 +416,10 @@ cat <<EOF
   Still to do by hand:
     - point $DOMAIN at this server in DNS, if it is not already
     - fill in TELEGRAM_BOT_TOKEN in $APP_DIR/.env if this restaurant wants it
-    - seed the menu
+    - the owner adds the menu in the admin. Until there are products the
+      storefront says the menu is being set up, which is true — it no longer
+      falls back to another restaurant's menu, photos and phone number.
+    - set the delivery fee and minimum order. create-org.mjs leaves them at
+      zero, which means free delivery with no minimum.
 
 EOF

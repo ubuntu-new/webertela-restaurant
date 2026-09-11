@@ -47,6 +47,26 @@ export const SINGLE_LOCALE = LOCALES.length < 2;
 const configured = process.env.NEXT_PUBLIC_DEFAULT_LOCALE;
 export const DEFAULT_LOCALE: Locale = isLocale(configured) ? configured : LOCALES[0];
 
-// Absolute site origin — set NEXT_PUBLIC_SITE_URL in .env for production.
-// Used for canonical URLs, hreflang alternates, sitemap and JSON-LD.
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://ronnys.ge").replace(/\/$/, "");
+/**
+ * Absolute site origin, for canonical URLs, hreflang, the sitemap and JSON-LD.
+ *
+ * ⚠️ The fallback used to be "https://ronnys.ge". Every tenant that forgot to
+ * set NEXT_PUBLIC_SITE_URL therefore published canonical tags, a sitemap and
+ * structured data pointing at a different restaurant's domain — which is the
+ * one SEO mistake that actively helps a competitor and shows up nowhere on the
+ * page. Nothing renders wrong; the site simply tells search engines it is a
+ * copy of somewhere else.
+ *
+ * An empty string produces relative URLs. Those are valid, they are correct on
+ * whatever host is serving, and — unlike a wrong absolute origin — they cannot
+ * point at somebody else.
+ */
+const CONFIGURED_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ?? "";
+
+if (!CONFIGURED_SITE_URL && typeof window === "undefined") {
+  console.warn(
+    "[locales] NEXT_PUBLIC_SITE_URL is not set — canonical URLs and the sitemap will be relative",
+  );
+}
+
+export const SITE_URL = CONFIGURED_SITE_URL;
