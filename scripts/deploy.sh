@@ -42,6 +42,7 @@ die()  { printf '\n\033[31m!! %s\033[0m\n' "$*"; exit 1; }
 [ -f package.json ] || die "not a Next project — wrong directory?"
 [ -f .env ] || die "no .env in $APP"
 
+
 # ── which port does this instance actually listen on ──────────────────────────
 #
 # ⚠️ Not from `.env`. `PORT` is never written there — `deploy/new-tenant.sh` puts
@@ -124,6 +125,42 @@ echo "   git: $(git rev-parse --short HEAD) $(git log -1 --format=%s | cut -c1-6
 # forever and no deploy can ever pass again.
 DIRTY="$(git status --porcelain -- . ':!.npm' ':!package-lock.json' ':!tsconfig.json' 2>/dev/null)"
 [ -n "$DIRTY" ] && { warn "uncommitted changes:"; printf '%s\n' "$DIRTY"; die "commit or stash first"; }
+
+# ── and is it the code you think it is ────────────────────────────────────────
+#
+# ⚠️ This script does not pull. The documented invocation is
+#
+#     git pull && bash scripts/deploy.sh /srv/demo
+#
+# and `&&` was meant to be the guard. It is not, because the two lines get
+# pasted separately — which happened three times in one afternoon, three
+# different ways, and each time this script carried on and finished with
+# `== done` and a healthy /api/health:
+#
+#   • .git was root-owned, so the pull failed on FETCH_HEAD
+#   • the SSH host alias lived in root's config and not the service user's
+#   • npm had rewritten package-lock.json, so the merge refused
+#
+# All three left the previous commit in place. The health check was not lying —
+# the site was up. Nobody had asked whether it was NEW, and the one line that
+# says which commit scrolls past above a hundred lines of build output.
+#
+# A fetch first, because comparing against a stale origin/ ref answers the
+# question with data from the last time somebody looked.
+BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+if [ -n "$BRANCH" ] && [ "$BRANCH" != "HEAD" ]; then
+  if git fetch --quiet origin "$BRANCH" 2>/dev/null; then
+    BEHIND="$(git rev-list --count "HEAD..origin/$BRANCH" 2>/dev/null || echo 0)"
+    [ "$BEHIND" = "0" ] || die "this checkout is $BEHIND commit(s) behind origin/$BRANCH.
+   The pull did not happen, or it failed and the error scrolled past.
+       git -C $APP pull
+   Then run this again. Refusing to build stale code and call it a deploy."
+  else
+    # Not fatal: a deliberate rebuild of already-pulled code has to stay
+    # possible. But it is said plainly rather than passed over in silence.
+    warn "could not reach origin — cannot tell whether this checkout is current"
+  fi
+fi
 
 say "dependencies"
 npm install --no-audit --no-fund || die "npm install failed"
