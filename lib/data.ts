@@ -20,7 +20,7 @@ export interface Pizza {
   isBYO?: boolean;
 }
 
-export let PIZZAS: Pizza[] = [
+export const SEED_PIZZAS: Pizza[] = [
   { id:1,  tier:"standard", name:"Papa Ronny",    name_ka:"პაპა რონი",    emoji:"🍕", badge:"Most ordered", badge_ka:"პოპულარული", tagline:"The classic that started it all. Simple, honest, and always right.", tagline_ka:"კლასიკა, რომლითაც ყველაფერი დაიწყო. მარტივი, გულწრფელი და ყოველთვის სწორი.", sizes:[11.3,24.5,45.9], ings:["Pepperoni","Mozzarella"] },
   { id:2,  tier:"standard", name:"Driftin'",      name_ka:"დრიფტინ'",     emoji:"🍕", badge:null,           tagline:"Extra mozzarella, smoked ham, mushrooms. Comfort in every bite.",  tagline_ka:"მეტი მოცარელა, შებოლილი ლორი, სოკო. სიმყუდროვე ყოველ ნაკბენში.", sizes:[14.8,32.4,58.9], ings:["Mozzarella","Smoked Ham","Fresh Mushrooms"], defaultExtras:{ "Mozzarella": { whole: 1, left: 0, right: 0 } } },
   { id:3,  tier:"standard", name:"Hot Rod",       name_ka:"ჰოთ როდი",    emoji:"🌶️", badge:null,  tagline:"For those who aren't afraid of the heat.", tagline_ka:"მათთვის, ვისაც ცხარე არ აშინებს.", sizes:[12.7,27.6,50.8], ings:["Mozzarella","Pepperoni","Fresh Tomatoes","Red Chili Flakes"] },
@@ -46,7 +46,7 @@ export interface Topping {
   recipeOnly?: boolean;
 }
 
-export let TOPPINGS: Topping[] = [
+export const SEED_TOPPINGS: Topping[] = [
   { name:"Mozzarella",        name_ka:"მოცარელა",        emoji:"🧀", ps:[2.1,4.8,8.1], dots:["cheese"] },
   { name:"Smoked Cheese",     name_ka:"შებოლილი ყველი",   emoji:"🧀", ps:[2.1,4.8,8.1], dots:["cheese"] },
   { name:"Blue Cheese",       name_ka:"ლურჯი ყველი",      emoji:"🧀", ps:[2.1,4.8,8.1], dots:["cheese"], recipeOnly:true },
@@ -73,7 +73,7 @@ export let TOPPINGS: Topping[] = [
   { name:"Italian Seasoning", name_ka:"იტალიური სანელებლები", emoji:"🌿", ps:[0,0,0], dots:["veg"], recipeOnly:true },
 ];
 
-export let PIZZA_PHOTOS: Record<number, string> = {
+export const SEED_PIZZA_PHOTOS: Record<number, string> = {
   1:  "https://ronnyspizza.com/product_images/medium-pizza-papa_ronny-ronnys_pizza.png",
   2:  "https://ronnyspizza.com/product_images/medium-pizza-driftin'-ronnys_pizza.png",
   3:  "https://ronnyspizza.com/product_images/medium-pizza-hot_rod-ronnys_pizza.png",
@@ -89,7 +89,7 @@ export let PIZZA_PHOTOS: Record<number, string> = {
   13: "https://ronnyspizza.com/product_images/medium-pizza-classic_cheese-ronnys_pizza.png",
 };
 
-export let TOPPING_PHOTOS: Record<string, string> = {
+export const SEED_TOPPING_PHOTOS: Record<string, string> = {
   "Mozzarella":         "https://staging.ronnys.ge/wp-content/uploads/2026/04/Mozzarella-150x150.jpg",
   "Smoked Cheese":      "https://staging.ronnys.ge/wp-content/uploads/2026/04/Smoked-Cheese-150x150.jpg",
   "Pepperoni":          "https://staging.ronnys.ge/wp-content/uploads/2026/04/Pepperoni-150x150.jpg",
@@ -112,7 +112,7 @@ export let TOPPING_PHOTOS: Record<string, string> = {
   "Red Chili Flakes":   "https://staging.ronnys.ge/wp-content/uploads/2026/04/Red-Pepper-Flakes-150x150.png",
 };
 
-export let POPULAR = ["Mozzarella","Pepperoni","Smoked Ham","Roasted Chicken","BBQ Chicken","Fresh Mushrooms","Sweet Peppers","Fresh Tomatoes","Pineapple","Salami"];
+export const SEED_POPULAR = ["Mozzarella","Pepperoni","Smoked Ham","Roasted Chicken","BBQ Chicken","Fresh Mushrooms","Sweet Peppers","Fresh Tomatoes","Pineapple","Salami"];
 export let MAX_TOPPINGS = 6;
 export let MIN_ORDER = 25;
 export let FREE_DELIVERY = 60;
@@ -130,20 +130,20 @@ export interface Item {
   photo?: string;
 }
 
-export let EXTRAS: Item[] = [
+export const SEED_EXTRAS: Item[] = [
   { id: "sticks",  name: "Super Sticks", name_ka: "სუპერ ჯოხები", price: 4.20, desc: "Crispy outside, soft inside. Add mozzarella!", desc_ka: "გარედან ხრაშუნა, შიგნით რბილი. დაამატე მოცარელა!", emoji: "🥖", builder: "sticks", photo: "https://ronnyspizza.com/product_images/extras-bread_sticks-super_sticks-ronnys_pizza.png" },
   { id: "cinsticks", name: "Sweet Cinnamon Sticks", name_ka: "ტკბილი დარიჩინის ჯოხები", price: 4.20, desc: "Warm, golden, dusted with cinnamon sugar. Served with icing.", desc_ka: "თბილი, ოქროსფერი, დარიჩინ-შაქრით მოყრილი. გლეზურით.", emoji: "🥖", builder: "cinsticks", photo: "https://ronnyspizza.com/product_images/extras-bread_sticks-cinnamon_sticks-ronnys_pizza.png" },
   { id: "cookies", name: "Chocolate Chip Cookies", name_ka: "შოკოლადის ჩიფსიანი ფუნთუშები", price: 3.90, desc: "Ronny's famous cookies, baked fresh every day.", desc_ka: "რონის ცნობილი ფუნთუშები, ყოველდღე ახლად გამომცხვარი.", emoji: "🍪", photo: "https://ronnyspizza.com/product_images/cookies.png" },
 ];
 
-export let SAUCES: Item[] = [
+export const SEED_SAUCES: Item[] = [
   { id: "ranch",    name: "Ranch Sauce", name_ka: "რენჩი", price: 1.80, desc: "America's favorite creamy dip. Perfect for breadsticks, pizza, or wings.", desc_ka: "ამერიკის საყვარელი ნაღებიანი სოუსი. ჯოხებისთვის, პიცისთვის ან ფრთებისთვის.", emoji: "🥛", photo: "https://staging.ronnys.ge/wp-content/uploads/2026/04/extras-ranch_sauce-ronnys_pizza.png" },
   { id: "marinara", name: "Marinara Sauce", name_ka: "მარინარა სოუსი", price: 1.80, desc: "Our house-made marinara, for extra dipping.", desc_ka: "ჩვენი სახლში მომზადებული მარინარა, დასავლები.", emoji: "🥫", photo: "https://ronnyspizza.ge/product_images/marinara.png" },
   { id: "spicy",    name: "Spicy Sauce", name_ka: "ცხარე სოუსი", price: 1.80, desc: "For when you want more heat on the side.", desc_ka: "როცა მეტი სიცხარე გინდა გვერდით.", emoji: "🌶️", photo: "https://ronnyspizza.ge/product_images/spicy.png" },
   { id: "icing",    name: "Icing", name_ka: "გლეზური", price: 1.80, desc: "Sweet icing for Sweet Cinnamon Sticks.", desc_ka: "ტკბილი გლეზური ტკბილი დარიჩინის ჯოხებისთვის.", emoji: "🧁", photo: "https://ronnyspizza.com/product_images/icing.jpeg" },
 ];
 
-export let DRINKS: Item[] = [
+export const SEED_DRINKS: Item[] = [
   { id: "cola",         name: "Ronny's Cola", name_ka: "რონის კოლა", price: 3.50, desc: "Classic and refreshing. Our signature craft cola.", desc_ka: "კლასიკური და მაგრილებელი. ჩვენი ფირმოვანი კოლა.", emoji: "🥤", photo: "https://ronnyspizza.ge/product_images/R-Cola.png" },
   { id: "cola-cherry",  name: "Cherry Cola", name_ka: "ალუბლის კოლა", price: 3.50, desc: "Ronny's famous classic. Sweet cherry with craft cola.", desc_ka: "რონის ცნობილი კლასიკა. ტკბილი ალუბალი კოლასთან.", emoji: "🥤", photo: "https://ronnyspizza.ge/product_images/R-Cherry-Cola.png" },
   { id: "cola-vanilla", name: "Vanilla Cola", name_ka: "ვანილის კოლა", price: 3.50, desc: "Soft, creamy, smooth vanilla cola.", desc_ka: "რბილი, ნაღებიანი, გლუვი ვანილის კოლა.", emoji: "🥤", photo: "https://ronnyspizza.ge/product_images/R-Vanilla-Cola.png" },
@@ -168,7 +168,7 @@ export interface Location {
   mapsUrl: string;
 }
 
-export let LOCATIONS: Location[] = [
+export const SEED_LOCATIONS: Location[] = [
   { id:"avlabari",  branch:"Avlabari",  branch_ka:"ავლაბარი",  address:"Ketevan Dedofali Ave 12", address_ka:"ქეთევან დედოფლის გამზ. 12", hours:"11:00–23:00 (Sun 13:00–23:00)", phone:"032 2 472 472", mapsUrl:"https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent("Ronny's Pizza Avlabari, Ketevan Dedofali Ave 12, Tbilisi") },
   { id:"vake",      branch:"Vake",      branch_ka:"ვაკე",      address:"Ilia Chavchavadze Ave 7", address_ka:"ილია ჭავჭავაძის გამზ. 7", hours:"11:00–23:00 (Sun 13:00–23:00)", phone:"032 2 472 472", mapsUrl:"https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent("Ronny's Pizza Vake, Ilia Chavchavadze Ave 7, Tbilisi") },
   { id:"saburtalo", branch:"Saburtalo", branch_ka:"საბურთალო", address:"Vazha-Pshavela Ave 3", address_ka:"ვაჟა-ფშაველას გამზ. 3", hours:"11:00–23:00 (Sun 13:00–23:00)", phone:"032 2 472 472", mapsUrl:"https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent("Ronny's Pizza Saburtalo, Vazha-Pshavela Ave 3, Tbilisi") },
@@ -226,16 +226,20 @@ export interface Combo {
   active?: boolean;
 }
 
-const ALL_PIZZA_REFS = PIZZAS.filter((p) => !p.isBYO).map((p) => `pizza:${p.id}`);
+// SEED_PIZZAS, not PIZZAS: this builds the combo slots for the seed dataset and
+// runs at module load, long before any database has answered. Reading the live
+// array here would have given an empty list — and the typechecker said so,
+// because the live declarations now sit below this line.
+const ALL_PIZZA_REFS = SEED_PIZZAS.filter((p) => !p.isBYO).map((p) => `pizza:${p.id}`);
 
-export let COMBOS: Combo[] = [
+export const SEED_COMBOS: Combo[] = [
   {
     id: "combo-family",
     name: "Family Feast",
     name_ka: "საოჯახო ნადიმი",
     desc: "Two pizzas of your choice + a drink.",
     desc_ka: "ორი პიცა შენი არჩევანით + სასმელი.",
-    photo: PIZZA_PHOTOS[1],
+    photo: SEED_PIZZA_PHOTOS[1],
     pricing: { mode: "fixed", price: 42.9 },
     badge: "Best value",
     badge_ka: "საუკეთესო ფასი",
@@ -252,7 +256,7 @@ export let COMBOS: Combo[] = [
     name_ka: "კინოს საღამო",
     desc: "Papa Ronny + your side + a drink — 15% off.",
     desc_ka: "პაპა რონი + გვერდითი კერძი + სასმელი — 15% ფასდაკლება.",
-    photo: PIZZA_PHOTOS[4],
+    photo: SEED_PIZZA_PHOTOS[4],
     pricing: { mode: "discount", percent: 15 },
     badge: "-15%",
     badge_ka: "-15%",
@@ -314,20 +318,69 @@ export interface MenuPayload {
   DELIVERY_FEE: number;
 }
 
-/** ცარიელ სიას ვიგნორებთ — უკეთესია ძველი მენიუ, ვიდრე ცარიელი გვერდი. */
+/* ------------------------------------------------------------------ */
+/* The live menu                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * ⚠️ Empty until the database fills them, and empty is a real answer.
+ *
+ * These used to be declared as the Ronny's data above — the SEED_ constants —
+ * and `applyMenu` ignored empty lists on the reasoning that an old menu beats a
+ * blank page. That reasoning is wrong, and on a second tenant it is seriously
+ * wrong: a brand-new restaurant's public site served thirteen Ronny's pizzas,
+ * with photos hotlinked from ronnyspizza.com, priced in lari, and a Find Us
+ * page listing five real Tbilisi addresses under one real phone number.
+ *
+ * Nothing broke. The site simply answered a question about somebody else.
+ *
+ * A blank menu is not a failure state to be papered over — it is the correct
+ * description of a restaurant whose menu has not been entered yet, and the page
+ * that renders it should say so. The SEED_ data above is now exactly what its
+ * name says: the dataset `prisma/seed.ts` loads into Ronny's database, and
+ * nothing that ships to a browser by default.
+ */
+export let PIZZAS: Pizza[] = [];
+export let TOPPINGS: Topping[] = [];
+export let PIZZA_PHOTOS: Record<number, string> = {};
+export let TOPPING_PHOTOS: Record<string, string> = {};
+export let POPULAR: string[] = [];
+export let EXTRAS: Item[] = [];
+export let SAUCES: Item[] = [];
+export let DRINKS: Item[] = [];
+export let LOCATIONS: Location[] = [];
+export let COMBOS: Combo[] = [];
+
+/** True when the database has given us nothing to show. */
+export function menuIsEmpty(): boolean {
+  return PIZZAS.length === 0 && EXTRAS.length === 0 && DRINKS.length === 0 && COMBOS.length === 0;
+}
+
+/**
+ * Whatever the database said, including nothing.
+ *
+ * ⚠️ The four numbers below are still conditional, and that is deliberate
+ * rather than forgotten. `MIN_ORDER`, `DELIVERY_FEE`, `FREE_DELIVERY` and
+ * `MAX_TOPPINGS` decide what a live restaurant charges for delivery. Defaulting
+ * them to zero because a settings row was missing would quietly give every
+ * customer free delivery, and unlike a wrong menu that failure moves money.
+ *
+ * They belong in Settings with an explicit "not configured" state, and that is
+ * a separate change to make with a test in front of it.
+ */
 export function applyMenu(m?: Partial<MenuPayload> | null) {
   if (!m) return;
 
-  if (m.PIZZAS?.length) PIZZAS = m.PIZZAS;
-  if (m.TOPPINGS?.length) TOPPINGS = m.TOPPINGS;
-  if (m.PIZZA_PHOTOS && Object.keys(m.PIZZA_PHOTOS).length) PIZZA_PHOTOS = m.PIZZA_PHOTOS;
-  if (m.TOPPING_PHOTOS && Object.keys(m.TOPPING_PHOTOS).length) TOPPING_PHOTOS = m.TOPPING_PHOTOS;
-  if (m.POPULAR?.length) POPULAR = m.POPULAR;
-  if (m.EXTRAS?.length) EXTRAS = m.EXTRAS;
-  if (m.SAUCES?.length) SAUCES = m.SAUCES;
-  if (m.DRINKS?.length) DRINKS = m.DRINKS;
-  if (m.LOCATIONS?.length) LOCATIONS = m.LOCATIONS;
-  if (m.COMBOS?.length) COMBOS = m.COMBOS;
+  if (m.PIZZAS) PIZZAS = m.PIZZAS;
+  if (m.TOPPINGS) TOPPINGS = m.TOPPINGS;
+  if (m.PIZZA_PHOTOS) PIZZA_PHOTOS = m.PIZZA_PHOTOS;
+  if (m.TOPPING_PHOTOS) TOPPING_PHOTOS = m.TOPPING_PHOTOS;
+  if (m.POPULAR) POPULAR = m.POPULAR;
+  if (m.EXTRAS) EXTRAS = m.EXTRAS;
+  if (m.SAUCES) SAUCES = m.SAUCES;
+  if (m.DRINKS) DRINKS = m.DRINKS;
+  if (m.LOCATIONS) LOCATIONS = m.LOCATIONS;
+  if (m.COMBOS) COMBOS = m.COMBOS;
 
   if (typeof m.MAX_TOPPINGS === "number") MAX_TOPPINGS = m.MAX_TOPPINGS;
   if (typeof m.MIN_ORDER === "number") MIN_ORDER = m.MIN_ORDER;

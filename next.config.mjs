@@ -3,6 +3,19 @@ const nextConfig = {
   reactStrictMode: true,
 
   /**
+   * Pin the workspace root.
+   *
+   * There is a stray package-lock.json in the user's home directory, and Next
+   * walks upwards looking for one. Left alone it warns on every lint and build,
+   * and — worse — decides the project root is C:\Users\levan, which changes
+   * which files it traces into a standalone build.
+   *
+   * Saying so explicitly costs one line and removes a category of "works on my
+   * machine".
+   */
+  outputFileTracingRoot: import.meta.dirname,
+
+  /**
    * Where a build is written — normally `.next`, and somewhere else while a
    * deploy is in progress.
    *

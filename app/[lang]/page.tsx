@@ -13,17 +13,32 @@ export default async function Page({ params }: { params: Promise<{ lang: string 
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
 
+  /**
+   * ⚠️ A failed read and an empty menu are two different facts.
+   *
+   * They used to produce the same screen, because a failure fell through to the
+   * hardcoded menu in lib/data.ts and so did an empty database. That hid both:
+   * a restaurant whose menu was never entered looked open for business, and a
+   * database outage looked like a normal Tuesday at prices nobody had checked
+   * in months.
+   *
+   * Now they are told apart and say different things. "We cannot reach the
+   * kitchen's system, please call" is true and useful. "The menu is being set
+   * up" is also true, and useful to a different person.
+   */
   let menu = null;
+  let menuFailed = false;
   try {
     menu = await getMenu();
   } catch (e) {
-    // ბაზა მიუწვდომელია → lib/data.ts-ის სტატიკური მენიუ რჩება ძალაში.
-    console.error("menu: ბაზიდან წამოღება ვერ მოხერხდა, ვიყენებ fallback-ს", e);
+    menuFailed = true;
+    console.error("menu: could not be read from the database", e);
   }
 
-  // SSR-ის დროსაც ვავსებთ, რომ სერვერზე დარენდერებული HTML სწორი იყოს
+  // Filled during SSR too, so the server-rendered HTML is correct rather than
+  // briefly wrong until the browser catches up.
   applyMenu(menu);
 
   const org = await orgFormat();
-  return <ClientApp lang={lang as Lang} menu={menu} org={org} />;
+  return <ClientApp lang={lang as Lang} menu={menu} menuFailed={menuFailed} org={org} />;
 }

@@ -11,6 +11,7 @@ import {
   SAUCES,
   DRINKS,
   LOCATIONS,
+  menuIsEmpty,
   SLICE_SVG,
   pName,
   pBadge,
@@ -37,6 +38,45 @@ const slice = { __html: SLICE_SVG };
 export default function MenuBody() {
   const { lang, t, f } = useLang();
   const { openCustomizer, openHH, openCombo } = useCart();
+
+  /**
+   * ⚠️ Before anything below touches the arrays. Two reasons, and the second
+   * one is a crash.
+   *
+   * The honest reason: a restaurant whose menu has not been entered yet should
+   * say so. It used to inherit Ronny's menu from lib/data.ts and look open for
+   * business with somebody else's pizzas.
+   *
+   * The urgent reason: the next line is `PIZZAS.find(p => p.id === 14)!`. The
+   * `!` tells the compiler there is always a Build-Your-Own pizza with id 14,
+   * which is true of Ronny's data and of nothing else. On an empty menu it is
+   * `undefined`, and the page does not render blank — it throws.
+   *
+   * ⚠️ Still outstanding: that assertion is also wrong for any real second
+   * client whose menu simply has no id 14. Left for a pass with a typechecker
+   * in front of it, because removing the `!` means touching every use below.
+   */
+  if (menuIsEmpty()) {
+    return (
+      <section
+        style={{
+          padding: '72px 24px',
+          textAlign: 'center',
+          maxWidth: 560,
+          margin: '0 auto',
+        }}
+      >
+        <h2 style={{ fontSize: 22, marginBottom: 12 }}>
+          {lang === 'ka' ? 'მენიუ ჯერ არ არის შევსებული' : 'The menu is being set up'}
+        </h2>
+        <p style={{ fontSize: 15, lineHeight: 1.65, opacity: 0.75 }}>
+          {lang === 'ka'
+            ? 'ონლაინ შეკვეთა მალე ჩაირთვება. მანამდე დაგვირეკეთ — შეკვეთას ტელეფონით მივიღებთ.'
+            : 'Online ordering will open shortly. Until then, please call us and we will take your order over the phone.'}
+        </p>
+      </section>
+    );
+  }
 
   const menuPizzas = PIZZAS.filter((p) => !p.isBYO);
   const byoPizza = PIZZAS.find((p) => p.id === 14)!;

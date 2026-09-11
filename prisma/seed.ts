@@ -11,17 +11,23 @@
 //   npx tsx prisma/seed.ts --force  ← ყველაფრის დაბრუნება lib/data.ts-იდან
 
 import { PrismaClient } from "@prisma/client";
+// ⚠️ SEED_* და არა PIZZAS/TOPPINGS/...
+//
+// lib/data.ts-ში ცოცხალი ცვლადები ახლა ცარიელია და ბაზიდან ივსება. რონის
+// მონაცემები იმავე ფაილში SEED_ პრეფიქსით ცხოვრობს და მხოლოდ აქ იკითხება.
+// ეს განსხვავება იმისთვისაა, რომ ერთი რესტორნის მენიუ მეორის საიტზე ვეღარ
+// მოხვდეს — ადრე ცარიელი ბაზა ნიშნავდა, რომ ბრაუზერამდე რონის მენიუ მიდიოდა.
 import {
-  PIZZAS,
-  TOPPINGS,
-  PIZZA_PHOTOS,
-  TOPPING_PHOTOS,
-  POPULAR,
-  EXTRAS,
-  SAUCES,
-  DRINKS,
-  LOCATIONS,
-  COMBOS,
+  SEED_PIZZAS as PIZZAS,
+  SEED_TOPPINGS as TOPPINGS,
+  SEED_PIZZA_PHOTOS as PIZZA_PHOTOS,
+  SEED_TOPPING_PHOTOS as TOPPING_PHOTOS,
+  SEED_POPULAR as POPULAR,
+  SEED_EXTRAS as EXTRAS,
+  SEED_SAUCES as SAUCES,
+  SEED_DRINKS as DRINKS,
+  SEED_LOCATIONS as LOCATIONS,
+  SEED_COMBOS as COMBOS,
   MAX_TOPPINGS,
   MIN_ORDER,
   FREE_DELIVERY,

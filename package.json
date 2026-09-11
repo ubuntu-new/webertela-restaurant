@@ -4,6 +4,8 @@
   "private": true,
   "description": "Ronny's Pizza — Next.js (App Router) ordering app",
   "scripts": {
+    "//postinstall": "⚠️ Without this, a clean `npm install` leaves the Prisma client ungenerated — and then `tsc` reports ~350 errors in 77 files about code that is entirely correct, because every query result types as `any`. Anybody opening this repository for the first time, on any machine, sees that and concludes the project is broken. It also means `deploy/new-tenant.sh` depended on remembering to run `prisma generate` by hand.",
+    "postinstall": "prisma generate",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
