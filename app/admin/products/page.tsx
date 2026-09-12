@@ -38,9 +38,21 @@ export default async function ProductsPage({
             {products.length} {t("records")}
           </p>
         </div>
-        <Link className="btn" href="/admin/products/new">
-          + {t("New product")}
-        </Link>
+        <div className="field-row">
+          {/*
+            Import first, and deliberately.
+
+            A restaurant arriving at this page for the first time has a whole
+            menu to enter, not one product. Sending them to the single-product
+            form is sending them on ninety submissions.
+          */}
+          <Link className="btn" href="/admin/products/import">
+            {t("Import a menu")}
+          </Link>
+          <Link className="btn btn-ghost" href="/admin/products/new">
+            + {t("New product")}
+          </Link>
+        </div>
       </div>
 
       {sp.saved && <div className="alert alert-ok">{t("Saved.")}</div>}
