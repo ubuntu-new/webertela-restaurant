@@ -101,10 +101,18 @@ export default function MenuBody() {
               return (
                 <button className="combo-card" key={c.id} onClick={() => openCombo(c)}>
                   <div className="combo-thumb">
+                    {/*
+                      The same fallback the pizzas and sides have, which this
+                      never had. A combo with no photo was a bare grey box, and
+                      a combo whose photo failed was worse: `currentTarget
+                      .remove()` deleted the image and left nothing behind it.
+                      Rendered underneath, so a real photo covers it.
+                    */}
+                    <div className="p-emoji" dangerouslySetInnerHTML={slice} />
                     {badge && <div className="combo-badge">{badge}</div>}
                     {c.photo && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.photo} alt={comboName(c, lang)} loading="lazy" onError={(e) => e.currentTarget.remove()} />
+                      <img src={c.photo} alt={comboName(c, lang)} loading="lazy" onError={imgError} />
                     )}
                   </div>
                   <div className="combo-info">

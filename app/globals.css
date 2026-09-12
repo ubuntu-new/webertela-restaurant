@@ -791,9 +791,24 @@ button.trust-item-link:hover { text-decoration-color: var(--green); }
   transition: transform .35s ease;
 }
 .pizza-card:hover .pizza-img img { transform: scale(1.04); }
+/* ⚠️ Shown by default, not revealed by an error handler.
+ *
+ * This was `display: none`, and `imgError` in components/MenuBody.tsx switched
+ * it on when a photo failed to load. Which covers a broken URL and misses the
+ * case that actually happens: a product with **no** photo renders no <img> at
+ * all, so nothing ever errors, so the fallback stayed hidden and the card was
+ * an empty grey square.
+ *
+ * That is every new restaurant's first day. The menu goes in within minutes now
+ * that it can be pasted; the photographs take a week. In between, the site is a
+ * grid of blank tiles — and that is the one first impression nobody gets twice.
+ *
+ * It sits underneath: the <img> is rendered after it and paints on top, so a
+ * real photo hides it with no JavaScript involved. The error handler still has
+ * a job — it hides a broken <img> so this shows through again. */
 .pizza-img .p-emoji {
   position: absolute; inset: 0;
-  display: none;
+  display: flex;
   align-items: center; justify-content: center;
   background: var(--bg-soft);
 }
@@ -2016,7 +2031,17 @@ button.trust-item-link:hover { text-decoration-color: var(--green); }
 }
 .combo-card:hover { border-color: var(--orange); box-shadow: var(--sh-md); transform: translateY(-2px); }
 .combo-thumb { width: 118px; flex-shrink: 0; background: var(--bg-soft); position: relative; overflow: hidden; }
-.combo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.combo-thumb img { width: 100%; height: 100%; object-fit: cover; position: relative; }
+/* Same fallback as a pizza card, which this box never had. `.p-emoji` is styled
+   under `.pizza-img` only, so the rule is repeated here rather than the markup
+   being bent to match a selector. */
+.combo-thumb .p-emoji {
+  position: absolute; inset: 0;
+  display: flex;
+  align-items: center; justify-content: center;
+  background: var(--bg-soft);
+}
+.combo-thumb .p-emoji svg { width: 44%; height: 44%; opacity: .55; }
 .combo-badge {
   position: absolute; top: 8px; left: 8px; z-index: 2;
   background: var(--red); color: #fff; font-size: 10px; font-weight: 700;
@@ -2109,7 +2134,16 @@ button.trust-item-link:hover { text-decoration-color: var(--green); }
 .footer-bottom {
   border-top: 1px solid var(--line); padding: 14px 20px; text-align: center;
   font-size: var(--text-micro); color: var(--ink-3);
+  display: flex; flex-wrap: wrap; gap: 4px 14px;
+  align-items: center; justify-content: center;
 }
+/* Quieter than the copyright beside it, and deliberately so — see the comment
+   in components/Footer.tsx. It is credit, not a banner. */
+.footer-built {
+  color: var(--ink-3); opacity: .6;
+  text-decoration: none; border-bottom: 1px solid transparent;
+}
+.footer-built:hover { opacity: 1; border-bottom-color: currentColor; }
 
 
 

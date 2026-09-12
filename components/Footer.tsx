@@ -89,6 +89,28 @@ export default function Footer() {
           © {year}
           {brand.name ? ` ${brand.name}.` : "."} {t("footer_rights")}
         </span>
+
+        {/*
+          The one place our name belongs on a page a customer reads.
+
+          ⚠️ Deliberately this small. The whole point of what the storefront
+          became today is that it is the restaurant's site and not ours — a
+          Webertela-coloured page would tell a pizzeria owner "this is
+          software", when what sells it is "this is your restaurant". A quiet
+          line at the very bottom is credit; anything louder is us standing in
+          front of the customer.
+
+          `rel="noopener"` and nothing else: no tracking parameter, nothing that
+          makes a client's own footer work for us beyond the link itself.
+        */}
+        <a
+          className="footer-built"
+          href="https://webertela.online"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Built by Webertela
+        </a>
       </div>
     </footer>
   );
