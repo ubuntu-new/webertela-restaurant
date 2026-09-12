@@ -31,25 +31,44 @@ function publicUrl(req: NextRequest, pathname: string): URL {
   const url = req.nextUrl.clone();
   url.pathname = pathname;
 
-  const fwdHost = req.headers.get("x-forwarded-host");
-  if (fwdHost) {
-    url.protocol = `${req.headers.get("x-forwarded-proto") ?? "https"}:`;
-    url.host = fwdHost;
-    url.port = "";
-    return url;
-  }
+  /**
+   * ⚠️ The `Host` header, and nothing cleverer. Two things were wrong before.
+   *
+   * ── The fallback was dead code ──
+   *
+   * It read `x-forwarded-host` first "which Caddy sets on every request", and
+   * fell back to NEXT_PUBLIC_SITE_URL. But **Next sets x-forwarded-host itself,
+   * on every request**, proxy or no proxy — so the first branch always won and
+   * the configured value was never once used. A fallback that cannot run is not
+   * a fallback; it is a comment.
+   *
+   * ── And the port was thrown away ──
+   *
+   *   url.host = fwdHost;
+   *   url.port = "";
+   *
+   * Correct behind Caddy, where the public site is on 443 — and wrong
+   * everywhere else. Through an SSH tunnel, `localhost:3006/admin` redirected
+   * to `http://localhost/admin/login`: port 80, nothing listening, connection
+   * refused. Which is how this was found, by somebody trying to log in.
+   *
+   * ── What is actually true ──
+   *
+   * `Host` is the address the browser asked for. It carries the port when there
+   * is one and omits it when there is not, which is exactly the distinction
+   * being destroyed above. Caddy overwrites it with the public hostname, so
+   * behind the proxy it is the public name; hit directly, it is whatever you
+   * typed. Both are right, and neither needs configuring.
+   *
+   * Only the scheme needs help: TLS ends at Caddy, so the request arrives as
+   * http and `x-forwarded-proto` is the one honest thing it adds.
+   */
+  const host = req.headers.get("host");
+  if (host) url.host = host; // assigning `host` sets the port too, or clears it
 
-  const site = process.env.NEXT_PUBLIC_SITE_URL;
-  if (site) {
-    try {
-      const base = new URL(site);
-      url.protocol = base.protocol;
-      url.host = base.host;
-      url.port = base.port;
-    } catch {
-      /* a malformed value is not worth failing a request over */
-    }
-  }
+  const proto = req.headers.get("x-forwarded-proto");
+  if (proto) url.protocol = `${proto.split(",")[0].trim()}:`;
+
   return url;
 }
 
