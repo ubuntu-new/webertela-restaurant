@@ -36,7 +36,7 @@ function imgError(e: React.SyntheticEvent<HTMLImageElement>) {
 const slice = { __html: SLICE_SVG };
 
 export default function MenuBody() {
-  const { lang, t, f, brand } = useLang();
+  const { lang, t, f } = useLang();
   const { openCustomizer, openHH, openCombo } = useCart();
 
   /**

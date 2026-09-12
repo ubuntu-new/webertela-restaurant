@@ -25,6 +25,8 @@
  * delivery time is a promise the kitchen did not make, and a made-up name is
  * how this file came to exist.
  */
+import type { SocialLink } from "@/lib/social";
+
 export interface Brand {
   name: string;
   tagline: string;
@@ -32,12 +34,26 @@ export interface Brand {
   deliveryTime: string;
   /** e.g. "4.8". Shown only if the restaurant actually has a rating. */
   rating: string;
+  /**
+   * Where it can be followed, from `Setting: social`.
+   *
+   * These were three hardcoded links to Ronny's Facebook, Instagram and TikTok,
+   * shipped to every tenant under the words "Follow us" — the one item on this
+   * list that actively delivered a restaurant's own customers to a competitor.
+   */
+  socials: SocialLink[];
 }
 
-export const NO_BRAND: Brand = { name: "", tagline: "", deliveryTime: "", rating: "" };
+export const NO_BRAND: Brand = {
+  name: "",
+  tagline: "",
+  deliveryTime: "",
+  rating: "",
+  socials: [],
+};
 
 /** Read an unknown value (a Setting row plus the org name) into a Brand. */
-export function toBrand(v: unknown, name: string): Brand {
+export function toBrand(v: unknown, name: string, socials: SocialLink[] = []): Brand {
   const o = (v ?? {}) as Record<string, unknown>;
   const str = (k: string) => {
     const raw = o[k];
@@ -48,5 +64,6 @@ export function toBrand(v: unknown, name: string): Brand {
     tagline: str("tagline"),
     deliveryTime: str("deliveryTime"),
     rating: str("rating"),
+    socials,
   };
 }

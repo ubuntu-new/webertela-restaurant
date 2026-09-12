@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { db } from "@/lib/db";
 import { NO_BRAND, toBrand, type Brand } from "@/lib/brand-shared";
+import { toSocialLinks } from "@/lib/social";
 
 export { NO_BRAND, toBrand };
 export type { Brand };
@@ -26,13 +27,19 @@ export type { Brand };
  */
 export const brandOf = cache(async (lang: string = "en"): Promise<Brand> => {
   try {
-    const [org, setting] = await Promise.all([
+    const [org, settings] = await Promise.all([
       db.organization.findFirst({ select: { name: true } }),
-      db.setting.findUnique({ where: { key: "org" } }),
+      db.setting.findMany({ where: { key: { in: ["org", "social"] } } }),
     ]);
 
+    const byKey = Object.fromEntries(settings.map((s) => [s.key, s.value]));
     const n = org?.name as Record<string, string> | null | undefined;
-    return toBrand(setting?.value, n?.[lang] || n?.en || "");
+
+    return toBrand(
+      byKey.org,
+      n?.[lang] || n?.en || "",
+      toSocialLinks(byKey.social),
+    );
   } catch {
     // Identity is decoration. A database that cannot be reached is already a
     // problem for the menu, which says so itself — it must not blank the page

@@ -1,7 +1,7 @@
 "use client";
 
 import { useLang } from "@/lib/i18n";
-import { SOCIAL_LINKS, type SocialId } from "@/lib/social";
+import { type SocialId } from "@/lib/social";
 
 // Brand glyphs (inline so no icon dependency). Keyed by social id.
 const ICONS: Record<SocialId, React.ReactNode> = {
@@ -26,7 +26,9 @@ const ICONS: Record<SocialId, React.ReactNode> = {
 export default function Footer() {
   const { t, brand } = useLang();
   const year = new Date().getFullYear();
-  const socials = SOCIAL_LINKS.filter((s) => s.enabled && s.href);
+  // From the restaurant's own settings. These used to be three hardcoded links
+  // to Ronny's accounts, shown under "Follow us" on every tenant's footer.
+  const socials = brand.socials;
 
   const quick: { key: string; target: string }[] = [
     { key: "nav_combos", target: "section-combos" },

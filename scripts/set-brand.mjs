@@ -36,7 +36,26 @@ if (arg('rating') !== undefined) patch.rating = arg('rating');
 if (process.argv.includes('--clear-rating')) patch.rating = '';
 if (process.argv.includes('--clear-delivery')) patch.deliveryTime = '';
 
-if (!Object.keys(patch).length) {
+/**
+ * Socials live under their own key, because the schema already said they do.
+ *
+ * Only http(s) is accepted — `lib/social.ts` drops anything else rather than
+ * rendering it, and a settings row is exactly where a `javascript:` href would
+ * sit waiting for a careless admin account.
+ */
+const SOCIALS = ['facebook', 'instagram', 'tiktok', 'twitter', 'youtube'];
+const socialPatch = {};
+for (const id of SOCIALS) {
+  const v = arg(id);
+  if (v === undefined) continue;
+  if (v !== '' && !/^https?:\/\//i.test(v)) {
+    console.error(`✗ --${id} must be an http(s) URL, got "${v}"`);
+    process.exit(1);
+  }
+  socialPatch[id] = v;
+}
+
+if (!Object.keys(patch).length && !Object.keys(socialPatch).length) {
   console.error(`
 Nothing to set.
 
@@ -46,30 +65,54 @@ Nothing to set.
   --clear-rating      stop claiming a rating
   --clear-delivery    stop promising a delivery time
 
+  --facebook  https://www.facebook.com/theirpage
+  --instagram https://www.instagram.com/theirpage
+  --tiktok    https://www.tiktok.com/@theirpage
+  (pass "" to remove one)
+
 ⚠️ A rating belongs to customers, not to a settings file. Set one only if the
    restaurant genuinely has it and can point at where it came from.
 `);
   process.exit(1);
 }
 
-const row = await db.setting.findUnique({ where: { key: 'org' } });
-if (!row) {
-  console.error(
-    '✗ there is no `org` setting yet — run scripts/create-org.mjs first, it creates one',
-  );
-  process.exit(1);
+if (Object.keys(socialPatch).length) {
+  const existing = await db.setting.findUnique({ where: { key: 'social' } });
+  const value = { ...(existing?.value ?? {}), ...socialPatch };
+  await db.setting.upsert({
+    where: { key: 'social' },
+    update: { value },
+    create: { key: 'social', value },
+  });
+  console.log('✓ social links updated');
+  for (const [k, v] of Object.entries(socialPatch)) {
+    console.log(`  ${k.padEnd(14)} ${v === '' ? '(removed)' : v}`);
+  }
+  console.log();
 }
 
-// Merged, not replaced: this row also holds locale, currency, timeZone and
-// country, and overwriting it would set the restaurant back to dollars.
-const value = { ...(row.value ?? {}), ...patch };
+// Only touched when there is something for it. Setting socials alone should not
+// fail on a tenant whose `org` row does not exist yet.
+if (Object.keys(patch).length) {
+  const row = await db.setting.findUnique({ where: { key: 'org' } });
+  if (!row) {
+    console.error(
+      '✗ there is no `org` setting yet — run scripts/create-org.mjs first, it creates one',
+    );
+    process.exit(1);
+  }
 
-await db.setting.update({ where: { key: 'org' }, data: { value } });
+  // Merged, not replaced: this row also holds locale, currency, timeZone and
+  // country, and overwriting it would set the restaurant back to dollars.
+  const value = { ...(row.value ?? {}), ...patch };
 
-console.log('✓ brand updated\n');
-for (const [k, v] of Object.entries(patch)) {
-  console.log(`  ${k.padEnd(14)} ${v === '' ? '(hidden)' : v}`);
+  await db.setting.update({ where: { key: 'org' }, data: { value } });
+
+  console.log('✓ brand updated\n');
+  for (const [k, v] of Object.entries(patch)) {
+    console.log(`  ${k.padEnd(14)} ${v === '' ? '(hidden)' : v}`);
+  }
+  console.log();
 }
-console.log();
 
 await db.$disconnect();
