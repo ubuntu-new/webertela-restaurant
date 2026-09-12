@@ -165,10 +165,30 @@ export async function setupChecklist(): Promise<Checklist> {
       id: "menu",
       title: "Something to sell",
       why: "The menu the ordering site and the till both read.",
-      href: products === 0 ? "/admin/setup/starter" : "/admin/products",
+      /**
+       * ⚠️ Always the products page.
+       *
+       * This used to send a restaurant with no products to
+       * /admin/setup/starter — a screen that says, in its own words, "No
+       * products, no prices, no menu. Your pizzas are yours." A starter pack
+       * adds stock items and toppings and deliberately creates nothing
+       * sellable, so the one step called "Something to sell" pointed at the
+       * one page that cannot produce any.
+       */
+      href: "/admin/products",
       done: products > 0,
-      minutes: 60,
-      detail: `${products} products`,
+      /**
+       * ⚠️ 60 was a guess, and the step is still a tick rather than progress —
+       * which this file's own header calls out at line 13: "A tick is not
+       * progress." One product marks the whole menu done.
+       *
+       * The number is closer to the truth now that it has been counted: a
+       * normal menu is about ninety form submissions today, because every
+       * product costs a create and then an edit. Until that is fixed, an
+       * honest estimate is hours, not an hour.
+       */
+      minutes: 240,
+      detail: products > 0 ? `${products} products` : "nothing to sell yet",
     },
   ];
 

@@ -35,6 +35,36 @@ export const createProduct = formAction(async (fd: FormData) => {
   // both, and nobody can tell which one the kitchen printed.
   await guardDuplicate("product", nameEn, { confirmed: isConfirmed(fd), t });
 
+  /**
+   * ⚠️ Every pizza needs a legacyId, and nothing was giving it one.
+   *
+   * The storefront identifies a pizza by that number:
+   *
+   *   lib/menu-db.ts:91    id: p.legacyId ?? 0
+   *   lib/menu-db.ts:107   if (p.legacyId != null && p.photo) PIZZA_PHOTOS[p.legacyId] = p.photo
+   *
+   * `legacyId` is `Int? @unique`, and Postgres allows any number of NULLs. It
+   * was only ever set by the seeds, so every pizza added through the admin came
+   * out as **id 0** — all of them, the same one.
+   *
+   * The result is not a missing photo. It is two pizzas sharing a React key, a
+   * single shared entry in PIZZA_PHOTOS, half-and-half references that all read
+   * `pizza:0`, and a customiser that opens whichever one the list happened to
+   * hit first. A restaurant entering its own menu could not produce a working
+   * pizza at all — after filling in the form correctly.
+   *
+   * So the number is allocated here, from the top. `max + 1` rather than a
+   * count, because a deleted pizza must not hand its id to a new one: the old
+   * number lives on in saved orders and in combo slot references.
+   */
+  const price = type === "pizza" ? null : (fdNum(fd, "price") ?? 0);
+
+  let legacyId: number | null = null;
+  if (type === "pizza") {
+    const top = await db.product.aggregate({ _max: { legacyId: true } });
+    legacyId = (top._max.legacyId ?? 0) + 1;
+  }
+
   const product = await db.product.create({
     data: {
       name: { en: nameEn, ka: fdStr(fd, "name_ka") || nameEn },
@@ -42,8 +72,26 @@ export const createProduct = formAction(async (fd: FormData) => {
       description: { en: "", ka: "" },
       categoryId,
       type,
-      price: type === "pizza" ? null : (fdNum(fd, "price") ?? 0),
-      active: false, // ახალი პროდუქტი გამორთულია სანამ არ შეავსებ
+      legacyId,
+      price,
+      /**
+       * ⚠️ Off only when it is genuinely unfinished.
+       *
+       * Every product used to be created disabled, with no way to enable one
+       * from this form — so a drink with a name, a category and a price still
+       * cost a second visit to a forty-field page whose only purpose was to
+       * tick a box. Thirty products meant sixty submissions, half of them
+       * throwaway.
+       *
+       * A pizza is different and stays off: its three sizes are created at
+       * price 0, and a pizza anybody can order for nothing is worse than one
+       * that is not on the menu yet. It is switched on once the sizes are
+       * priced.
+       *
+       * So the rule is the honest one — a product is on when it is sellable,
+       * which for a non-pizza means somebody typed a price.
+       */
+      active: type !== "pizza" && (price ?? 0) > 0,
       sortOrder: 999,
       updatedBy: session.sub,
     },
@@ -66,7 +114,17 @@ export const createProduct = formAction(async (fd: FormData) => {
   });
 
   revalidatePath("/admin/products");
-  redirect(`/admin/products/${product.id}`);
+  revalidatePath("/");
+
+  /**
+   * A finished product goes back to the list; an unfinished one goes to the
+   * page that finishes it.
+   *
+   * Landing on the edit page after creating a priced drink was the whole
+   * round trip: nothing there needed doing, and the way back to add the next
+   * drink was three clicks.
+   */
+  redirect(product.active ? "/admin/products?saved=1" : `/admin/products/${product.id}`);
 }, tr);
 
 /** სრული რედაქტირება. */
