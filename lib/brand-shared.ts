@@ -35,6 +35,26 @@ export interface Brand {
   /** e.g. "4.8". Shown only if the restaurant actually has a rating. */
   rating: string;
   /**
+   * What the browser tab and the Google result say after the name.
+   *
+   * ⚠️ Separate from `tagline`, and the difference is the whole point.
+   *
+   *   tagline   "Makes Life Better"                    — a slogan, for humans
+   *   seoLine   "Fresh pizza delivery in Tbilisi"      — words people search
+   *
+   * The first version of this work replaced a hand-written title with a
+   * generic one, because the hand-written one named another restaurant's city.
+   * That was right for a new tenant and a real loss for Ronny's: they went from
+   * a title containing "pizza delivery" and "Tbilisi" to one containing
+   * neither, which is the difference between being found and not.
+   *
+   * Empty falls back to a neutral sentence — true of any restaurant, useful to
+   * none of them in search. It is meant to be filled in.
+   */
+  seoLine: string;
+  /** The meta description. Same rule: theirs if they have one. */
+  seoDescription: string;
+  /**
    * Where it can be followed, from `Setting: social`.
    *
    * These were three hardcoded links to Ronny's Facebook, Instagram and TikTok,
@@ -49,21 +69,41 @@ export const NO_BRAND: Brand = {
   tagline: "",
   deliveryTime: "",
   rating: "",
+  seoLine: "",
+  seoDescription: "",
   socials: [],
 };
 
 /** Read an unknown value (a Setting row plus the org name) into a Brand. */
-export function toBrand(v: unknown, name: string, socials: SocialLink[] = []): Brand {
+export function toBrand(
+  v: unknown,
+  name: string,
+  socials: SocialLink[] = [],
+  lang: string = "en",
+): Brand {
   const o = (v ?? {}) as Record<string, unknown>;
+  /**
+   * A field may be a plain string or the { en, ka } shape the rest of the
+   * schema uses. A title in one language is worse than none in the other, and a
+   * restaurant with two locales will want two titles.
+   */
   const str = (k: string) => {
     const raw = o[k];
-    return typeof raw === "string" ? raw.trim() : "";
+    if (typeof raw === "string") return raw.trim();
+    if (raw && typeof raw === "object") {
+      const m = raw as Record<string, string>;
+      return String(m[lang] ?? m.en ?? "").trim();
+    }
+    return "";
   };
+
   return {
     name: name.trim(),
     tagline: str("tagline"),
     deliveryTime: str("deliveryTime"),
     rating: str("rating"),
+    seoLine: str("seoLine"),
+    seoDescription: str("seoDescription"),
     socials,
   };
 }

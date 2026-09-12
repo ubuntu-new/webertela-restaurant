@@ -33,6 +33,30 @@ const patch = {};
 if (arg('tagline') !== undefined) patch.tagline = arg('tagline');
 if (arg('delivery') !== undefined) patch.deliveryTime = arg('delivery');
 if (arg('rating') !== undefined) patch.rating = arg('rating');
+
+/**
+ * ⚠️ --seo-line is not --tagline, and mixing them up costs a search ranking.
+ *
+ *   --tagline  "Makes Life Better"               a slogan, printed under the logo
+ *   --seo-line "Fresh pizza delivery in Monroe"  what the browser tab and the
+ *                                                Google result say
+ *
+ * Both accept `en=…,ka=…` for a restaurant with two languages, because a title
+ * in the wrong language is worse than a plain one.
+ */
+const i18nArg = (v) => {
+  if (v === undefined) return undefined;
+  if (!/^[a-z]{2}=/.test(v)) return v;
+  return Object.fromEntries(
+    v.split(',').map((pair) => {
+      const at = pair.indexOf('=');
+      return [pair.slice(0, at).trim(), pair.slice(at + 1).trim()];
+    }),
+  );
+};
+
+if (arg('seo-line') !== undefined) patch.seoLine = i18nArg(arg('seo-line'));
+if (arg('seo-description') !== undefined) patch.seoDescription = i18nArg(arg('seo-description'));
 if (process.argv.includes('--clear-rating')) patch.rating = '';
 if (process.argv.includes('--clear-delivery')) patch.deliveryTime = '';
 
@@ -59,11 +83,15 @@ if (!Object.keys(patch).length && !Object.keys(socialPatch).length) {
   console.error(`
 Nothing to set.
 
-  --tagline "Makes Life Better"
+  --tagline "Makes Life Better"          slogan, under the logo
+  --seo-line "Fresh pizza delivery in Monroe"   browser tab and Google result
+  --seo-description "Order fresh, hand-built pizza…"
   --delivery "30–45 min"
   --rating 4.8
   --clear-rating      stop claiming a rating
   --clear-delivery    stop promising a delivery time
+
+  Two languages:  --seo-line "en=Pizza delivery in Monroe,ka=პიცის მიტანა"
 
   --facebook  https://www.facebook.com/theirpage
   --instagram https://www.instagram.com/theirpage
@@ -150,7 +178,8 @@ if (Object.keys(patch).length) {
 
   console.log('✓ brand updated\n');
   for (const [k, v] of Object.entries(patch)) {
-    console.log(`  ${k.padEnd(14)} ${v === '' ? '(hidden)' : v}`);
+    const shown = v === '' ? '(hidden)' : typeof v === 'object' ? JSON.stringify(v) : v;
+    console.log(`  ${k.padEnd(16)} ${shown}`);
   }
   console.log();
 }

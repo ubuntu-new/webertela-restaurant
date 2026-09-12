@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "../globals.css";
 import { LOCALES, DEFAULT_LOCALE, SITE_URL, isLocale } from "@/lib/locales";
-import { db } from "@/lib/db";
+import { brandOf } from "@/lib/brand";
+import { NO_BRAND } from "@/lib/brand-shared";
 
 export function generateStaticParams() {
   return LOCALES.map((lang) => ({ lang }));
@@ -45,20 +46,32 @@ export async function generateMetadata({
    * cosmetic loss; refusing to render because metadata could not be built is
    * not.
    */
-  let name = "";
+  let b = NO_BRAND;
   try {
-    const org = await db.organization.findFirst({ select: { name: true } });
-    const n = org?.name as Record<string, string> | null | undefined;
-    name = (n?.[l] || n?.en || "").trim();
+    b = await brandOf(l);
   } catch {
     /* no title rather than a wrong one */
   }
 
-  const tagline = TAGLINE[l] ?? TAGLINE.en;
-  const title = name ? `${name} — ${tagline}` : tagline;
-  const description = name
-    ? `${name}. ${tagline}`
-    : tagline;
+  /**
+   * The restaurant's own words first.
+   *
+   * ⚠️ This line was a generic constant, and that cost Ronny's their search
+   * result. Their title had been "Fresh pizza delivery in Tbilisi" — hand
+   * written, with the two things anybody actually types into Google. Replacing
+   * the hardcoded title was right, because it named their city on every other
+   * tenant's site; replacing it with a sentence true of all restaurants and
+   * useful to none was not.
+   *
+   * `seoLine` is theirs when they have written one. The fallback stays neutral
+   * because a new restaurant has not told us anything yet, and inventing a city
+   * or a promise is how this started.
+   */
+  const line = b.seoLine || TAGLINE[l] || TAGLINE.en;
+  const name = b.name;
+
+  const title = name ? `${name} — ${line}` : line;
+  const description = b.seoDescription || (name ? `${name}. ${line}` : line);
 
   return {
     /**

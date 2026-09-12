@@ -39,6 +39,7 @@ export const brandOf = cache(async (lang: string = "en"): Promise<Brand> => {
       byKey.org,
       n?.[lang] || n?.en || "",
       toSocialLinks(byKey.social),
+      lang,
     );
   } catch {
     // Identity is decoration. A database that cannot be reached is already a
