@@ -4,6 +4,7 @@ import ClientApp from "@/components/ClientApp";
 import { getMenu } from "@/lib/menu-db";
 import { applyMenu, type Lang } from "@/lib/data";
 import { orgFormat } from "@/lib/format";
+import { brandOf } from "@/lib/brand";
 
 // მენიუ ბაზიდან. `revalidate` აჩერებს ყოველ ვიზიტზე მოთხოვნას;
 // admin-ში შენახვისას revalidatePath("/") მაშინვე განაახლებს.
@@ -40,5 +41,15 @@ export default async function Page({ params }: { params: Promise<{ lang: string 
   applyMenu(menu);
 
   const org = await orgFormat();
-  return <ClientApp lang={lang as Lang} menu={menu} menuFailed={menuFailed} org={org} />;
+  const brand = await brandOf(lang);
+
+  return (
+    <ClientApp
+      lang={lang as Lang}
+      menu={menu}
+      menuFailed={menuFailed}
+      org={org}
+      brand={brand}
+    />
+  );
 }

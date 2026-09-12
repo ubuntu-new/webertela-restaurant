@@ -5,15 +5,29 @@ import { useCart } from "@/lib/cart";
 import { SINGLE_LOCALE } from "@/lib/locales";
 
 export default function Header() {
-  const { lang, setLang, t } = useLang();
+  const { lang, setLang, t, brand } = useLang();
   const { openCart, count } = useCart();
 
   return (
     <header className="site-header">
       <div className="header-inner">
         <div className="header-brand">
-          <div className="header-logo">Ronny&apos;s</div>
-          <div className="header-motto">{t("motto")}</div>
+          {/*
+            The restaurant's own name, from the Organization row. This said
+            "Ronny's" for every tenant that ever ran this code.
+
+            ⚠️ The motto is gone from here, and the first attempt at removing it
+            was worse than leaving it: a check for whether the brand name began
+            with "Ronny". That is the same bug wearing a condition — one
+            customer's name compiled into software sold to others.
+
+            "Makes Life Better" is a slogan, and a slogan belongs to a business
+            rather than to a codebase. It lives in `Setting: org` as `tagline`
+            now: Ronny's keeps theirs, a new restaurant shows none until it has
+            one, and nobody inherits somebody else's.
+          */}
+          <div className="header-logo">{brand.name || t("menu")}</div>
+          {brand.tagline && <div className="header-motto">{brand.tagline}</div>}
         </div>
         <div className="header-actions">
           {/* A restaurant that offers one language has nothing to switch to;

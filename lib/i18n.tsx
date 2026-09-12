@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { makeFmt, FALLBACK, type Fmt, type OrgFormat } from "@/lib/format-shared";
+import { NO_BRAND, type Brand } from "@/lib/brand-shared";
 import { usePathname, useRouter } from "next/navigation";
 import type { Lang } from "./data";
 
@@ -20,13 +21,27 @@ export const I18N: Record<Lang, Record<string, string>> = {
     delivery: `Delivery`,
     rating: `rating`,
     min_order: `Min order`,
-    locations: `5 locations in Tbilisi`,
-    locations_short: `5 locations`,
+    /**
+     * ⚠️ These said "5 locations in Tbilisi" and "5 locations".
+     *
+     * A translation file is for words, and this was a fact — about how many
+     * branches a particular restaurant had and which city they were in. It
+     * stayed "5 locations in Tbilisi" on a single-branch restaurant in Monroe,
+     * and it would have stayed "5" for Ronny's too if they had opened a sixth.
+     *
+     * The count is now filled in by TrustBar from the branches it was given,
+     * and the city is gone: nothing here knows it, and inventing one is how
+     * this line got wrong in the first place.
+     */
+    locations: `{n} locations`,
+    locations_one: `1 location`,
+    locations_short: `{n} locations`,
     nav_combos: `Combos`,
     nav_pizza: `Pizza`,
     nav_extras: `Extras`,
     nav_drinks: `Drinks`,
-    nav_about: `Who is Ronny?`,
+    // Was "Who is Ronny?" — a menu tab naming somebody else's founder.
+    nav_about: `About us`,
     combos_heading: `Combos & deals`,
     combos_unit: `deals`,
     combo_includes: `Includes`,
@@ -157,13 +172,14 @@ export const I18N: Record<Lang, Record<string, string>> = {
     delivery: `მიწოდება`,
     rating: `შეფასება`,
     min_order: `მინ. შეკვ.`,
-    locations: `5 ფილიალი თბილისში`,
-    locations_short: `5 ფილიალი`,
+    locations: `{n} ფილიალი`,
+    locations_one: `1 ფილიალი`,
+    locations_short: `{n} ფილიალი`,
     nav_combos: `კომბო`,
     nav_pizza: `პიცა`,
     nav_extras: `დამატებები`,
     nav_drinks: `სასმელი`,
-    nav_about: `ვინ არის რონი?`,
+    nav_about: `ჩვენ შესახებ`,
     combos_heading: `კომბო და აქციები`,
     combos_unit: `აქცია`,
     combo_includes: `შედის`,
@@ -303,6 +319,23 @@ interface LangCtx {
    * it down here — the same trick as the admin's language.
    */
   f: Fmt;
+  /**
+   * Whose restaurant this is.
+   *
+   * ⚠️ It was written into the components — "Ronny's" in the header, in the
+   * footer, in the copyright line and under the about text; "Who is Ronny?" as
+   * a menu tab; "5 locations in Tbilisi" in the trust bar. Every tenant that
+   * ever ran this code served all of it, so a restaurant in Monroe opened its
+   * own site and found another business's name across the top of it.
+   *
+   * It travels the same way the currency does: read once on the server, handed
+   * down here, because the storefront runs in a browser and cannot ask the
+   * database whose it is.
+   *
+   * Empty is possible — a tenant whose organization row has no name yet — and
+   * the components fall back to a neutral word rather than to a name.
+   */
+  brand: Brand;
 }
 
 const Ctx = createContext<LangCtx | null>(null);
@@ -312,11 +345,14 @@ const Ctx = createContext<LangCtx | null>(null);
 export function LangProvider({
   initialLang,
   org,
+  brand,
   children,
 }: {
   initialLang: Lang;
   /** From `orgFormat()` in the server layout. Falls back to en-US / USD. */
   org?: OrgFormat;
+  /** What the restaurant says about itself. See lib/brand.ts. */
+  brand?: Brand;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -336,7 +372,11 @@ export function LangProvider({
   // Rebuilt only when the organisation changes, which is never within a session.
   const f = useMemo(() => makeFmt(org ?? FALLBACK), [org]);
 
-  return <Ctx.Provider value={{ lang, setLang, t, f }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ lang, setLang, t, f, brand: brand ?? NO_BRAND }}>
+      {children}
+    </Ctx.Provider>
+  );
 }
 
 export function useLang(): LangCtx {

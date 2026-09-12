@@ -4,6 +4,7 @@ import { LangProvider } from "@/lib/i18n";
 import { CartProvider } from "@/lib/cart";
 import { applyMenu, type Lang, type MenuPayload } from "@/lib/data";
 import type { OrgFormat } from "@/lib/format-shared";
+import type { Brand } from "@/lib/brand-shared";
 import AppViewport from "@/components/AppViewport";
 import Header from "@/components/Header";
 import TrustBar from "@/components/TrustBar";
@@ -23,6 +24,7 @@ export default function ClientApp({
   menu,
   menuFailed,
   org,
+  brand,
 }: {
   lang: Lang;
   menu?: MenuPayload | null;
@@ -35,6 +37,8 @@ export default function ClientApp({
   menuFailed?: boolean;
   /** The restaurant's currency and date format, read on the server. */
   org?: OrgFormat;
+  /** What the restaurant says about itself, read on the server. lib/brand.ts */
+  brand?: Brand;
 }) {
   // ბრაუზერშიც უნდა შეივსოს — და შვილების რენდერამდე, სინქრონულად.
   // useState-ის initializer ზუსტად ერთხელ გაეშვება, პირველი რენდერის დროს.
@@ -44,7 +48,7 @@ export default function ClientApp({
   });
 
   return (
-    <LangProvider initialLang={lang} org={org}>
+    <LangProvider initialLang={lang} org={org} brand={brand}>
       <CartProvider>
         <AppViewport>
           <Header />

@@ -36,7 +36,7 @@ function imgError(e: React.SyntheticEvent<HTMLImageElement>) {
 const slice = { __html: SLICE_SVG };
 
 export default function MenuBody() {
-  const { lang, t, f } = useLang();
+  const { lang, t, f, brand } = useLang();
   const { openCustomizer, openHH, openCombo } = useCart();
 
   /**
@@ -331,7 +331,7 @@ function ItemRow({ items }: { items: Item[] }) {
 }
 
 function AboutSection() {
-  const { lang, t } = useLang();
+  const { lang, t, brand } = useLang();
   return (
     <section className="about-page" id="section-about">
       <div className="about-hero">
@@ -416,7 +416,7 @@ function AboutSection() {
       </div>
 
       <div className="about-signature">
-        <div className="about-sig-name">Ronny&apos;s Pizza</div>
+        <div className="about-sig-name">{brand.name}</div>
         <div className="about-sig-tag">{t("about_signature_tag")}</div>
       </div>
     </section>

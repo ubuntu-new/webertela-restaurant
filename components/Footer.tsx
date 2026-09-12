@@ -24,7 +24,7 @@ const ICONS: Record<SocialId, React.ReactNode> = {
 };
 
 export default function Footer() {
-  const { t } = useLang();
+  const { t, brand } = useLang();
   const year = new Date().getFullYear();
   const socials = SOCIAL_LINKS.filter((s) => s.enabled && s.href);
 
@@ -43,8 +43,8 @@ export default function Footer() {
     <footer className="site-footer">
       <div className="footer-inner">
         <div className="footer-brand">
-          <div className="footer-logo">Ronny&apos;s</div>
-          <p className="footer-motto">{t("motto")}</p>
+          <div className="footer-logo">{brand.name || t("menu")}</div>
+          {brand.tagline && <p className="footer-motto">{brand.tagline}</p>}
           {socials.length > 0 && (
             <div className="footer-social" aria-label={t("footer_follow")}>
               {socials.map((s) => (
@@ -77,8 +77,15 @@ export default function Footer() {
       </div>
 
       <div className="footer-bottom">
+        {/*
+          ⚠️ A copyright line naming the wrong company is not a cosmetic bug.
+          It is a public assertion about who owns the business, printed at the
+          bottom of every page, and it said "Ronny's Pizza" on every tenant.
+          When there is no name yet, the year alone is true and sufficient.
+        */}
         <span>
-          © {year} Ronny&apos;s Pizza. {t("footer_rights")}
+          © {year}
+          {brand.name ? ` ${brand.name}.` : "."} {t("footer_rights")}
         </span>
       </div>
     </footer>

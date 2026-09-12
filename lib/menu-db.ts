@@ -147,7 +147,23 @@ export async function getMenu(): Promise<MenuPayload> {
       b.hours && typeof b.hours === "object" && "display" in (b.hours as Record<string, unknown>)
         ? txt((b.hours as Record<string, unknown>).display, "en")
         : "";
-    const label = `Ronny's Pizza ${txt(b.name, "en")}, ${txt(b.address, "en")}, Tbilisi`;
+    /**
+     * ⚠️ The branch name and its address, and nothing else.
+     *
+     * This used to read:
+     *
+     *   `Ronny's Pizza ${name}, ${address}, Tbilisi`
+     *
+     * so the "directions" button on a Monroe restaurant's site opened Google
+     * Maps searching for "Ronny's Pizza Main, 1 Test Street, Monroe, NY 10950,
+     * Tbilisi" — a real address wrapped in another business's name and a city
+     * eight thousand kilometres away. A customer pressing it did not get lost;
+     * they got somebody else's pizzeria, which is worse.
+     *
+     * The address alone is what identifies a place on a map. Anything added to
+     * it is a guess about the business, and the guess was baked in.
+     */
+    const label = `${txt(b.name, "en")}, ${txt(b.address, "en")}`;
     return {
       id: b.id.replace(/^br-/, ""),
       branch: txt(b.name, "en"),
