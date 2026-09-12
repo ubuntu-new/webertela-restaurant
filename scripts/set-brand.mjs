@@ -41,22 +41,54 @@ if (arg('rating') !== undefined) patch.rating = arg('rating');
  *   --seo-line "Fresh pizza delivery in Monroe"  what the browser tab and the
  *                                                Google result say
  *
- * Both accept `en=…,ka=…` for a restaurant with two languages, because a title
- * in the wrong language is worse than a plain one.
+ * ── One flag per language, and never a separator inside the text ──
+ *
+ * The first version accepted `en=…,ka=…` and split on commas. It worked on
+ * --seo-line, which happened to contain none, and destroyed the first real
+ * --seo-description it was given: the sentence shattered at every comma and
+ * each fragment became a language key.
+ *
+ *   {"en":"Order fresh","hand-built pizza for delivery across Tbilisi. 13 pizza":…}
+ *
+ * Any separator chosen for prose will eventually appear in the prose. So there
+ * is no separator: a second language gets a second flag.
+ *
+ *   --seo-line "Pizza delivery in Monroe"  --seo-line-ka "პიცის მიტანა"
  */
-const i18nArg = (v) => {
-  if (v === undefined) return undefined;
-  if (!/^[a-z]{2}=/.test(v)) return v;
-  return Object.fromEntries(
-    v.split(',').map((pair) => {
-      const at = pair.indexOf('=');
-      return [pair.slice(0, at).trim(), pair.slice(at + 1).trim()];
-    }),
-  );
-};
+const LANGS = ['en', 'ka'];
 
-if (arg('seo-line') !== undefined) patch.seoLine = i18nArg(arg('seo-line'));
-if (arg('seo-description') !== undefined) patch.seoDescription = i18nArg(arg('seo-description'));
+function i18nPatch(base, existing) {
+  const out = {};
+
+  // Whatever is already stored, so setting one language does not erase the
+  // other. A stored plain string is treated as the English one.
+  if (typeof existing === 'string' && existing) out.en = existing;
+  else if (existing && typeof existing === 'object') Object.assign(out, existing);
+
+  const primary = arg(base);
+  if (primary !== undefined) out.en = primary;
+
+  for (const l of LANGS) {
+    const v = arg(`${base}-${l}`);
+    if (v !== undefined) out[l] = v;
+  }
+
+  return Object.keys(out).length ? out : undefined;
+}
+
+const orgRow = await db.setting.findUnique({ where: { key: 'org' } });
+const orgValue = orgRow?.value ?? {};
+
+for (const field of [
+  ['seo-line', 'seoLine'],
+  ['seo-description', 'seoDescription'],
+]) {
+  const [flag, key] = field;
+  const touched =
+    arg(flag) !== undefined || LANGS.some((l) => arg(`${flag}-${l}`) !== undefined);
+  if (!touched) continue;
+  patch[key] = i18nPatch(flag, orgValue[key]);
+}
 if (process.argv.includes('--clear-rating')) patch.rating = '';
 if (process.argv.includes('--clear-delivery')) patch.deliveryTime = '';
 
@@ -91,7 +123,9 @@ Nothing to set.
   --clear-rating      stop claiming a rating
   --clear-delivery    stop promising a delivery time
 
-  Two languages:  --seo-line "en=Pizza delivery in Monroe,ka=პიცის მიტანა"
+  Second language: a second flag, never a separator inside the sentence
+    --seo-line-ka "პიცის მიტანა თბილისში"
+    --seo-description-ka "..."
 
   --facebook  https://www.facebook.com/theirpage
   --instagram https://www.instagram.com/theirpage
@@ -162,7 +196,7 @@ if (Object.keys(socialPatch).length) {
 // Only touched when there is something for it. Setting socials alone should not
 // fail on a tenant whose `org` row does not exist yet.
 if (Object.keys(patch).length) {
-  const row = await db.setting.findUnique({ where: { key: 'org' } });
+  const row = orgRow;
   if (!row) {
     console.error(
       '✗ there is no `org` setting yet — run scripts/create-org.mjs first, it creates one',
