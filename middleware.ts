@@ -63,8 +63,38 @@ function publicUrl(req: NextRequest, pathname: string): URL {
    * Only the scheme needs help: TLS ends at Caddy, so the request arrives as
    * http and `x-forwarded-proto` is the one honest thing it adds.
    */
+  /**
+   * ⚠️ hostname and port set separately, and never `url.host = …`.
+   *
+   * Assigning `host` looks like it replaces both. It does not: given a value
+   * with no port, the URL spec leaves the existing port **untouched**. So
+   *
+   *   url.host = "testkitchen.webertela.online"   // request arrived on :3006
+   *
+   * produced `https://testkitchen.webertela.online:3006/admin/login` — the
+   * public hostname with the internal port stapled to it, which is a worse
+   * address than either half.
+   *
+   * That is the mirror image of the bug being fixed. The old code cleared the
+   * port unconditionally and was right behind Caddy and wrong on a tunnel; the
+   * first attempt at a fix preserved it unconditionally and was right on a
+   * tunnel and wrong behind Caddy. Both were tested against one case.
+   *
+   * The Host header already carries the answer — a port when the browser used
+   * one, none when it did not. Reading both halves out of it is the only
+   * version that is right in both places.
+   */
   const host = req.headers.get("host");
-  if (host) url.host = host; // assigning `host` sets the port too, or clears it
+  if (host) {
+    // lastIndexOf, and a digits check, so `[::1]:3006` and a bare IPv6 host
+    // both survive.
+    const at = host.lastIndexOf(":");
+    const port = at > -1 ? host.slice(at + 1) : "";
+    const hasPort = at > -1 && /^\d+$/.test(port);
+
+    url.hostname = hasPort ? host.slice(0, at) : host;
+    url.port = hasPort ? port : "";
+  }
 
   const proto = req.headers.get("x-forwarded-proto");
   if (proto) url.protocol = `${proto.split(",")[0].trim()}:`;
