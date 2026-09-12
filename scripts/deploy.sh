@@ -31,13 +31,63 @@ APP="${1:-$PWD}"
 [ -d "$APP" ] || { echo "!! $APP does not exist"; exit 1; }
 cd "$APP"
 
-SERVICE="$(basename "$APP")"
 BUILD_DIR=".next-build"
 PREV_DIR=".next-previous"
 
 say()  { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 warn() { printf '\033[33m   %s\033[0m\n' "$*"; }
 die()  { printf '\n\033[31m!! %s\033[0m\n' "$*"; exit 1; }
+
+# ── which systemd unit serves this directory ──────────────────────────────────
+#
+# ⚠️ Not `basename "$APP"`, which is what this was.
+#
+# The directory is /srv/ronnys-next and the unit is `ronnys`. They do not have
+# to match and here they never did, so the deploy stopped at the port lookup
+# with "could not find the port for ronnys-next" — after the code had already
+# been pulled and the migrations already applied, leaving a half-finished
+# release on a live restaurant.
+#
+# The guard did its job: it refused rather than guessing, and the last guess it
+# made probed another customer's site. But refusing on a fact that is sitting
+# right there in systemd is a stop that did not need to happen.
+#
+# So the unit is found by asking which one runs from this directory. That is the
+# actual relationship; the naming convention was only ever a hopeful shorthand.
+#
+# An explicit second argument still wins, for the case of two units pointed at
+# one directory — which nothing here does, and which would be ambiguous rather
+# than wrong.
+find_service() {
+  local guess unit wd
+  guess="$(basename "$APP")"
+
+  # The convention, when it happens to hold.
+  if systemctl cat "$guess.service" >/dev/null 2>&1; then
+    wd="$(systemctl show -p WorkingDirectory --value "$guess.service" 2>/dev/null)"
+    [ "$wd" = "$APP" ] && { printf '%s' "$guess"; return 0; }
+  fi
+
+  # Otherwise ask. `--all` so a stopped service is still found: this script is
+  # sometimes a repair, and a unit that is down is exactly the one to restart.
+  while read -r unit; do
+    wd="$(systemctl show -p WorkingDirectory --value "$unit" 2>/dev/null)"
+    if [ "$wd" = "$APP" ]; then
+      printf '%s' "${unit%.service}"
+      return 0
+    fi
+  done < <(systemctl list-units --type=service --all --no-legend --plain 2>/dev/null | awk '{print $1}')
+
+  return 1
+}
+
+SERVICE="${2:-}"
+if [ -z "$SERVICE" ]; then
+  SERVICE="$(find_service)" || die "no systemd unit has WorkingDirectory=$APP.
+   Either this directory is not deployed as a service, or the unit is pointed
+   somewhere else. Refusing to guess a name — pass it explicitly if you are sure:
+       bash scripts/deploy.sh $APP <unit-name>"
+fi
 
 [ -f package.json ] || die "not a Next project — wrong directory?"
 [ -f .env ] || die "no .env in $APP"
@@ -108,6 +158,10 @@ health_kind() {
 }
 
 say "before"
+# The unit and the port, said out loud. Every wrong-target failure this script
+# has had looked correct until somebody checked which service and which port it
+# was actually talking about.
+echo "   service $SERVICE  ·  port $PORT  ·  $APP"
 if was_up; then
   echo "   site is up on :$PORT $(health_kind)"
 else
