@@ -40,31 +40,64 @@ const ORDER: SocialId[] = ["facebook", "instagram", "tiktok", "twitter", "youtub
 /**
  * Read `Setting: social` into links.
  *
- * Accepts the shape a person would reasonably store:
+ * ── Two shapes, and the array is the real one ──
  *
- *   { "facebook": "https://facebook.com/theirpage", "instagram": "..." }
+ * ⚠️ The first version of this parser read only an object:
  *
- * Anything not a recognised network, and anything that is not an http(s) URL,
- * is dropped rather than rendered. A "follow us" button that goes nowhere is
- * worse than an absent one, and a `javascript:` href in a settings row is a
- * stored cross-site scripting hole waiting for an admin account to be careless.
+ *   { "facebook": "https://facebook.com/theirpage", … }
+ *
+ * which is the shape somebody writing the row by hand would choose, and is not
+ * the shape production actually holds. `app/admin/settings/actions.ts:95` reads
+ * the row, requires `Array.isArray`, and maps over the existing entries:
+ *
+ *   const list = Array.isArray(current?.value) ? … : [];
+ *   const next = list.map(item => ({ id, label, href, enabled }));
+ *
+ * So an object-shaped row makes `list` empty, `next` empty, and the next save
+ * in the admin **deletes every social link** — silently, on a button that says
+ * Save. Writing the object shape would have been a change to the data that
+ * broke a page nobody would have thought to retest.
+ *
+ * The array is also the better shape: it carries `enabled`, so a restaurant can
+ * hide a network without losing the address. It stays the canonical one, and
+ * the object is accepted for a row typed in by hand.
  */
 export function toSocialLinks(v: unknown): SocialLink[] {
-  const o = (v ?? {}) as Record<string, unknown>;
-  const out: SocialLink[] = [];
+  const ok = (href: unknown): href is string =>
+    typeof href === "string" && /^https?:\/\//i.test(href.trim());
 
-  for (const id of ORDER) {
-    const raw = o[id];
-    if (typeof raw !== "string") continue;
+  // The shape the admin writes and production holds.
+  if (Array.isArray(v)) {
+    const out: SocialLink[] = [];
+    for (const raw of v) {
+      const item = (raw ?? {}) as Record<string, unknown>;
+      const id = String(item.id ?? "");
+      if (!(ORDER as string[]).includes(id)) continue;
+      if (item.enabled === false) continue;
+      if (!ok(item.href)) continue;
 
-    const href = raw.trim();
-    if (!href) continue;
-    if (!/^https:\/\/|^http:\/\//i.test(href)) continue;
-
-    out.push({ id, label: LABELS[id], href });
+      out.push({
+        id: id as SocialId,
+        label: String(item.label ?? LABELS[id as SocialId]),
+        href: (item.href as string).trim(),
+      });
+    }
+    // Sorted into display order rather than trusting the stored order, which
+    // the admin form does not control.
+    return out.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
   }
 
-  // Anything stored under an unknown key is ignored on purpose: the icon map
-  // has no glyph for it, so the button would render blank.
+  // The shape a person would write by hand.
+  const o = (v ?? {}) as Record<string, unknown>;
+  const out: SocialLink[] = [];
+  for (const id of ORDER) {
+    if (!ok(o[id])) continue;
+    out.push({ id, label: LABELS[id], href: (o[id] as string).trim() });
+  }
+
+  // Anything under an unknown key is ignored on purpose: the icon map has no
+  // glyph for it, so the button would render blank. And a non-http href is
+  // dropped rather than printed — a settings row is exactly where a
+  // `javascript:` link would sit waiting for a careless admin account.
   return out;
 }

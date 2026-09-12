@@ -77,16 +77,56 @@ Nothing to set.
 }
 
 if (Object.keys(socialPatch).length) {
+  /**
+   * ⚠️ Written as an ARRAY, because that is what the admin requires.
+   *
+   * `app/admin/settings/actions.ts:95` does:
+   *
+   *   const list = Array.isArray(current?.value) ? … : [];
+   *   const next = list.map(...)
+   *
+   * An object-shaped row therefore makes the list empty, and the next time
+   * anybody presses Save in the settings page every social link is deleted.
+   * The first version of this script wrote an object and would have armed
+   * exactly that.
+   *
+   * Entries are merged by id so an existing label or a disabled network is
+   * preserved, and a href set to "" disables rather than removes — the address
+   * is worth keeping when a restaurant just wants the button hidden.
+   */
+  const LABELS = {
+    facebook: 'Facebook',
+    instagram: 'Instagram',
+    tiktok: 'TikTok',
+    twitter: 'X',
+    youtube: 'YouTube',
+  };
+
   const existing = await db.setting.findUnique({ where: { key: 'social' } });
-  const value = { ...(existing?.value ?? {}), ...socialPatch };
+  const list = Array.isArray(existing?.value) ? existing.value : [];
+  const byId = new Map(list.map((x) => [String(x?.id ?? ''), x]));
+
+  for (const [id, href] of Object.entries(socialPatch)) {
+    const prev = byId.get(id) ?? {};
+    byId.set(id, {
+      id,
+      label: String(prev.label ?? LABELS[id] ?? id),
+      href,
+      enabled: href !== '',
+    });
+  }
+
+  const value = SOCIALS.filter((id) => byId.has(id)).map((id) => byId.get(id));
+
   await db.setting.upsert({
     where: { key: 'social' },
     update: { value },
     create: { key: 'social', value },
   });
+
   console.log('✓ social links updated');
   for (const [k, v] of Object.entries(socialPatch)) {
-    console.log(`  ${k.padEnd(14)} ${v === '' ? '(removed)' : v}`);
+    console.log(`  ${k.padEnd(14)} ${v === '' ? '(hidden)' : v}`);
   }
   console.log();
 }
