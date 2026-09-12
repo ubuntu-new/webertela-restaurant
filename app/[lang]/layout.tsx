@@ -1,24 +1,32 @@
 import type { Metadata, Viewport } from "next";
 import "../globals.css";
 import { LOCALES, DEFAULT_LOCALE, SITE_URL, isLocale } from "@/lib/locales";
+import { db } from "@/lib/db";
 
 export function generateStaticParams() {
   return LOCALES.map((lang) => ({ lang }));
 }
 
-const META: Record<string, { title: string; description: string; ogLocale: string }> = {
-  en: {
-    title: "Ronny's Pizza — Fresh pizza delivery in Tbilisi",
-    description:
-      "Order fresh, hand-built pizza for delivery across Tbilisi. 13 pizzas, a half-and-half builder, custom toppings and combo deals. 30–45 min, 4.8★ rated.",
-    ogLocale: "en_US",
-  },
-  ka: {
-    title: "Ronny's Pizza — ახალი პიცის მიტანა თბილისში",
-    description:
-      "შეუკვეთე ახალი, ხელით ნაკეთები პიცა თბილისში მიტანით. 13 პიცა, ნახევარ-ნახევრის კონსტრუქტორი, ტოპინგები და კომბო აქციები. 30–45 წთ, 4.8★.",
-    ogLocale: "ka_GE",
-  },
+/**
+ * ⚠️ The title used to be written here, and it said "Ronny's Pizza — Fresh
+ * pizza delivery in Tbilisi" for every tenant that ever ran this code.
+ *
+ * That is the single most visible thing on a page. It is the browser tab, the
+ * Google result, the Facebook share card and the bookmark. A brand-new
+ * restaurant in Monroe opened its own site and found somebody else's name in
+ * the tab — with `og:site_name` and the description to match, promising pizza
+ * delivery across Tbilisi and a 4.8★ rating it had never earned.
+ *
+ * The name now comes from the Organization row, which is the only place that
+ * knows whose restaurant this is. The rest of the sentence is generic on
+ * purpose: a claim about delivery times or ratings belongs to a business, and
+ * this file does not know which business it is serving until it asks.
+ */
+const ogLocaleOf: Record<string, string> = { en: "en_US", ka: "ka_GE" };
+
+const TAGLINE: Record<string, string> = {
+  en: "Order online for delivery or pickup.",
+  ka: "შეუკვეთე ონლაინ — მიტანით ან წაღებით.",
 };
 
 export async function generateMetadata({
@@ -28,7 +36,30 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { lang } = await params;
   const l = isLocale(lang) ? lang : DEFAULT_LOCALE;
-  const m = META[l];
+
+  /**
+   * Asked, not assumed — and a failure here must not take the page down.
+   *
+   * If the database is unreachable the visitor should still get the menu page
+   * (which has its own honest message about that). Losing the title is a
+   * cosmetic loss; refusing to render because metadata could not be built is
+   * not.
+   */
+  let name = "";
+  try {
+    const org = await db.organization.findFirst({ select: { name: true } });
+    const n = org?.name as Record<string, string> | null | undefined;
+    name = (n?.[l] || n?.en || "").trim();
+  } catch {
+    /* no title rather than a wrong one */
+  }
+
+  const tagline = TAGLINE[l] ?? TAGLINE.en;
+  const title = name ? `${name} — ${tagline}` : tagline;
+  const description = name
+    ? `${name}. ${tagline}`
+    : tagline;
+
   return {
     /**
      * ⚠️ `new URL("")` throws, so this has to be conditional.
@@ -43,21 +74,24 @@ export async function generateMetadata({
      * which are valid and are right on whatever host is serving.
      */
     metadataBase: SITE_URL ? new URL(SITE_URL) : undefined,
-    title: m.title,
-    description: m.description,
+    title,
+    description,
     alternates: {
       canonical: `/${l}`,
       languages: { en: "/en", ka: "/ka", "x-default": `/${DEFAULT_LOCALE}` },
     },
     openGraph: {
       type: "website",
-      siteName: "Ronny's Pizza",
-      title: m.title,
-      description: m.description,
+      // Undefined rather than a placeholder: an og:site_name naming the wrong
+      // restaurant is worse than none, because it is what Facebook prints on
+      // the card.
+      siteName: name || undefined,
+      title,
+      description,
       url: `/${l}`,
-      locale: m.ogLocale,
+      locale: ogLocaleOf[l] ?? "en_US",
     },
-    twitter: { card: "summary_large_image", title: m.title, description: m.description },
+    twitter: { card: "summary_large_image", title, description },
   };
 }
 
