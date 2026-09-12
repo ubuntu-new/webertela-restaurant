@@ -15,8 +15,20 @@ scripts/serviceAccount.json
 
 *.orig
 
-# npm cache created by running as a service user
+# ── Written into the repository because the service user lives in it ──────
+#
+# Each tenant's system user has its home set to the application directory, so
+# anything a tool writes to $HOME lands beside the source: npm's cache, and the
+# .cache / .config that npm, prisma and Next create on a whim.
+#
+# They are not edits and they are not artifacts worth keeping — but they made
+# the deploy guard refuse to run, mid-release, on a live restaurant with the
+# migrations already applied. That is the whole cost of leaving junk untracked:
+# not the junk, the check that trips over it at the worst moment.
 .npm/
+/.cache/
+/.config/
+/.local/
 
 # Scratch and rollback copies of the build. `scripts/deploy.sh` builds into
 # .next-build, keeps the outgoing build in .next-previous, and parks a build
