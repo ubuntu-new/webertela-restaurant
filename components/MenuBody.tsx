@@ -340,52 +340,64 @@ function ItemRow({ items }: { items: Item[] }) {
 
 function AboutSection() {
   const { lang, t, brand } = useLang();
+
+  // Neither a story nor a branch to show. An empty <section> is still a gap in
+  // the page and an anchor the menu can scroll to — better not to be there.
+  if (!brand.aboutBody && LOCATIONS.length === 0) return null;
+
   return (
     <section className="about-page" id="section-about">
-      <div className="about-hero">
-        <h2 className="about-h1">{t("about_h1")}</h2>
-        <p className="about-lede">{t("about_lede")}</p>
-      </div>
+      {/*
+        ⚠️ The story, from the restaurant — and absent when there is none.
 
-      <div className="about-section">
-        <p>{t("about_p1")}</p>
-        <p>{t("about_p2")}</p>
-      </div>
+        This used to be twenty-six translation keys: a heading, a lede and
+        eleven paragraphs written for one pizzeria, rendered on every tenant's
+        site. "We're an American pizza shop in Tbilisi. Five locations. Since
+        2009." A restaurant in Monroe told its customers that.
 
-      <div className="about-section about-section-tinted">
-        <h3 className="about-h2">{t("about_h2_people")}</h3>
-        <p>{t("about_p3")}</p>
-        <p>{t("about_p4")}</p>
-      </div>
+        There is no generic version of this to fall back to, and inventing one
+        would be a business writing its own About page in a codebase it has
+        never seen. So when it is empty, nothing renders — and CatNav drops the
+        tab, because a link to an empty page is worse than no link.
 
-      <div className="about-section">
-        <h3 className="about-h2">{t("about_h2_360")}</h3>
-        <p>{t("about_p5")}</p>
-        <p>{t("about_p6")}</p>
-        <p>{t("about_p7")}</p>
-      </div>
+        Paragraphs are split on blank lines. Anything more structured than that
+        belongs to a restaurant that asks for it.
+      */}
+      {brand.aboutBody && (
+        <>
+          <div className="about-hero">
+            {brand.aboutHeading && <h2 className="about-h1">{brand.aboutHeading}</h2>}
+          </div>
 
-      <div className="about-section">
-        <h3 className="about-h2">{t("about_h2_room")}</h3>
-        <ul className="about-list">
-          <li>{t("about_room_1")}</li>
-          <li>{t("about_room_2")}</li>
-          <li>{t("about_room_3")}</li>
-          <li>{t("about_room_4")}</li>
-          <li>{t("about_room_5")}</li>
-          <li>{t("about_room_6")}</li>
-        </ul>
-      </div>
+          <div className="about-section">
+            {brand.aboutBody
+              .split(/\n\s*\n/)
+              .map((para) => para.trim())
+              .filter(Boolean)
+              .map((para, i) => (
+                <p key={i}>{para}</p>
+              ))}
+          </div>
+        </>
+      )}
 
-      <div className="about-section about-section-tinted">
-        <h3 className="about-h2">{t("about_h2_practice")}</h3>
-        <p>{t("about_p8")}</p>
-        <p>{t("about_p9")}</p>
-      </div>
+      {/*
+        Find us stays, because it is the one part of this page that was never
+        anybody's story — it is the branches, read from the database. It hides
+        only when there are none, which is a restaurant that has not finished
+        setting up rather than one with nothing to say.
 
+        The line under the heading said "Five Tbilisi locations" and is now
+        counted, for the same reason the trust bar's was.
+      */}
+      {LOCATIONS.length > 0 && (
       <div className="about-section about-find-us" id="section-find-us">
         <h3 className="about-h2">{t("about_h2_find")}</h3>
-        <p className="about-find-intro">{t("about_p10")}</p>
+        <p className="about-find-intro">
+          {LOCATIONS.length === 1
+            ? t("locations_one")
+            : t("locations").replace("{n}", String(LOCATIONS.length))}
+        </p>
         <ul className="about-locations">
           {LOCATIONS.map((loc) => (
             <li className="loc-card" key={loc.id}>
@@ -417,16 +429,21 @@ function AboutSection() {
           ))}
         </ul>
       </div>
+      )}
 
-      <div className="about-closing">
-        <p className="about-closing-line">{t("about_closing_a")}</p>
-        <p className="about-closing-line about-closing-emph">{t("about_closing_b")}</p>
-      </div>
-
-      <div className="about-signature">
-        <div className="about-sig-name">{brand.name}</div>
-        <div className="about-sig-tag">{t("about_signature_tag")}</div>
-      </div>
+      {/*
+        The closing lines and the signature were Ronny's too — "Pizza is what we
+        make. Making life better is why we make it." and "Life tastes better
+        here." They belong to whoever wrote them, so they are shown only where
+        there is a story for them to close, and the strapline under the name is
+        the restaurant's own tagline rather than a sentence about pizza.
+      */}
+      {brand.aboutBody && (
+        <div className="about-signature">
+          <div className="about-sig-name">{brand.name}</div>
+          {brand.tagline && <div className="about-sig-tag">{brand.tagline}</div>}
+        </div>
+      )}
     </section>
   );
 }

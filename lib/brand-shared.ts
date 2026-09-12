@@ -55,6 +55,26 @@ export interface Brand {
   /** The meta description. Same rule: theirs if they have one. */
   seoDescription: string;
   /**
+   * The About page, in the restaurant's own words.
+   *
+   * ⚠️ Twenty-six translation keys used to hold this — a complete brand story
+   * written for one pizzeria and shipped to every tenant:
+   *
+   *   "We're an American pizza shop in Tbilisi. Five locations. Since 2009."
+   *   "We don't want Ronny's to be just another place to buy pizza."
+   *
+   * A translation file is for words the software says. This is a business
+   * speaking about itself, and no other business can borrow it — not with the
+   * name changed, not at all. There is nothing generic underneath it to fall
+   * back to, which is why the fallback is nothing: no story, no section, and
+   * no tab in the menu pointing at one.
+   *
+   * `body` is plain text; blank lines separate paragraphs. Structure beyond
+   * that belongs to a restaurant that wants it, not to a schema.
+   */
+  aboutHeading: string;
+  aboutBody: string;
+  /**
    * Where it can be followed, from `Setting: social`.
    *
    * These were three hardcoded links to Ronny's Facebook, Instagram and TikTok,
@@ -71,6 +91,8 @@ export const NO_BRAND: Brand = {
   rating: "",
   seoLine: "",
   seoDescription: "",
+  aboutHeading: "",
+  aboutBody: "",
   socials: [],
 };
 
@@ -104,6 +126,8 @@ export function toBrand(
     rating: str("rating"),
     seoLine: str("seoLine"),
     seoDescription: str("seoDescription"),
+    aboutHeading: str("aboutHeading"),
+    aboutBody: str("aboutBody"),
     socials,
   };
 }

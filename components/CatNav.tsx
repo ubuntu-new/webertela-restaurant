@@ -12,8 +12,20 @@ const TABS: { key: string; target: string }[] = [
 ];
 
 export default function CatNav() {
-  const { t } = useLang();
+  const { t, brand } = useLang();
   const [active, setActive] = useState("section-pizza");
+
+  /**
+   * The About tab only when there is an About page.
+   *
+   * MenuBody renders nothing there for a restaurant with no story and no
+   * branches, so the tab was a link that scrolled to an anchor which did not
+   * exist — a control that appears to do nothing, which reads as broken
+   * software rather than as an empty page.
+   */
+  const tabs = TABS.filter(
+    (tab) => tab.target !== "section-about" || Boolean(brand.aboutBody),
+  );
 
   const go = (target: string) => {
     setActive(target);
@@ -22,7 +34,7 @@ export default function CatNav() {
 
   return (
     <nav className="cat-nav">
-      {TABS.map((tab) => (
+      {tabs.map((tab) => (
         <button
           key={tab.target}
           className={`cat-tab${active === tab.target ? " active" : ""}`}

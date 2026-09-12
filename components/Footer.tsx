@@ -30,11 +30,12 @@ export default function Footer() {
   // to Ronny's accounts, shown under "Follow us" on every tenant's footer.
   const socials = brand.socials;
 
+  // Same rule as CatNav: no About page, no link to it.
   const quick: { key: string; target: string }[] = [
     { key: "nav_combos", target: "section-combos" },
     { key: "nav_pizza", target: "section-pizza" },
     { key: "nav_extras", target: "section-extras" },
-    { key: "nav_about", target: "section-about" },
+    ...(brand.aboutBody ? [{ key: "nav_about", target: "section-about" }] : []),
   ];
 
   const scrollTo = (id: string) => {
